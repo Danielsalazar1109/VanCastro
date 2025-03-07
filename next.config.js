@@ -5,6 +5,9 @@ const nextConfig = {
   experimental: {
     appDir: true,
   },
+  images: {
+    domains: ['framerusercontent.com'],
+  },
 }
 
 module.exports = nextConfig
