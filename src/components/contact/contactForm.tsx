@@ -94,7 +94,7 @@ const ContactForm = ({ recipientEmail = 'vancastroadmi@gmail.com' }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-yellow-300 rounded-lg p-6">
+    <div className="w-full max-w-2xl mx-auto bg-yellow-400 rounded-lg p-6">
       {status.submitted ? (
         <div className={`p-4 rounded-md ${status.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
           <p className="text-center font-medium">{status.message}</p>
