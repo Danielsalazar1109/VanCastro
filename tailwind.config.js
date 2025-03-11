@@ -8,6 +8,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Brand colors from header and footer
+        brand: {
+          dark: '#1c1917', // stone-900
+          yellow: {
+            DEFAULT: '#facc15', // yellow-400
+            hover: '#eab308', // yellow-500
+          },
+          gray: '#6b7280', // gray-500
+        },
+        // Original primary and secondary colors kept for backward compatibility
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -36,7 +46,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['var(--font-inter)'],
+        sans: ['Montserrat', 'sans-serif'],
       },
     },
   },
