@@ -19,11 +19,10 @@ const ContactForm = ({ recipientEmail = 'vancastroadmi@gmail.com' }) => {
 
   const [loading, setLoading] = useState(false);
 
-  // Inicializar EmailJS solo una vez
   useEffect(() => {
     const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
     if (publicKey) {
-      emailjs.init(publicKey); // Solo se inicializa una vez
+      emailjs.init(publicKey);
     } else {
       console.error('EmailJS public key is missing');
     }
@@ -44,7 +43,6 @@ const ContactForm = ({ recipientEmail = 'vancastroadmi@gmail.com' }) => {
     const serviceid = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '';
     const templateid = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || '';
 
-    // Verificar si tenemos todas las credenciales necesarias
     if (!serviceid || !templateid) {
       console.error('Error: Missing EmailJS service or template ID');
       setStatus({
@@ -65,7 +63,6 @@ const ContactForm = ({ recipientEmail = 'vancastroadmi@gmail.com' }) => {
         message: formData.message
       };
 
-      // Enviar el correo usando las credenciales del servicio y plantilla
       await emailjs.send(serviceid, templateid, templateParams);
 
       setStatus({
@@ -74,7 +71,6 @@ const ContactForm = ({ recipientEmail = 'vancastroadmi@gmail.com' }) => {
         message: 'Thank you! Your message has been sent successfully.'
       });
 
-      // Limpiar el formulario
       setFormData({
         name: '',
         phone: '',
@@ -94,7 +90,7 @@ const ContactForm = ({ recipientEmail = 'vancastroadmi@gmail.com' }) => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-yellow-400 rounded-lg p-6">
+    <div className="w-full max-w-2xl mx-auto md:bg-yellow-400 rounded-lg p-6">
       {status.submitted ? (
         <div className={`p-4 rounded-md ${status.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
           <p className="text-center font-medium">{status.message}</p>
@@ -149,7 +145,7 @@ const ContactForm = ({ recipientEmail = 'vancastroadmi@gmail.com' }) => {
             className="bg-gray-900 text-white p-3 rounded-md font-medium hover:bg-gray-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            {loading ? 'Sending...' : 'Submit'}
+            {loading ? 'Sending...' : 'Send'}
           </button>
         </form>
       )}
