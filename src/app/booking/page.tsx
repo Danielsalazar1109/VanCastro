@@ -60,21 +60,36 @@ export default function BookingPage() {
 			case 1:
 				return (
 					<>
-						<h2 className="text-2xl font-semibold mb-6">Select an Instructor</h2>
+						<h2 className="text-2xl font-semibold mb-6 text-center">Select an Instructor</h2>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div
-								onClick={() => handleSelectInstructor("Instructor 1")}
-								className="cursor-pointer border p-4 rounded-lg shadow-md hover:bg-gray-100"
+								onClick={() => handleSelectInstructor("Anderson")}
+								className="cursor-pointer border-2 border-yellow-400 p-6 rounded-lg shadow-md hover:bg-gray-100 flex flex-col items-center text-center"
 							>
-								<img src="/images/instructor1.jpg" alt="Instructor 1" className="rounded-lg mb-2" />
-								<p className="text-center font-semibold">Instructor 1</p>
+								<img
+									src="https://framerusercontent.com/images/FLvYf83Xh4QeQmPkGlT1J5BCeg.png?scale-down-to=512"
+									alt="Anderson"
+									className="rounded-full w-40 h-40 object-cover mb-4"
+								/>
+								<p className="text-lg font-bold">Anderson</p>
+								<p className="text-gray-600">25 years experience</p>
+								<p className="text-gray-600">🌍 English, Portuguese, Spanish</p>
+								<p className="text-gray-600">⏰ Monday - Friday, 8a.m.-6p.m.</p>
 							</div>
+
 							<div
-								onClick={() => handleSelectInstructor("Instructor 2")}
-								className="cursor-pointer border p-4 rounded-lg shadow-md hover:bg-gray-100"
+								onClick={() => handleSelectInstructor("Andresa")}
+								className="cursor-pointer border-2 border-yellow-400 p-6 rounded-lg shadow-md hover:bg-gray-100 flex flex-col items-center text-center"
 							>
-								<img src="/images/instructor2.jpg" alt="Instructor 2" className="rounded-lg mb-2" />
-								<p className="text-center font-semibold">Instructor 2</p>
+								<img
+									src="https://framerusercontent.com/images/Cucs1Au8fUHTABGitQoXRjuGEA.png?scale-down-to=512"
+									alt="Andresa"
+									className="rounded-full w-40 h-40 object-cover mb-4"
+								/>
+								<p className="text-lg font-bold">Andresa</p>
+								<p className="text-gray-600">25 years experience</p>
+								<p className="text-gray-600">🌍 English, Portuguese, Spanish</p>
+								<p className="text-gray-600">⏰ Monday - Friday, 8a.m.-6p.m.</p>
 							</div>
 						</div>
 					</>
@@ -83,39 +98,14 @@ export default function BookingPage() {
 				return (
 					<>
 						<h2 className="text-2xl font-semibold mb-6">Choose Date & Time</h2>
-						<p className="text-sm text-gray-500 mb-4">
-							Select your preferred time slot using our scheduling tool below:
-						</p>
 						<div className="calendly-container border border-gray-300 rounded-lg px-8 py-2">
 							<div
 								className="calendly-inline-widget"
-								data-url="https://calendly.com/vancastroinstructor?hide_gdpr_banner=1&background_color=000000&text_color=f8f8f8&primary_color=fec102"
-								style={{ minWidth: "500px", height: "500px" }}
+								data-url="https://calendly.com/vancastroinstructor"
+								style={{ minWidth: "500px", height: "400px" }}
 							></div>
 						</div>
 						<Script src="https://assets.calendly.com/assets/external/widget.js" strategy="lazyOnload" />
-					</>
-				);
-			case 3:
-				return (
-					<>
-						<h2 className="text-2xl font-semibold mb-6">Your Information</h2>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div className="mb-4">
-								<label htmlFor="firstName" className="form-label">
-									First Name
-								</label>
-								<input
-									type="text"
-									id="firstName"
-									name="firstName"
-									value={formData.firstName}
-									onChange={handleChange}
-									className="form-input"
-									required
-								/>
-							</div>
-						</div>
 					</>
 				);
 			default:
