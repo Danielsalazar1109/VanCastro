@@ -1,9 +1,13 @@
+'use client';
+
 import React, { useState } from 'react';
 import FAQQuestion from './faqQuestion';
+import { ChevronDown } from 'lucide-react';
 
 export interface FAQItem {
-  question: string;
+  question?: string;
   answer: string;
+  note?: string;
 }
 
 interface FAQContainerProps {
@@ -15,13 +19,13 @@ const FAQContainer: React.FC<FAQContainerProps> = ({ title, items }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div className="border border-gray-200 overflow-hidden">
       <button
-        className="w-full p-4 text-left font-semibold flex justify-between items-center bg-gray-50 hover:bg-gray-100"
+        className="w-full p-4 text-left font-semibold border-l-4 border-yellow-400 flex justify-between items-center bg-gray-50 hover:bg-gray-100"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span>{title}</span>
-        <span className="text-xl">▼</span>
+        <span className='text-2xl'>{title}</span>
+        <ChevronDown className="w-6 h-6" />
       </button>
       
       {isExpanded && (
@@ -31,6 +35,7 @@ const FAQContainer: React.FC<FAQContainerProps> = ({ title, items }) => {
               key={index} 
               question={item.question} 
               answer={item.answer} 
+              note={item.note}
             />
           ))}
         </div>
