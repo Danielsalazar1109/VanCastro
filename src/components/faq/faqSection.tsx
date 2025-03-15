@@ -14,7 +14,7 @@ interface FAQSectionProps {
 
 const FAQSection: React.FC<FAQSectionProps> = ({ title, description, containers }) => {
   return (
-    <div className="w-full max-w-4xl mx-auto p-4">
+    <div className="w-full max-w-7xl mx-auto p-4">
       <h1 className="text-3xl font-bold text-center mb-6">{title}</h1>
       {description && (
         <p className="text-center mb-8">{description}</p>

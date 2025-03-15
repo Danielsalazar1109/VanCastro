@@ -209,7 +209,7 @@ const FAQPage: React.FC = () => {
         title: 'What lessons do we provide?',
         items: [
           {
-            answer: <strong>Class 5 and Class 7</strong>
+            answer: <p>We offer driving lessons for<strong>Class 5, Class 7</strong> and <strong>Road Testing</strong>.</p>
           },
         ]
       }
