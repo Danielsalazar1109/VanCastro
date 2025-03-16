@@ -29,21 +29,21 @@ const packages: { [key: string]: Package[] } = {
 		{
 			title: "Best for Class 4",
 			duration: "90 mins",
-			price: "$157.50",
+			price: "$157",
 			features: [
-				"60 mins/lesson",
+				"90 mins/lesson",
 				"Include driving school car",
 				"Pick-up and Drop-off",
 				"Class 5 or Class 7 license",
 				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
 			],
-			link: "",
+			link: "https://calendly.com/vancastro-anderson/class-4-90min?hide_gdpr_banner=1&primary_color=fec101",
 			popular: true,
 		},
 		{
 			title: "Warm up",
 			duration: "Road test",
-			price: "$250",
+			price: "$000",
 			features: [
 				"90 mins/lesson",
 				"Include driving school car",
@@ -58,7 +58,7 @@ const packages: { [key: string]: Package[] } = {
 		{
 			title: "Hourly lesson",
 			duration: "60 mins",
-			price: "$80",
+			price: "$73",
 			features: [
 				"60 mins/lesson",
 				"Include driving school car",
@@ -66,26 +66,26 @@ const packages: { [key: string]: Package[] } = {
 				"Class 5 license",
 				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
 			],
-			link: "",
+			link: "https://calendly.com/vancastro-anderson/class-5-60min?hide_gdpr_banner=1&primary_color=fec101",
 		},
 		{
 			title: "Best for Intermediate",
 			duration: "90 mins",
-			price: "$150",
+			price: "$94",
 			features: [
-				"60 mins/lesson",
+				"90 mins/lesson",
 				"Include driving school car",
 				"Pick-up and Drop-off",
 				"Class 5 license",
 				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
 			],
-			link: "",
+			link: "https://calendly.com/vancastro-anderson/class-5-90min?hide_gdpr_banner=1&primary_color=fec101",
 			popular: true,
 		},
 		{
 			title: "Road test",
 			duration: "Warm up",
-			price: "$220",
+			price: "$000",
 			features: [
 				"90 mins/lesson",
 				"Include driving school car",
@@ -100,7 +100,7 @@ const packages: { [key: string]: Package[] } = {
 		{
 			title: "Hourly lesson",
 			duration: "60 mins",
-			price: "$85",
+			price: "$94",
 			features: [
 				"60 mins/lesson",
 				"Include driving school car",
@@ -108,26 +108,26 @@ const packages: { [key: string]: Package[] } = {
 				"Class 7 license",
 				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
 			],
-			link: "",
+			link: "https://calendly.com/vancastro-anderson/class-7-60min?hide_gdpr_banner=1&primary_color=fec101",
 		},
 		{
 			title: "Best for Class 7",
 			duration: "90 mins",
-			price: "$165",
+			price: "$105",
 			features: [
-				"60 mins/lesson",
+				"90 mins/lesson",
 				"Include driving school car",
 				"Pick-up and Drop-off",
 				"Class 7 license",
 				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
 			],
-			link: "",
+			link: "https://calendly.com/vancastro-anderson/class-7-90min?hide_gdpr_banner=1&primary_color=fec101",
 			popular: true,
 		},
 		{
 			title: "Road test",
 			duration: "Warm up",
-			price: "$230",
+			price: "$000",
 			features: [
 				"90 mins/lesson",
 				"Include driving school car",
