@@ -1,125 +1,231 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import Script from "next/script";
+import { useEffect, useState } from "react";
+
+interface Package {
+	title: string;
+	duration: string;
+	price: string;
+	features: string[];
+	link: string;
+	popular?: boolean;
+}
+
+const packages: { [key: string]: Package[] } = {
+	Class4: [
+		{
+			title: "Hourly lesson",
+			duration: "60 mins",
+			price: "$126",
+			features: [
+				"60 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 5 or Class 7 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "https://calendly.com/vancastro-anderson/class-4-60min?hide_gdpr_banner=1&primary_color=fec101",
+		},
+		{
+			title: "Best for Class 4",
+			duration: "90 mins",
+			price: "$157",
+			features: [
+				"90 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 5 or Class 7 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "https://calendly.com/vancastro-anderson/class-4-90min?hide_gdpr_banner=1&primary_color=fec101",
+			popular: true,
+		},
+		{
+			title: "Warm up",
+			duration: "Road test",
+			price: "$000",
+			features: [
+				"90 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 5 or Class 7 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "",
+		},
+	],
+	Class5: [
+		{
+			title: "Hourly lesson",
+			duration: "60 mins",
+			price: "$73",
+			features: [
+				"60 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 5 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "https://calendly.com/vancastro-anderson/class-5-60min?hide_gdpr_banner=1&primary_color=fec101",
+		},
+		{
+			title: "Best for Intermediate",
+			duration: "90 mins",
+			price: "$94",
+			features: [
+				"90 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 5 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "https://calendly.com/vancastro-anderson/class-5-90min?hide_gdpr_banner=1&primary_color=fec101",
+			popular: true,
+		},
+		{
+			title: "Road test",
+			duration: "Warm up",
+			price: "$000",
+			features: [
+				"90 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 5 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "",
+		},
+	],
+	Class7: [
+		{
+			title: "Hourly lesson",
+			duration: "60 mins",
+			price: "$94",
+			features: [
+				"60 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 7 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "https://calendly.com/vancastro-anderson/class-7-60min?hide_gdpr_banner=1&primary_color=fec101",
+		},
+		{
+			title: "Best for Class 7",
+			duration: "90 mins",
+			price: "$105",
+			features: [
+				"90 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 7 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "https://calendly.com/vancastro-anderson/class-7-90min?hide_gdpr_banner=1&primary_color=fec101",
+			popular: true,
+		},
+		{
+			title: "Road test",
+			duration: "Warm up",
+			price: "$000",
+			features: [
+				"90 mins/lesson",
+				"Include driving school car",
+				"Pick-up and Drop-off",
+				"Class 7 license",
+				"Available at Vancouver, North Vancouver, Surrey and Burnaby",
+			],
+			link: "",
+		},
+	],
+};
 
 export default function BookingPage() {
-	const [step, setStep] = useState(1);
-	const [formData, setFormData] = useState({
-		firstName: "",
-		lastName: "",
-		email: "",
-		phone: "",
-		service: "beginner",
-		instructor: "",
-	});
+	const [selectedClass, setSelectedClass] = useState<"Class4" | "Class5" | "Class7">("Class4");
+	const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
 
-	const handleSelectInstructor = (instructor: string) => {
-		setFormData((prev) => ({
-			...prev,
-			instructor,
-		}));
-		setStep(2);
-	};
+	useEffect(() => {
+		const script = document.createElement("script");
+		script.src = "https://assets.calendly.com/assets/external/widget.js";
+		script.async = true;
+		document.body.appendChild(script);
 
-	const handleChange = (e: any) => {
-		const { name, value } = e.target;
-		setFormData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
-	};
-
-	const handleSubmit = async (e: any) => {
-		e.preventDefault();
-		if (step < 3) {
-			setStep(step + 1);
-			return;
-		}
-		alert("Booking submitted! In a real implementation, you would be redirected to payment.");
-	};
-
-	const renderStepIndicator = () => (
-		<div className="flex justify-center mb-8">
-			{[1, 2, 3].map((i) => (
-				<div key={i} className="flex items-center">
-					<div
-						className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= i ? "bg-primary-600 text-white" : "bg-gray-200 text-gray-600"}`}
-					>
-						{i}
-					</div>
-					{i < 3 && <div className={`w-12 h-1 ${step > i ? "bg-primary-600" : "bg-gray-200"}`}></div>}
-				</div>
-			))}
-		</div>
-	);
-
-	const renderStepContent = () => {
-		switch (step) {
-			case 1:
-				return (
-					<>
-						<h2 className="text-2xl font-semibold mb-6 text-center">Select an Instructor</h2>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-							<div
-								onClick={() => handleSelectInstructor("Anderson")}
-								className="cursor-pointer border-2 border-yellow-400 p-6 rounded-lg shadow-md hover:bg-gray-100 flex flex-col items-center text-center"
-							>
-								<img
-									src="https://framerusercontent.com/images/FLvYf83Xh4QeQmPkGlT1J5BCeg.png?scale-down-to=512"
-									alt="Anderson"
-									className="rounded-full w-40 h-40 object-cover mb-4"
-								/>
-								<p className="text-lg font-bold">Anderson</p>
-								<p className="text-gray-600">25 years experience</p>
-								<p className="text-gray-600">🌍 English, Portuguese, Spanish</p>
-								<p className="text-gray-600">⏰ Monday - Friday, 8a.m.-6p.m.</p>
-							</div>
-
-							<div
-								onClick={() => handleSelectInstructor("Andresa")}
-								className="cursor-pointer border-2 border-yellow-400 p-6 rounded-lg shadow-md hover:bg-gray-100 flex flex-col items-center text-center"
-							>
-								<img
-									src="https://framerusercontent.com/images/Cucs1Au8fUHTABGitQoXRjuGEA.png?scale-down-to=512"
-									alt="Andresa"
-									className="rounded-full w-40 h-40 object-cover mb-4"
-								/>
-								<p className="text-lg font-bold">Andresa</p>
-								<p className="text-gray-600">25 years experience</p>
-								<p className="text-gray-600">🌍 English, Portuguese, Spanish</p>
-								<p className="text-gray-600">⏰ Monday - Friday, 8a.m.-6p.m.</p>
-							</div>
-						</div>
-					</>
-				);
-			case 2:
-				return (
-					<>
-						<h2 className="text-2xl font-semibold mb-6">Choose Date & Time</h2>
-						<div className="calendly-container border border-gray-300 rounded-lg px-8 py-2">
-							<div
-								className="calendly-inline-widget"
-								data-url="https://calendly.com/vancastroinstructor"
-								style={{ minWidth: "500px", height: "400px" }}
-							></div>
-						</div>
-						<Script src="https://assets.calendly.com/assets/external/widget.js" strategy="lazyOnload" />
-					</>
-				);
-			default:
-				return null;
-		}
-	};
+		return () => {
+			document.body.removeChild(script);
+		};
+	}, [selectedPackage]);
 
 	return (
-		<div className="container mx-auto px-6 py-8 max-w-4xl">
-			<h1 className="text-3xl font-bold text-center mb-8">Book Your Driving Lesson</h1>
-			{renderStepIndicator()}
-			<div className="bg-white p-8 rounded-lg shadow-md">
-				<form onSubmit={handleSubmit}>{renderStepContent()}</form>
-			</div>
+		<div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
+			{!selectedPackage && (
+				<>
+					<h1 className="text-4xl font-bold">Pick What Fits You Best</h1>
+					<div className="mt-6 flex gap-4">
+						{["Class4", "Class5", "Class7"].map((cls) => (
+							<button
+								key={cls}
+								onClick={() => setSelectedClass(cls as "Class4" | "Class5" | "Class7")}
+								className={`px-8 py-3 font-semibold rounded-lg border shadow-md transition-all 
+                                    ${selectedClass === cls ? "bg-yellow-400 border-black" : "bg-gray-200"}`}
+							>
+								{cls.replace("Class", "Class ")}
+							</button>
+						))}
+					</div>
+				</>
+			)}
+
+			{!selectedPackage && (
+				<div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6 w-[90%] max-w-5xl">
+					{packages[selectedClass].map((pkg, index) => (
+						<div
+							key={index}
+							className="relative bg-white border-2 border-yellow-400 rounded-2xl shadow-lg p-8 text-center"
+						>
+							{pkg.popular && (
+								<div className="absolute -top-5 left-1/2 transform -translate-x-1/2 bg-black text-yellow-400 text-xs font-bold px-4 py-1 rounded-full flex items-center">
+									<span className="mr-2">⭐</span> Most popular <span className="ml-2">⭐</span>
+								</div>
+							)}
+
+							<h2 className="text-lg font-bold mt-2">{pkg.title}</h2>
+							<p className="text-gray-600 text-xl mt-1 font-bold mb-4">{pkg.duration}</p>
+
+							<div className="relative flex justify-center mb-6">
+								<div className="w-28 h-28 bg-yellow-200 rounded-full flex items-center justify-center">
+									<span className="text-4xl font-extrabold text-gray-800">{pkg.price}</span>
+								</div>
+							</div>
+
+							<ul className="text-sm text-gray-600 mb-6 text-left space-y-2">
+								{pkg.features.map((feature, i) => (
+									<li key={i} className="flex items-center">
+										<span className="text-yellow-500 mr-2">✔</span> {feature}
+									</li>
+								))}
+							</ul>
+
+							<button
+								className="mt-4 px-6 py-3 bg-yellow-400 text-black font-bold rounded-lg w-full shadow-md hover:bg-yellow-500 transition"
+								onClick={() => setSelectedPackage(pkg.link)}
+							>
+								Register Now
+							</button>
+						</div>
+					))}
+				</div>
+			)}
+
+			{selectedPackage && (
+				<div className="w-[1200px] h-[600px] flex justify-center items-center overflow-hidden">
+					<div
+						key={selectedPackage}
+						className="calendly-inline-widget"
+						data-url={selectedPackage}
+						style={{ width: 2300, height: 700 }} //border: "none"//
+					></div>
+				</div>
+			)}
 		</div>
 	);
 }
