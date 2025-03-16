@@ -172,7 +172,7 @@ export default function PackagesSection({ onSelectPackage }: PackagesSectionProp
   return (
     <>
       <h1 className="text-4xl font-bold text-center">Pick What Fits You Best</h1>
-      <div className={`mt-6 flex flex-wrap justify-center gap-4 mx-auto ${isPlansPage ? 'w-[45%]' : ''}`}>
+      <div className={`mt-6 flex flex-row justify-center gap-4 mx-auto ${isPlansPage ? 'md:w-[45%]' : ''}`}>
         {classOptions.map((cls) => (
           <button
             key={cls}
