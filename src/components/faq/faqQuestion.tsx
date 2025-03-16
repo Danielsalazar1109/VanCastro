@@ -37,7 +37,7 @@ const FAQQuestion: React.FC<FAQQuestionProps> = ({ question, answer, note }) => 
             <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mt-4 rounded">
               <div className="flex items-center mb-1">
                 <AlertTriangle className="w-5 h-5 mr-2" />
-                <span className="font-bold">Nota</span>
+                <span className="font-bold">Note</span>
               </div>
               <div className="ml-7">{note}</div>
             </div>
