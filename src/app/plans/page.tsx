@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import PricingGrid from "@/components/plans/PlansGrid";
+import PlansGrid from "@/components/plans/PlansGrid";
 import LeftCharacter from "../../../public/plans/LeftCharacter.png";
 import RightCharacter from "../../../public/plans/RightCharacter.png";
 import ComputerMan from "../../../public/plans/ComputerMan.png";
@@ -10,7 +10,7 @@ import { Phone, Mail, MapPin, Facebook, Instagram, Youtube, MessageCircle, Car, 
 import ContactForm from "@/components/contact/contactForm";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 import "swiper/css";
 import "swiper/css/navigation";
@@ -19,6 +19,7 @@ import "swiper/css/autoplay";
 
 export default function PlansPage() {
   const [isMobile, setIsMobile] = useState(false);
+  const contactSectionRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     const handleResize = () => {
@@ -100,6 +101,12 @@ export default function PlansPage() {
     </div>
   );
 
+  const scrollToContact = () => {
+    if (contactSectionRef.current) {
+      contactSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="container mx-auto">
       <style jsx>{`
@@ -140,7 +147,11 @@ export default function PlansPage() {
       </section>
       
       {/* Plans */}
-      <PricingGrid />
+      <div className="w-full max-w-6xl mx-auto">
+      <PlansGrid onSelectPackage={(link) => {
+        window.location.href = `/booking?package=${encodeURIComponent(link)}`;
+      }} />
+      </div>
       
       {/* Contact Partner */}
       <div className="w-full bg-gray-50 py-12 px-4 my-8 rounded-lg">
@@ -272,7 +283,7 @@ export default function PlansPage() {
       </div>
       
       {/* Contact */}
-      <div className="flex flex-col md:flex-row bg-yellow-50 p-6 md:py-12 md:px-32 md:gap-16 rounded-lg">
+      <div ref={contactSectionRef} className="flex flex-col md:flex-row bg-yellow-50 p-6 md:py-12 md:px-32 md:gap-16 rounded-lg">
         <div className="w-full md:w-1/2 pr-0 md:pr-8 mb-8 md:mb-0">
           <h1 className="text-5xl font-bold mb-2">Contact Us</h1>
           <p className="text-xl mb-8">Monday to Friday from 8a.m.-6p.m.</p>
@@ -310,15 +321,15 @@ export default function PlansPage() {
           <div className="mt-12 mx-16 md:mx-0">
             <h2 className="text-2xl font-bold mb-6">Visit Our Social media</h2>
             <div className="flex space-x-4">
-              <a href="#" className="bg-black rounded-full p-3">
+              <a href="https://www.facebook.com/p/Vancastro-Driving-School-100088028419878/#" className="bg-black rounded-full p-3">
                 <Facebook className="h-8 w-8 text-yellow-400" />
               </a>
               
-              <a href="#" className="bg-black rounded-full p-3">
+              <a href="https://www.instagram.com/vancastro_drivingschool/" className="bg-black rounded-full p-3">
                 <Instagram className="h-8 w-8 text-yellow-400" />
               </a>
               
-              <a href="#" className="bg-black rounded-full p-3">
+              <a href="https://www.youtube.com/@VanCastro_Driving_School" className="bg-black rounded-full p-3">
                 <Youtube className="h-8 w-8 text-yellow-400" />
               </a>
               
