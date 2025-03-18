@@ -6,7 +6,7 @@ const nextConfig = {
     appDir: true,
   },
   images: {
-    domains: ['framerusercontent.com','cdn.shapo.io'],
+    domains: ['framerusercontent.com','cdn.shapo.io','lh3.googleusercontent.com'],
   },
 }
 

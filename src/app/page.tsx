@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import HeroSection from '@/components/layout/HeroSection';
 import GoogleReviews from '@/components/home/googleReviews';
+import AlumniGrid from '@/components/home/alumniGrid';
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
       <HeroSection />
 
       <GoogleReviews />
+      <AlumniGrid />
       
       {/* Rest of the content */}
       <div className="container mx-auto px-4 py-12">
