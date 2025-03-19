@@ -28,6 +28,7 @@
     "react-calendly": "^4.3.1",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.46.1",
+    "react-player": "^2.16.0",
     "stripe": "^13.5.0",
     "swiper": "^11.2.5",
     "tailwindcss": "^3.3.3",

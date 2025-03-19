@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import HeroSection from '@/components/layout/HeroSection';
+import ReviewsToggle from '@/components/home/reviewsToggle';
 import WhySection from '@/components/whySection/WhySection';
 
 export default function Home() {
@@ -8,7 +9,10 @@ export default function Home() {
     <>
       {/* Full-screen hero section with video placeholder and CTA */}
       <HeroSection />
-      
+
+      <ReviewsToggle />
+
+     
       {/* Why Choose Our Driving School section */}
       <WhySection />
       
