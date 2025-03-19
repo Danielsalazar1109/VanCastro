@@ -10,7 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Driving School Booking System',
+  icons: '/favicon/car.svg',
+  title: 'Vancastro',
   description: 'Book your driving lessons online',
 };
 
