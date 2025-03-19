@@ -3,7 +3,6 @@
 import AlumniReview from "@/components/home/alumniReview";
 
 const TestimonialsSection = () => {
-  // Array con varios testimonios
   const testimonials = [
     {
       name: "João Victor",
@@ -37,28 +36,20 @@ const TestimonialsSection = () => {
     }
   ];
 
-  // Crear un conjunto suficientemente grande de testimonios para garantizar la continuidad
-  // Multiplicamos por 4 para asegurar que haya suficientes testimonios para llenar el viewport varias veces
   const repeatedTestimonials = [...testimonials, ...testimonials, ...testimonials, ...testimonials];
 
   return (
     <div className="testimonials-section py-10 overflow-hidden bg-gray-100 p-4 rounded-xl shadow-lg">
-      {/* Contenedor principal con posición relativa para los gradientes */}
       <div className="relative py-2">
-        {/* Primer carrusel infinito */}
         <div className="flex w-max animate-marquee space-x-4 hover:animation-pause">
           {repeatedTestimonials.map((testimonial, index) => (
             <AlumniReview key={`testimonial-${index}`} testimonial={testimonial} />
           ))}
         </div>
-
-        {/* Gradiente izquierdo */}
         <div className="absolute left-[-2%] top-0 w-32 h-full bg-gradient-to-r from-gray-100 to-transparent z-10"></div>
-        {/* Gradiente derecho */}
         <div className="absolute right-[-2%] top-0 w-32 h-full bg-gradient-to-l from-gray-100 to-transparent z-10"></div>
       </div>
 
-      {/* Estilos inline para las animaciones */}
       <style jsx>{`
         @keyframes marquee {
           0% { transform: translateX(0); }

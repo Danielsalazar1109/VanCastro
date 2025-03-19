@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import HeroSection from '@/components/layout/HeroSection';
-import GoogleReviews from '@/components/home/googleReviews';
-import AlumniGrid from '@/components/home/alumniGrid';
+import ReviewsToggle from '@/components/home/reviewsToggle';
+
 
 export default function Home() {
   return (
@@ -10,9 +10,12 @@ export default function Home() {
       {/* Full-screen hero section with video placeholder and CTA */}
       <HeroSection />
 
-      <GoogleReviews />
-      <AlumniGrid />
+      <ReviewsToggle />
+
       
+
+  
+
       {/* Rest of the content */}
       <div className="container mx-auto px-4 py-12">
         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
