@@ -3,12 +3,20 @@ import Link from 'next/link';
 export default function HeroSection() {
   return (
     <div className="relative h-screen w-full overflow-hidden">
-      {/* Video/Image placeholder - gradient background for now */}
-      <div className="absolute inset-0 bg-gradient-to-r from-stone-900 to-stone-800">
-        {/* This div will be replaced with a video or image later */}
-        <div className="absolute inset-0 flex items-center justify-center text-white opacity-20">
-          <p className="text-9xl font-bold">VIDEO</p>
-        </div>
+      {/* Video background */}
+      <div className="absolute inset-0">
+        <video 
+          className="absolute inset-0 w-full h-full object-cover"
+          autoPlay 
+          loop 
+          muted 
+          playsInline
+        >
+          <source src="/heropage/video.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        {/* Overlay to ensure text readability */}
+        <div className="absolute inset-0 bg-black opacity-50"></div>
       </div>
       
       {/* Content overlay */}
