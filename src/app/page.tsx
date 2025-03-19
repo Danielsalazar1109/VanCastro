@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import HeroSection from '@/components/layout/HeroSection';
 import ReviewsToggle from '@/components/home/reviewsToggle';
-
+import WhySection from '@/components/whySection/WhySection';
 
 export default function Home() {
   return (
@@ -12,10 +12,10 @@ export default function Home() {
 
       <ReviewsToggle />
 
+     
+      {/* Why Choose Our Driving School section */}
+      <WhySection />
       
-
-  
-
       {/* Rest of the content */}
       <div className="container mx-auto px-4 py-12">
         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
