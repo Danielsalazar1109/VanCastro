@@ -11,9 +11,7 @@ interface Testimonial {
     rating: number;
 }
 
-// Componente de tarjeta de testimonio individual
 const AlumniReview = ({ testimonial }: { testimonial: Testimonial }) => {
-    // Función para renderizar estrellas basadas en la calificación
     const renderStars = (rating: number) => {
         const stars = [];
         for (let i = 1; i <= 5; i++) {
