@@ -10,11 +10,11 @@ export default function Home() {
       {/* Full-screen hero section with video placeholder and CTA */}
       <HeroSection />
 
-      <ReviewsToggle />
-
-     
       {/* Why Choose Our Driving School section */}
       <WhySection />
+
+      {/* Reviews Toggle section */}
+      <ReviewsToggle />
       
       {/* Rest of the content */}
       <div className="container mx-auto px-4 py-12">
