@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import AuthSessionProvider from '@/components/auth/SessionProvider';
+
 
 const inter = Inter({
   subsets: ['latin'],
@@ -23,9 +25,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans`}>
-        <Header />
-        <main className="min-h-screen bg-gray-50">{children}</main>
-        <Footer />
+        <AuthSessionProvider>
+          <Header />
+          <main className="min-h-screen bg-gray-50">{children}</main>
+          <Footer />
+        </AuthSessionProvider>
       </body>
     </html>
   );
