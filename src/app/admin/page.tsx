@@ -3,6 +3,10 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
 
 interface User {
   _id: string;
@@ -40,8 +44,12 @@ export default function AdminDashboard() {
   const router = useRouter();
   
   const [pendingBookings, setPendingBookings] = useState<Booking[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDateBookings, setSelectedDateBookings] = useState<Booking[]>([]);
+  const [instructorColors, setInstructorColors] = useState<{[key: string]: string}>({});
   
   // Hardcoded locations and class types
   const locations = ["Surrey", "Burnaby", "North Vancouver"];
@@ -59,9 +67,11 @@ export default function AdminDashboard() {
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<string>("bookings");
+  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users';
+  const [activeTab, setActiveTab] = useState<TabType>('bookings');
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string>("");
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -71,10 +81,61 @@ export default function AdminDashboard() {
     }
   }, [status, session, router]);
   
+  // Generate a color for each instructor
+  useEffect(() => {
+    if (instructors.length > 0) {
+      const colors: {[key: string]: string} = {};
+      const baseColors = [
+        '#4285F4', '#EA4335', '#FBBC05', 
+        '#34A853', '#8E24AA', '#D81B60',
+        '#039BE5', '#7CB342', '#FB8C00'
+      ];
+      
+      instructors.forEach((instructor, index) => {
+        colors[instructor._id] = baseColors[index % baseColors.length];
+      });
+      
+      setInstructorColors(colors);
+    }
+  }, [instructors]);
+  
+  // Convert bookings to calendar events
+  useEffect(() => {
+    if (allBookings.length > 0 && instructors.length > 0) {
+      const events = allBookings.map(booking => {
+        const instructorColor = instructorColors[booking.instructor._id] || '#808080';
+        
+        // Formato correcto de fechas y horas
+        const bookingDate = booking.date.split('T')[0]; // Asegúrate de que solo usamos la parte de la fecha
+        
+        return {
+          id: booking._id,
+          title: `${booking.user.firstName} ${booking.user.lastName} (${booking.location})`,
+          start: `${bookingDate}T${booking.startTime}`,
+          end: `${bookingDate}T${booking.endTime}`,
+          extendedProps: {
+            location: booking.location,
+            classType: booking.classType,
+            duration: booking.duration,
+            student: `${booking.user.firstName} ${booking.user.lastName}`,
+            instructor: `${booking.instructor.user.firstName} ${booking.instructor.user.lastName}`
+          },
+          backgroundColor: instructorColor,
+          borderColor: instructorColor
+        };
+      });
+      
+      setCalendarEvents(events);
+    }
+  }, [allBookings, instructors, instructorColors]);
+
   useEffect(() => {
     if (isAdmin) {
       if (activeTab === 'bookings') {
         fetchPendingBookings();
+      } else if (activeTab === 'calendar') {
+        fetchAllBookings();
+        fetchInstructors();
       } else if (activeTab === 'instructors') {
         fetchInstructors();
       } else if (activeTab === 'users') {
@@ -243,10 +304,23 @@ export default function AdminDashboard() {
       setError("Failed to create instructor");
     }
   };
-
+  const fetchAllBookings = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/booking?status=approved');
+      const data = await response.json();
+      
+      setAllBookings(data.bookings || []);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching all bookings:', error);
+      setError("Failed to load bookings");
+      setLoading(false);
+    }
+  };
   const handleDeleteInstructor = async (instructorId: string) => {
     try {
-      const response = await fetch(`/api/instructors/${instructorId}`, {
+      const response = await fetch(`/api/instructors?instructorId=${instructorId}`, {
         method: 'DELETE',
       });
       
@@ -360,6 +434,16 @@ export default function AdminDashboard() {
             </button>
             <button
               className={`px-4 py-2 ${
+                activeTab === 'calendar'
+                  ? 'border-b-2 border-yellow-400 font-bold'
+                  : 'text-gray-500'
+              }`}
+              onClick={() => setActiveTab('calendar')}
+            >
+              Calendar View
+            </button>
+            <button
+              className={`px-4 py-2 ${
                 activeTab === 'instructors'
                   ? 'border-b-2 border-yellow-400 font-bold'
                   : 'text-gray-500'
@@ -439,7 +523,6 @@ export default function AdminDashboard() {
                             <button
                               onClick={() => handleApproveBooking(booking._id)}
                               className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                              disabled={booking.paymentStatus !== 'completed'}
                             >
                               Approve
                             </button>
@@ -504,7 +587,7 @@ export default function AdminDashboard() {
                     required
                   />
                 </div>
-
+                
                 <div>
                   <label className="block text-sm font-medium mb-1">Password</label>
                   <input
@@ -628,6 +711,76 @@ export default function AdminDashboard() {
           </div>
         )}
         
+        {activeTab === 'calendar' && (
+          <div>
+            <h2 className="text-xl font-bold mb-4">All Instructors Booking Calendar</h2>
+            
+            <div className="grid grid-cols-1 mb-4">
+              <div>
+                <div className="calendar-container" style={{ height: '70vh', minHeight: '600px' }}>
+                  <FullCalendar
+                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                    initialView="timeGridWeek"
+                    headerToolbar={{
+                      left: 'prev,next today',
+                      center: 'title',
+                      right: 'timeGridWeek,timeGridDay'
+                    }}
+                    slotMinTime="08:00:00"
+                    slotMaxTime="18:00:00"
+                    allDaySlot={false}
+                    events={calendarEvents}
+                    height="100%"
+                    eventTimeFormat={{
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      meridiem: false,
+                      hour12: false
+                    }}
+                    eventContent={(eventInfo) => (
+                      <div className="p-1 text-xs">
+                        <div className="font-bold">{eventInfo.timeText}</div>
+                        <div className="truncate">{eventInfo.event.title}</div>
+                        <div className="truncate text-xs opacity-75">
+                          {eventInfo.event.extendedProps.instructor}
+                        </div>
+                      </div>
+                    )}
+                    eventClick={(info) => {
+                      alert(`
+                        Student: ${info.event.extendedProps.student}
+                        Instructor: ${info.event.extendedProps.instructor}
+                        Location: ${info.event.extendedProps.location}
+                        Class Type: ${info.event.extendedProps.classType}
+                        Duration: ${info.event.extendedProps.duration} mins
+                      `);
+                    }}
+                  />
+                </div>
+                
+                <div className="mt-8 mb-6">
+                  <h3 className="font-bold mb-2">Instructor Legend</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {instructors.map(instructor => (
+                      <div 
+                        key={instructor._id} 
+                        className="flex items-center"
+                      >
+                        <div 
+                          className="w-4 h-4 mr-2 rounded-full"
+                          style={{ backgroundColor: instructorColors[instructor._id] || '#808080' }}
+                        ></div>
+                        <span className="text-sm">
+                          {instructor.user.firstName} {instructor.user.lastName}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {activeTab === 'users' && (
           <div>
             <h2 className="text-xl font-bold mb-4">Registered Users</h2>
