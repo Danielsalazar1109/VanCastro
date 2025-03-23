@@ -33,8 +33,22 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect to callback URL or dashboard based on user role
-      router.push(callbackUrl);
+      // Get the session to check the user role
+      const response = await fetch("/api/auth/session");
+      const session = await response.json();
+      
+      // Redirect based on user role
+      if (session?.user?.role === "student") {
+        router.push("/booking");
+      } else if (session?.user?.role === "instructor") {
+        router.push("/instructor");
+      } else if (session?.user?.role === "admin") {
+        router.push("/admin");
+      } else {
+        // Fallback to the callback URL or home page
+        router.push(callbackUrl);
+      }
+      
       router.refresh();
     } catch (error) {
       console.error("Login error:", error);

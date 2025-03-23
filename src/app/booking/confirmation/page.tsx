@@ -6,40 +6,53 @@ import Link from 'next/link';
 
 export default function ConfirmationPage() {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
   const [loading, setLoading] = useState(true);
   const [bookingDetails, setBookingDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId) {
-      setError('No session ID provided');
+    const bookingId = searchParams.get('bookingId');
+    
+    if (!bookingId) {
+      setError('Booking ID is missing. Please try again.');
       setLoading(false);
       return;
     }
 
-    // In a real implementation, you would fetch the booking details from your API
-    // using the session ID from Stripe
     const fetchBookingDetails = async () => {
       try {
-        // This is a mock implementation
-        // In reality, you would call your API to get the booking details
-        // const response = await fetch(`/api/booking/confirmation?sessionId=${sessionId}`);
-        // const data = await response.json();
+        // Since the API doesn't support direct bookingId queries, we'll fetch and filter
+        const response = await fetch('/api/booking');
         
-        // For demo purposes, we'll just simulate a successful response
-        setTimeout(() => {
-          setBookingDetails({
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john.doe@example.com',
-            date: '2023-09-15',
-            timeSlot: '10:00 AM',
-            service: 'Beginner Lessons',
-            confirmationNumber: 'DRV-' + Math.floor(100000 + Math.random() * 900000),
-          });
-          setLoading(false);
-        }, 1500);
+        if (!response.ok) {
+          throw new Error('Failed to fetch booking details');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.bookings || data.bookings.length === 0) {
+          throw new Error('No bookings found');
+        }
+        
+        // Find the booking with the matching ID
+        const booking = data.bookings.find((b: any) => b._id === bookingId);
+        
+        if (!booking) {
+          throw new Error('Booking not found');
+        }
+        
+        // Format the booking details
+        setBookingDetails({
+          firstName: booking.user.firstName,
+          lastName: booking.user.lastName,
+          email: booking.user.email,
+          date: new Date(booking.date).toLocaleDateString(),
+          timeSlot: booking.startTime,
+          service: booking.classType,
+          confirmationNumber: 'DRV-' + booking._id.substring(0, 6).toUpperCase(),
+        });
+        
+        setLoading(false);
       } catch (err) {
         setError('Failed to fetch booking details');
         setLoading(false);
@@ -47,7 +60,7 @@ export default function ConfirmationPage() {
     };
 
     fetchBookingDetails();
-  }, [sessionId]);
+  }, [searchParams]);
 
   if (loading) {
     return (
