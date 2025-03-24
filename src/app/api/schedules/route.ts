@@ -29,7 +29,8 @@ function generateTimeSlots(
   }
 
   const slots = [];
-  
+  const SLOT_INTERVAL = 15; // Fixed 30-minute intervals between slot start times
+
   // Convert start and end times to minutes since midnight
   const [startHours, startMinutes] = availability.startTime.split(':').map(Number);
   const [endHours, endMinutes] = availability.endTime.split(':').map(Number);
@@ -37,9 +38,71 @@ function generateTimeSlots(
   const startTimeInMinutes = startHours * 60 + startMinutes;
   const endTimeInMinutes = endHours * 60 + endMinutes;
   
-  // Generate slots
-  let currentTimeInMinutes = startTimeInMinutes;
+  // Sort existing bookings by start time
+  const sortedBookings = [...existingBookings].sort((a, b) => {
+    const [aHours, aMinutes] = a.startTime.split(':').map(Number);
+    const [bHours, bMinutes] = b.startTime.split(':').map(Number);
+    
+    const aTotalMinutes = aHours * 60 + aMinutes;
+    const bTotalMinutes = bHours * 60 + bMinutes;
+    
+    return aTotalMinutes - bTotalMinutes;
+  });
   
+  // Generate slots at fixed 30-minute intervals
+  // Round up to the nearest 30-minute interval if needed
+  let currentTimeInMinutes = startTimeInMinutes;
+  if (currentTimeInMinutes % SLOT_INTERVAL !== 0) {
+    currentTimeInMinutes = Math.ceil(currentTimeInMinutes / SLOT_INTERVAL) * SLOT_INTERVAL;
+  }
+  
+  // Create blocked time ranges based on existing bookings including buffer times
+  const blockedTimeRanges = [];
+  
+  for (const booking of sortedBookings) {
+    // Convert booking times to minutes
+    const [bookingStartHours, bookingStartMinutes] = booking.startTime.split(':').map(Number);
+    const [bookingEndHours, bookingEndMinutes] = booking.endTime.split(':').map(Number);
+    
+    const bookingStartTotalMinutes = bookingStartHours * 60 + bookingStartMinutes;
+    const bookingEndTotalMinutes = bookingEndHours * 60 + bookingEndMinutes;
+    
+    // Calculate buffer times before and after bookings
+    const bufferBefore = calculateBufferTime(location, booking.location);
+    const bufferAfter = calculateBufferTime(booking.location, location);
+    
+    // Add blocked time range including buffer times
+    blockedTimeRanges.push({
+      start: bookingStartTotalMinutes - bufferBefore,
+      end: bookingEndTotalMinutes + bufferAfter
+    });
+  }
+  
+  // Merge overlapping blocked time ranges
+  const mergedBlockedRanges = [];
+  if (blockedTimeRanges.length > 0) {
+    blockedTimeRanges.sort((a, b) => a.start - b.start);
+    
+    let currentRange = blockedTimeRanges[0];
+    
+    for (let i = 1; i < blockedTimeRanges.length; i++) {
+      const nextRange = blockedTimeRanges[i];
+      
+      if (nextRange.start <= currentRange.end) {
+        // Ranges overlap, merge them
+        currentRange.end = Math.max(currentRange.end, nextRange.end);
+      } else {
+        // No overlap, add the current range to merged list and move to next
+        mergedBlockedRanges.push(currentRange);
+        currentRange = nextRange;
+      }
+    }
+    
+    // Add the last range
+    mergedBlockedRanges.push(currentRange);
+  }
+  
+  // Generate slots, skipping blocked times
   while (currentTimeInMinutes + duration <= endTimeInMinutes) {
     // Convert current time back to HH:MM format
     const currentHours = Math.floor(currentTimeInMinutes / 60);
@@ -52,38 +115,31 @@ function generateTimeSlots(
     const endMinutes = slotEndTimeInMinutes % 60;
     const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
     
-    // Check if this slot conflicts with any existing bookings
-    const hasConflict = hasTimeConflict(startTime, endTime, location, existingBookings);
-    
-    // Add slot
-    slots.push({
-      startTime,
-      endTime,
-      isBooked: hasConflict
-    });
-    
-    // Calculate buffer time based on location for the next slot
-    // Check if there's an existing booking after this slot to determine next location
-    let nextLocation = location; // Default to same location
-    
-    // Find the next booking (if any) to determine its location
-    const nextBooking = existingBookings.find(booking => {
-      const [bookingStartHours, bookingStartMinutes] = booking.startTime.split(':').map(Number);
-      const bookingStartTotalMinutes = bookingStartHours * 60 + bookingStartMinutes;
-      
-      // Check if this booking starts after the current slot ends
-      return bookingStartTotalMinutes > currentTimeInMinutes + duration;
-    });
-    
-    if (nextBooking) {
-      nextLocation = nextBooking.location;
+    // Check if this slot overlaps with any blocked time range
+    let isBlocked = false;
+    for (const range of mergedBlockedRanges) {
+      // Check for any kind of overlap
+      if (
+        (currentTimeInMinutes >= range.start && currentTimeInMinutes < range.end) || // Slot starts during blocked time
+        (slotEndTimeInMinutes > range.start && slotEndTimeInMinutes <= range.end) || // Slot ends during blocked time
+        (currentTimeInMinutes <= range.start && slotEndTimeInMinutes >= range.end)    // Slot spans the entire blocked time
+      ) {
+        isBlocked = true;
+        break;
+      }
     }
     
-    // Calculate buffer time based on current and next locations
-    const bufferTime = calculateBufferTime(location, nextLocation);
+    // Add slot if it's not blocked
+    if (!isBlocked) {
+      slots.push({
+        startTime,
+        endTime,
+        isBooked: isBlocked
+      });  
+    }
     
-    // Move to next slot (add duration + buffer time)
-    currentTimeInMinutes += duration + bufferTime;
+    // Move to next slot at fixed 30-minute interval
+    currentTimeInMinutes += SLOT_INTERVAL;
   }
   
   return slots;
@@ -164,8 +220,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    // We already have scheduleDate defined above, reuse it
     
     // Check if schedule already exists for this instructor and date
     let schedule = await Schedule.findOne({

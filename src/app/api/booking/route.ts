@@ -234,3 +234,40 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    // Connect to the database
+    await connectToDatabase();
+    
+    const { searchParams } = new URL(request.url);
+    const bookingId = searchParams.get('bookingId');
+    
+    if (!bookingId) {
+      return NextResponse.json(
+        { error: 'Booking ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if booking exists
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Delete booking
+    await Booking.findByIdAndDelete(bookingId);
+    
+    return NextResponse.json({ message: 'Booking deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting booking:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete booking' },
+      { status: 500 }
+    );    
+  }
+}

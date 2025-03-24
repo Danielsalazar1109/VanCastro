@@ -1,6 +1,10 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IUser } from './User';
 import { IInstructor } from './Instructor';
+
+export interface IBookingModel extends Model<IBooking> {
+  updateExpiredBookings(): Promise<number>;
+}
 
 export interface IBooking extends Document {
   user: IUser['_id'];
@@ -61,5 +65,25 @@ const BookingSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Static method to update pending bookings older than 24 hours to cancelled
+BookingSchema.statics.updateExpiredBookings = async function(): Promise<number> {
+  // Calculate the date 24 hours ago
+  const twentyFourHoursAgo = new Date();
+  twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+  
+  // Find and update all pending bookings created more than 24 hours ago
+  const result = await this.updateMany(
+    { 
+      status: 'pending',
+      createdAt: { $lt: twentyFourHoursAgo }
+    },
+    { 
+      $set: { status: 'cancelled' } 
+    }
+  );
+  
+  return result.modifiedCount;
+};
+
 // Check if the model is already defined to prevent overwriting during hot reloads
-export default mongoose.models.Booking || mongoose.model<IBooking>('Booking', BookingSchema);
+export default mongoose.models.Booking || mongoose.model<IBooking, IBookingModel>('Booking', BookingSchema);

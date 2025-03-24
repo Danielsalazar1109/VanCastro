@@ -90,11 +90,11 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
   }, [location, classType]);
   
   // Load schedules based on selected instructor, date, and duration
-  useEffect(() => {
-    if (instructorId && date && duration) {
+  useEffect(() => { 
+    if (instructorId && date && duration && location) {
       fetchSchedules();
     }
-  }, [instructorId, date, duration]);
+  }, [instructorId, date, duration, location]);
   
   const fetchInstructors = async () => {
     try {
