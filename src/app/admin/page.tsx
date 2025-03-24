@@ -37,7 +37,137 @@ interface Booking {
   endTime: string;
   status: string;
   paymentStatus: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+// Modal component for viewing and deleting bookings
+interface BookingModalProps {
+  booking: {
+    id: string;
+    title: string;
+    extendedProps: {
+      location: string;
+      classType: string;
+      duration: number;
+      student: string;
+      instructor: string;
+    };
+  } | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onDelete: (bookingId: string) => void;
+}
+
+const BookingModal = ({ booking, isOpen, onClose, onDelete }: BookingModalProps) => {
+  if (!isOpen || !booking) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold">Booking Details</h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="space-y-3">
+          <p><span className="font-medium">Student:</span> {booking.extendedProps.student}</p>
+          <p><span className="font-medium">Instructor:</span> {booking.extendedProps.instructor}</p>
+          <p><span className="font-medium">Location:</span> {booking.extendedProps.location}</p>
+          <p><span className="font-medium">Class Type:</span> {booking.extendedProps.classType}</p>
+          <p><span className="font-medium">Duration:</span> {booking.extendedProps.duration} mins</p>
+        </div>
+        
+        <div className="mt-6 flex space-x-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+          >
+            Close
+          </button>
+          <button
+            onClick={() => {
+              onDelete(booking.id);
+              onClose();
+            }}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            Delete Booking
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// New TimeRemaining component to handle individual countdown timers
+interface TimeRemainingProps {
+  createdAt: string | undefined;
+}
+
+const TimeRemaining = ({ createdAt }: TimeRemainingProps) => {
+  const [timeRemaining, setTimeRemaining] = useState<{ text: string; className: string }>({ 
+    text: "Loading...", 
+    className: "" 
+  });
+  
+  useEffect(() => {
+    // Function to calculate time remaining
+    const calculateTimeRemaining = () => {
+      if (!createdAt) return { text: "Unknown", className: "" };
+      
+      const now = new Date();
+      const created = new Date(createdAt);
+      const expiresAt = new Date(created.getTime() + 24 * 60 * 60 * 1000); // 24 hours after creation
+      const timeLeft = expiresAt.getTime() - now.getTime();
+      
+      // If already expired
+      if (timeLeft <= 0) {
+        return { text: "Expired", className: "text-red-600 font-bold" };
+      }
+      
+      // Calculate hours, minutes and seconds
+      const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+      const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+      const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
+      
+      // Format the time remaining
+      const formattedTime = `${hoursLeft}h ${minutesLeft}m ${secondsLeft}s`;
+      
+      // Determine styling based on time left
+      let className = "";
+      if (hoursLeft < 3) {
+        className = "text-red-600 font-bold"; // Less than 3 hours
+      } else if (hoursLeft < 6) {
+        className = "text-orange-500 font-semibold"; // Less than 6 hours
+      } else if (hoursLeft < 12) {
+        className = "text-yellow-600"; // Less than 12 hours
+      }
+      
+      return { text: formattedTime, className };
+    };
+    
+    // Calculate initial time remaining
+    setTimeRemaining(calculateTimeRemaining());
+    
+    // Set up interval to update the time remaining every second
+    const interval = setInterval(() => {
+      setTimeRemaining(calculateTimeRemaining());
+    }, 1000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(interval);
+  }, [createdAt]);
+  
+  return <span className={timeRemaining.className}>{timeRemaining.text}</span>;
+};
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -50,6 +180,8 @@ export default function AdminDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDateBookings, setSelectedDateBookings] = useState<Booking[]>([]);
   const [instructorColors, setInstructorColors] = useState<{[key: string]: string}>({});
+  const [updatingExpired, setUpdatingExpired] = useState<boolean>(false);
+  const [updateMessage, setUpdateMessage] = useState<string>("");
   
   // Hardcoded locations and class types
   const locations = ["Surrey", "Burnaby", "North Vancouver"];
@@ -65,6 +197,10 @@ export default function AdminDashboard() {
     classTypes: [] as string[],
   });
   
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   type TabType = 'bookings' | 'calendar' | 'instructors' | 'users';
@@ -72,14 +208,6 @@ export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string>("");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
-  
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    } else if (status === 'authenticated' && session?.user?.email) {
-      checkAdminStatus(session.user.email);
-    }
-  }, [status, session, router]);
   
   // Generate a color for each instructor
   useEffect(() => {
@@ -129,6 +257,14 @@ export default function AdminDashboard() {
     }
   }, [allBookings, instructors, instructorColors]);
 
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    } else if (status === 'authenticated' && session?.user?.email) {
+      checkAdminStatus(session.user.email);
+    }
+  }, [status, session, router]);
+  
   useEffect(() => {
     if (isAdmin) {
       if (activeTab === 'bookings') {
@@ -180,6 +316,30 @@ export default function AdminDashboard() {
       console.error('Error fetching pending bookings:', error);
       setError("Failed to load pending bookings");
       setLoading(false);
+    }
+  };
+  
+  const handleUpdateExpiredBookings = async () => {
+    try {
+      setUpdatingExpired(true);
+      setUpdateMessage("");
+      
+      const response = await fetch('/api/booking/update-expired');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error('Failed to update expired bookings');
+      }
+      
+      setUpdateMessage(data.message || `Updated ${data.updatedCount} expired bookings`);
+      
+      // Refresh bookings list
+      fetchPendingBookings();
+    } catch (error) {
+      console.error('Error updating expired bookings:', error);
+      setUpdateMessage("Failed to update expired bookings");
+    } finally {
+      setUpdatingExpired(false);
     }
   };
   
@@ -263,6 +423,30 @@ export default function AdminDashboard() {
     }
   };
   
+  const handleDeleteBooking = async (bookingId: string) => {
+    try {
+      const response = await fetch(`/api/booking?bookingId=${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete booking');
+      }
+      
+      // Refresh bookings
+      fetchAllBookings();
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      setError("Failed to delete booking");
+    }
+  };
+  
   const handleCreateInstructor = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -304,6 +488,7 @@ export default function AdminDashboard() {
       setError("Failed to create instructor");
     }
   };
+  
   const fetchAllBookings = async () => {
     try {
       setLoading(true);
@@ -318,6 +503,7 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+  
   const handleDeleteInstructor = async (instructorId: string) => {
     try {
       const response = await fetch(`/api/instructors?instructorId=${instructorId}`, {
@@ -363,8 +549,6 @@ export default function AdminDashboard() {
       });
     }
   };
-  
-  // Removed handleSeedDatabase function as it's no longer needed with hardcoded values
   
   if (status === 'loading' || loading) {
     return (
@@ -467,7 +651,24 @@ export default function AdminDashboard() {
         
         {activeTab === 'bookings' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Pending Bookings</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Pending Bookings</h2>
+              <button
+                onClick={handleUpdateExpiredBookings}
+                disabled={updatingExpired}
+                className={`px-4 py-2 rounded-lg text-white font-medium ${
+                  updatingExpired ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
+                }`}
+              >
+                {updatingExpired ? 'Updating...' : 'Cancel Expired Bookings'}
+              </button>
+            </div>
+            
+            {updateMessage && (
+              <div className="mb-4 p-3 bg-green-100 border border-green-300 rounded-lg text-green-800">
+                {updateMessage}
+              </div>
+            )}
             
             {pendingBookings.length === 0 ? (
               <p>No pending bookings found.</p>
@@ -484,6 +685,7 @@ export default function AdminDashboard() {
                       <th className="py-2 px-4 border-b">Student</th>
                       <th className="py-2 px-4 border-b">Instructor</th>
                       <th className="py-2 px-4 border-b">Payment</th>
+                      <th className="py-2 px-4 border-b">Time Remaining</th>
                       <th className="py-2 px-4 border-b">Actions</th>
                     </tr>
                   </thead>
@@ -517,6 +719,10 @@ export default function AdminDashboard() {
                           >
                             {booking.paymentStatus}
                           </span>
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {/* Replace the static calculation with the dynamic component */}
+                          <TimeRemaining createdAt={booking.createdAt} />
                         </td>
                         <td className="py-2 px-4 border-b">
                           <div className="flex space-x-2">
@@ -634,26 +840,28 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Class Types</label>
                   <div className="flex flex-wrap gap-2">
-                    {classTypes.map((type) => (
-                      <label key={type} className="flex items-center">
+                    {classTypes.map((classType) => (
+                      <label key={classType} className="flex items-center">
                         <input
                           type="checkbox"
-                          checked={newInstructor.classTypes.includes(type)}
-                          onChange={() => handleClassTypeChange(type)}
+                          checked={newInstructor.classTypes.includes(classType)}
+                          onChange={() => handleClassTypeChange(classType)}
                           className="mr-1"
                         />
-                        {type}
+                        {classType}
                       </label>
                     ))}
                   </div>
                 </div>
                 
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg"
-                >
-                  Create Instructor
-                </button>
+                <div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg"
+                  >
+                    Create Instructor
+                  </button>
+                </div>
               </form>
             </div>
             
@@ -665,44 +873,51 @@ export default function AdminDashboard() {
               ) : (
                 <div className="space-y-4">
                   {instructors.map((instructor) => (
-                    <div
-                      key={instructor._id}
-                      className="p-4 border rounded-lg shadow-sm"
-                    >
-                      <h3 className="font-bold text-lg">
-                        {instructor?.user?.firstName} {instructor?.user?.lastName}
-                      </h3>
-                      <p className="text-gray-600">{instructor?.user?.email}</p>
-                      <p className="text-gray-600">{instructor?.user?.phone}</p>
-                      
-                      <div className="mt-2">
-                        <p className="text-sm font-medium">Locations:</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {instructor.locations.map((loc) => (
-                            <span
-                              key={loc}
-                              className="px-2 py-1 bg-gray-100 rounded text-xs"
-                            >
-                              {loc}
-                            </span>
-                          ))}
+                    <div key={instructor._id} className="border p-4 rounded">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-bold">
+                            {instructor.user.firstName} {instructor.user.lastName}
+                          </h3>
+                          <p className="text-sm text-gray-600">{instructor.user.email}</p>
+                          <p className="text-sm text-gray-600">{instructor.user.phone}</p>
+                          
+                          <div className="mt-2">
+                            <p className="text-sm font-medium">Locations:</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {instructor.locations.map((location) => (
+                                <span
+                                  key={location}
+                                  className="text-xs bg-gray-100 px-2 py-1 rounded"
+                                >
+                                  {location}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div className="mt-2">
+                            <p className="text-sm font-medium">Class Types:</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {instructor.classTypes.map((classType) => (
+                                <span
+                                  key={classType}
+                                  className="text-xs bg-gray-100 px-2 py-1 rounded"
+                                >
+                                  {classType}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
                         </div>
+                        
+                        <button
+                          onClick={() => handleDeleteInstructor(instructor._id)}
+                          className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          Delete
+                        </button>
                       </div>
-                      
-                      <div className="mt-2">
-                        <p className="text-sm font-medium">Class Types:</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {instructor.classTypes.map((type) => (
-                            <span
-                              key={type}
-                              className="px-2 py-1 bg-gray-100 rounded text-xs"
-                            >
-                              {type}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <button onClick={() => handleDeleteInstructor(instructor._id)} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg mt-2">Delete</button>
                     </div>
                   ))}
                 </div>
@@ -713,77 +928,45 @@ export default function AdminDashboard() {
         
         {activeTab === 'calendar' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">All Instructors Booking Calendar</h2>
+            <h2 className="text-xl font-bold mb-4">Calendar View</h2>
             
-            <div className="grid grid-cols-1 mb-4">
-              <div>
-                <div className="calendar-container" style={{ height: '70vh', minHeight: '600px' }}>
-                  <FullCalendar
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="timeGridWeek"
-                    headerToolbar={{
-                      left: 'prev,next today',
-                      center: 'title',
-                      right: 'timeGridWeek,timeGridDay'
-                    }}
-                    slotMinTime="08:00:00"
-                    slotMaxTime="18:00:00"
-                    allDaySlot={false}
-                    events={calendarEvents}
-                    height="100%"
-                    eventTimeFormat={{
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      meridiem: false,
-                      hour12: false
-                    }}
-                    eventContent={(eventInfo) => (
-                      <div className="p-1 text-xs">
-                        <div className="font-bold">{eventInfo.timeText}</div>
-                        <div className="truncate">{eventInfo.event.title}</div>
-                        <div className="truncate text-xs opacity-75">
-                          {eventInfo.event.extendedProps.instructor}
-                        </div>
-                      </div>
-                    )}
-                    eventClick={(info) => {
-                      alert(`
-                        Student: ${info.event.extendedProps.student}
-                        Instructor: ${info.event.extendedProps.instructor}
-                        Location: ${info.event.extendedProps.location}
-                        Class Type: ${info.event.extendedProps.classType}
-                        Duration: ${info.event.extendedProps.duration} mins
-                      `);
-                    }}
-                  />
-                </div>
-                
-                <div className="mt-8 mb-6">
-                  <h3 className="font-bold mb-2">Instructor Legend</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {instructors.map(instructor => (
-                      <div 
-                        key={instructor._id} 
-                        className="flex items-center"
-                      >
-                        <div 
-                          className="w-4 h-4 mr-2 rounded-full"
-                          style={{ backgroundColor: instructorColors[instructor._id] || '#808080' }}
-                        ></div>
-                        <span className="text-sm">
-                          {instructor.user.firstName} {instructor.user.lastName}
-                        </span>
-                      </div>
-                    ))}
+            <div className="mb-4">
+              <div className="flex flex-wrap items-center gap-4">
+                {instructors.map((instructor) => (
+                  <div key={instructor._id} className="flex items-center">
+                    <div 
+                      className="w-4 h-4 mr-1 rounded-full" 
+                      style={{ backgroundColor: instructorColors[instructor._id] || '#808080' }}
+                    ></div>
+                    <span className="text-sm">{instructor.user.firstName} {instructor.user.lastName}</span>
                   </div>
-                </div>
+                ))}
               </div>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg shadow">
+              <FullCalendar
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                initialView="timeGridWeek"
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                }}
+                events={calendarEvents}
+                eventClick={(info) => {
+                  setSelectedBooking(info.event);
+                  setIsModalOpen(true);
+                }}
+                height="auto"
+              />
             </div>
           </div>
         )}
+        
         {activeTab === 'users' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Registered Users</h2>
+            <h2 className="text-xl font-bold mb-4">All Users</h2>
             
             {users.length === 0 ? (
               <p>No users found.</p>
@@ -805,7 +988,7 @@ export default function AdminDashboard() {
                           {user.firstName} {user.lastName}
                         </td>
                         <td className="py-2 px-4 border-b">{user.email}</td>
-                        <td className="py-2 px-4 border-b">{user.phone}</td>
+                        <td className="py-2 px-4 border-b">{user.phone || 'N/A'}</td>
                         <td className="py-2 px-4 border-b">
                           <span
                             className={`px-2 py-1 rounded text-xs ${
@@ -813,7 +996,7 @@ export default function AdminDashboard() {
                                 ? 'bg-purple-100 text-purple-800'
                                 : user.role === 'instructor'
                                 ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-800'
+                                : 'bg-green-100 text-green-800'
                             }`}
                           >
                             {user.role}
@@ -829,6 +1012,14 @@ export default function AdminDashboard() {
         )}
       </div>
     </div>
+    
+    {/* Modal for calendar events */}
+    <BookingModal
+      booking={selectedBooking}
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      onDelete={handleDeleteBooking}
+    />
     </>
   );
 }

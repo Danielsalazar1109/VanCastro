@@ -3,36 +3,94 @@
  * 
  * Buffer time rules:
  * - 15 minutes if next class is in the same location
- * - 30 minutes from Vancouver to Surrey
- * - 45 minutes from North Vancouver to Burnaby or Surrey
+ * - 30 minutes between Burnaby and Surrey
+ * - 45 minutes between North Vancouver and either Burnaby or Surrey
+ * 
+ * When both previous and next locations are provided, the function will:
+ * - Consider the buffer time needed for both transitions
+ * - Return the appropriate buffer time based on the locations
  * 
  * @param currentLocation The location of the current lesson
  * @param nextLocation The location of the next lesson
+ * @param previousLocation The location of the previous lesson (optional)
  * @returns Buffer time in minutes
  */
 export function calculateBufferTime(
   currentLocation: string,
-  nextLocation: string
+  nextLocation: string,
+  previousLocation?: string
+): number {
+  // If no previous location is provided, calculate buffer based only on current and next
+  if (!previousLocation) {
+    // If locations are the same, buffer time is 15 minutes
+    if (currentLocation === nextLocation) {
+      return 15;
+    }
+
+    // Between Burnaby and Surrey
+    if (
+      (currentLocation === 'Burnaby' && nextLocation === 'Surrey') ||
+      (currentLocation === 'Surrey' && nextLocation === 'Burnaby')
+    ) {
+      return 30;
+    }
+
+    // Between North Vancouver and Burnaby or Surrey
+    if (
+      (currentLocation === 'North Vancouver' && 
+       (nextLocation === 'Burnaby' || nextLocation === 'Surrey')) ||
+      ((currentLocation === 'Burnaby' || currentLocation === 'Surrey') && 
+       nextLocation === 'North Vancouver')
+    ) {
+      return 45;
+    }
+
+    // Default buffer time for other combinations
+    return 30;
+  }
+  
+  // If previous location is provided, consider both transitions
+  
+  // Calculate buffer time from previous to current location
+  const bufferFromPrevious = calculateBufferTimeForLocations(previousLocation, currentLocation);
+  
+  // Calculate buffer time from current to next location
+  const bufferToNext = calculateBufferTimeForLocations(currentLocation, nextLocation);
+  
+  // Return the maximum buffer time to ensure enough time for both transitions
+  return Math.max(bufferFromPrevious, bufferToNext);
+}
+
+/**
+ * Helper function to calculate buffer time between two specific locations
+ * 
+ * @param fromLocation The starting location
+ * @param toLocation The destination location
+ * @returns Buffer time in minutes
+ */
+function calculateBufferTimeForLocations(
+  fromLocation: string,
+  toLocation: string
 ): number {
   // If locations are the same, buffer time is 15 minutes
-  if (currentLocation === nextLocation) {
+  if (fromLocation === toLocation) {
     return 15;
   }
 
-  // From Vancouver to Surrey
+  // Between Burnaby and Surrey
   if (
-    (currentLocation === 'Vancouver' && nextLocation === 'Surrey') ||
-    (currentLocation === 'Surrey' && nextLocation === 'Vancouver')
+    (fromLocation === 'Burnaby' && toLocation === 'Surrey') ||
+    (fromLocation === 'Surrey' && toLocation === 'Burnaby')
   ) {
     return 30;
   }
 
-  // From North Vancouver to Burnaby or Surrey
+  // Between North Vancouver and Burnaby or Surrey
   if (
-    (currentLocation === 'North Vancouver' && 
-     (nextLocation === 'Burnaby' || nextLocation === 'Surrey')) ||
-    ((currentLocation === 'Burnaby' || currentLocation === 'Surrey') && 
-     nextLocation === 'North Vancouver')
+    (fromLocation === 'North Vancouver' && 
+     (toLocation === 'Burnaby' || toLocation === 'Surrey')) ||
+    ((fromLocation === 'Burnaby' || fromLocation === 'Surrey') && 
+     toLocation === 'North Vancouver')
   ) {
     return 45;
   }
@@ -88,7 +146,20 @@ export function hasTimeConflict(
   const newStartTotalMinutes = newStartHours * 60 + newStartMinutes;
   const newEndTotalMinutes = newEndHours * 60 + newEndMinutes;
 
-  for (const booking of existingBookings) {
+  // Sort bookings by start time to determine previous and next bookings
+  const sortedBookings = [...existingBookings].sort((a, b) => {
+    const [aHours, aMinutes] = a.startTime.split(':').map(Number);
+    const [bHours, bMinutes] = b.startTime.split(':').map(Number);
+    
+    const aTotalMinutes = aHours * 60 + aMinutes;
+    const bTotalMinutes = bHours * 60 + bMinutes;
+    
+    return aTotalMinutes - bTotalMinutes;
+  });
+
+  for (let i = 0; i < sortedBookings.length; i++) {
+    const booking = sortedBookings[i];
+    
     // Convert existing booking times to minutes
     const [existingStartHours, existingStartMinutes] = booking.startTime.split(':').map(Number);
     const [existingEndHours, existingEndMinutes] = booking.endTime.split(':').map(Number);
@@ -96,9 +167,22 @@ export function hasTimeConflict(
     const existingStartTotalMinutes = existingStartHours * 60 + existingStartMinutes;
     const existingEndTotalMinutes = existingEndHours * 60 + existingEndMinutes;
     
-    // Calculate buffer times
-    const bufferBefore = calculateBufferTime(booking.location, newLocation);
-    const bufferAfter = calculateBufferTime(newLocation, booking.location);
+    // Determine previous and next booking locations
+    const previousBooking = i > 0 ? sortedBookings[i - 1] : undefined;
+    const nextBooking = i < sortedBookings.length - 1 ? sortedBookings[i + 1] : undefined;
+    
+    // Calculate buffer times considering previous and next bookings
+    const bufferBefore = calculateBufferTime(
+      booking.location, 
+      newLocation, 
+      previousBooking?.location
+    );
+    
+    const bufferAfter = calculateBufferTime(
+      newLocation, 
+      booking.location, 
+      nextBooking?.location
+    );
     
     // Check if new booking starts during existing booking (including buffer)
     // or if new booking ends during existing booking (including buffer)
