@@ -29,7 +29,7 @@ function generateTimeSlots(
   }
 
   const slots = [];
-  const SLOT_INTERVAL = 30 ; // Fixed 30-minute intervals between slot start times
+  const SLOT_INTERVAL = 15 ; // Fixed 30-minute intervals between slot start times
 
   // Convert start and end times to minutes since midnight
   const [startHours, startMinutes] = availability.startTime.split(':').map(Number);
