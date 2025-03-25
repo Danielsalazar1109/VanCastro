@@ -50,6 +50,8 @@ export default function InstructorDashboard() {
   const [error, setError] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("bookings");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+  const [slotMinTime, setSlotMinTime] = useState<string>("08:00:00");
+  const [slotMaxTime, setSlotMaxTime] = useState<string>("17:00:00");
   
   const locations = ["Surrey", "Burnaby", "North Vancouver"];
   
@@ -194,6 +196,44 @@ export default function InstructorDashboard() {
         });
         
         setAvailability(fullAvailability);
+        
+        // Calculate min start time and max end time from instructor's availability
+        if (fullAvailability.length > 0) {
+          let minStartTime = "23:59:00";
+          let maxEndTime = "00:00:00";
+          
+          fullAvailability.forEach(slot => {
+            if (slot.isAvailable) {
+              // Add seconds to match FullCalendar format
+              const startTimeWithSeconds = slot.startTime.includes(':') && slot.startTime.split(':').length === 2 
+                ? `${slot.startTime}:00` 
+                : slot.startTime;
+              
+              const endTimeWithSeconds = slot.endTime.includes(':') && slot.endTime.split(':').length === 2 
+                ? `${slot.endTime}:00` 
+                : slot.endTime;
+              
+              // Compare and update minimum start time
+              if (startTimeWithSeconds < minStartTime) {
+                minStartTime = startTimeWithSeconds;
+              }
+              
+              // Compare and update maximum end time
+              if (endTimeWithSeconds > maxEndTime) {
+                maxEndTime = endTimeWithSeconds;
+              }
+            }
+          });
+          
+          // Only update if we found valid times
+          if (minStartTime !== "23:59:00") {
+            setSlotMinTime(minStartTime);
+          }
+          
+          if (maxEndTime !== "00:00:00") {
+            setSlotMaxTime(maxEndTime);
+          }
+        }
       }
       
       setLoading(false);
@@ -331,8 +371,8 @@ export default function InstructorDashboard() {
                     center: 'title',
                     right: 'timeGridWeek,timeGridDay'
                   }}
-                  slotMinTime="08:00:00"
-                  slotMaxTime="17:00:00"
+                  slotMinTime={slotMinTime}
+                  slotMaxTime={slotMaxTime}
                   allDaySlot={false}
                   events={calendarEvents}
                   eventTimeFormat={{

@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     const email = searchParams.get('email');
     const role = searchParams.get('role');
+    const includeBookings = searchParams.get('bookings') === 'true';
     
     // Build query based on parameters
     const query: any = {};
@@ -74,8 +75,19 @@ export async function GET(request: NextRequest) {
     }
     
     // Get users based on query
-    const users = await User.find(query)
+    let users = await User.find(query)
       .sort({ firstName: 1, lastName: 1 });
+
+      if (includeBookings && userId) {
+        users = await User.find(query)
+        .populate({
+          path: 'bookings',
+          populate: {
+            path: 'instructor',
+            model: 'Instructor'
+          }
+        })
+      }
     
     return NextResponse.json({ users });
   } catch (error) {

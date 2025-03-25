@@ -9,6 +9,7 @@ export interface IUser extends Document {
   role: 'user' | 'instructor' | 'admin';
   createdAt: Date;
   updatedAt: Date;
+  bookings?: string[];
 }
 
 const UserSchema: Schema = new Schema(
@@ -23,6 +24,7 @@ const UserSchema: Schema = new Schema(
       enum: ['user', 'instructor', 'admin'], 
       default: 'user' 
     },
+    bookings: [{ type: Schema.Types.ObjectId, ref: 'Booking' }]
   },
   { timestamps: true }
 );

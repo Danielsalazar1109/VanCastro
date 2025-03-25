@@ -17,11 +17,19 @@ interface User {
   role: string;
 }
 
+interface Availability {
+  day: string;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+
 interface Instructor {
   _id: string;
   user: User;
   locations: string[];
   classTypes: string[];
+  availability?: Availability[];
 }
 
 interface Booking {
@@ -208,6 +216,8 @@ export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string>("");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+  const [slotMinTime, setSlotMinTime] = useState<string>("08:00");
+  const [slotMaxTime, setSlotMaxTime] = useState<string>("17:00");
   
   // Generate a color for each instructor
   useEffect(() => {
@@ -349,7 +359,42 @@ export default function AdminDashboard() {
       const response = await fetch('/api/instructors');
       const data = await response.json();
       
-      setInstructors(data.instructors || []);
+      const fetchedInstructors = data.instructors || [];
+      setInstructors(fetchedInstructors);
+      
+      // Calculate min start time and max end time from instructor availability
+      if (fetchedInstructors.length > 0) {
+        let minStartTime = "23:59";
+        let maxEndTime = "00:00";
+        
+        fetchedInstructors.forEach((instructor: Instructor) => {
+          if (instructor.availability && instructor.availability.length > 0) {
+            instructor.availability.forEach((slot: Availability) => {
+              if (slot.isAvailable) {
+                // Compare and update minimum start time
+                if (slot.startTime < minStartTime) {
+                  minStartTime = slot.startTime;
+                }
+                
+                // Compare and update maximum end time
+                if (slot.endTime > maxEndTime) {
+                  maxEndTime = slot.endTime;
+                }
+              }
+            });
+          }
+        });
+        
+        // Only update if we found valid times
+        if (minStartTime !== "23:59") {
+          setSlotMinTime(minStartTime);
+        }
+        
+        if (maxEndTime !== "00:00") {
+          setSlotMaxTime(maxEndTime);
+        }
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Error fetching instructors:', error);
@@ -948,6 +993,9 @@ export default function AdminDashboard() {
               <FullCalendar
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                 initialView="timeGridWeek"
+                slotMinTime={slotMinTime}
+                slotMaxTime={slotMaxTime}
+                allDaySlot={false}
                 headerToolbar={{
                   left: 'prev,next today',
                   center: 'title',
