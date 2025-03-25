@@ -1,11 +1,16 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcrypt";
 import connectToDatabase from "@/lib/db/mongodb";
 import User from "@/models/User";
 
 const handler = NextAuth({
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -56,13 +61,61 @@ const handler = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.firstName = user.firstName;
-        token.lastName = user.lastName;
-        token.phone = user.phone;
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        try {
+          await connectToDatabase();
+          
+          // Check if user exists
+          const existingUser = await User.findOne({ email: user.email });
+          
+          if (!existingUser) {
+            // Create new user from Google data
+            await User.create({
+              firstName: user.name?.split(' ')[0] || '',
+              lastName: user.name?.split(' ').slice(1).join(' ') || '',
+              email: user.email,
+              phone: '', // Google doesn't provide phone, will need to be updated later
+              googleId: account?.providerAccountId,
+              role: 'user',
+            });
+          } else if (!existingUser.googleId) {
+            // Update existing user with Google ID
+            existingUser.googleId = account?.providerAccountId;
+            await existingUser.save();
+          }
+        } catch (error) {
+          console.error("Google sign-in error:", error);
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (account && user) {
+        if (account.provider === 'google') {
+          try {
+            await connectToDatabase();
+            const dbUser = await User.findOne({ email: user.email });
+            if (dbUser) {
+              token.id = dbUser._id.toString();
+              token.role = dbUser.role;
+              token.firstName = dbUser.firstName;
+              token.lastName = dbUser.lastName;
+              token.phone = dbUser.phone || '';
+            }
+          } catch (error) {
+            console.error("JWT callback error:", error);
+          }
+        } else {
+          // For credentials provider
+          token.id = user.id;
+          token.role = user.role;
+          token.firstName = user.firstName;
+          token.lastName = user.lastName;
+          token.phone = user.phone;
+        }
       }
       return token;
     },
