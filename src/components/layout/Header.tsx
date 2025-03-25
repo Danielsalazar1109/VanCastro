@@ -39,6 +39,14 @@ export default function Header() {
 						</li>
 						<li>
 							<Link
+								href="/tracking"
+								className="text-white hover:text-yellow-500 transition-colors duration-200"
+							>
+								Track your booking
+							</Link>
+						</li>
+						<li>
+							<Link
 								href="/faq"
 								className="text-white hover:text-yellow-500 transition-colors duration-200"
 							>
