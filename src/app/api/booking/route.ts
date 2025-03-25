@@ -41,6 +41,19 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Check if user already has a pending booking
+    const existingPendingBooking = await Booking.findOne({
+      user: userId,
+      status: 'pending'
+    });
+    
+    if (existingPendingBooking) {
+      return NextResponse.json(
+        { error: 'You already have a pending booking. Please complete or cancel it before creating a new one.' },
+        { status: 400 }
+      );
+    }
+    
     // Check if instructor exists
     const instructor = await Instructor.findById(instructorId);
     if (!instructor) {

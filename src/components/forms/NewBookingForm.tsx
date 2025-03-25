@@ -89,6 +89,14 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     }
   }, [location, classType]);
   
+  // Calculate minimum booking date (2 days from now)
+  const getMinBookingDate = () => {
+    const today = new Date();
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 2);
+    return minDate.toISOString().split("T")[0];
+  };
+
   // Load schedules based on selected instructor, date, and duration
   useEffect(() => { 
     if (instructorId && date && duration && location) {
@@ -461,9 +469,12 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                 className="w-full p-2 border rounded-md"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
+                min={getMinBookingDate()}
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Bookings must be made at least 2 days in advance.
+              </p>
             </div>
             
             <div className="flex justify-between mt-6">
@@ -498,7 +509,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                   Available Time Slots
                 </label>
                 <p className="text-sm text-gray-600 mb-3">
-                  These time slots are automatically generated based on the instructor's availability for {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}.
+                  These time slots are automatically generated based on the instructor's availability for {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }) : ''}.
                 </p>
                 {loading ? (
                   <p>Loading time slots...</p>
