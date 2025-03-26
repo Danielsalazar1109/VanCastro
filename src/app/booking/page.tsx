@@ -6,12 +6,15 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import PlansGrid from "@/components/plans/PlansGrid";
 import NewBookingForm from "@/components/forms/NewBookingForm";
+import PhoneNumberForm from "@/components/forms/PhoneNumberForm";
 
 export default function BookingPage() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     const packageParam = searchParams.get('package');
@@ -19,28 +22,51 @@ export default function BookingPage() {
       setSelectedPackage(packageParam);
     }
     
-    // If user is authenticated, fetch their MongoDB user ID
+    // If user is authenticated, fetch their MongoDB user ID and details
     if (status === 'authenticated' && session?.user?.email) {
-      fetchUserId(session.user.email);
+      fetchUserDetails(session.user.email);
+    } else {
+      setLoading(false);
     }
   }, [searchParams, session, status]);
   
-  const fetchUserId = async (email: string) => {
+  const fetchUserDetails = async (email: string) => {
     try {
+      setLoading(true);
       const response = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
       const data = await response.json();
       
       if (data.users && data.users.length > 0) {
-        setUserId(data.users[0]._id);
+        const user = data.users[0];
+        setUserId(user._id);
+        setUserDetails(user);
       }
+      setLoading(false);
     } catch (error) {
-      console.error('Error fetching user ID:', error);
+      console.error('Error fetching user details:', error);
+      setLoading(false);
+    }
+  };
+  
+  const handlePhoneNumberAdded = () => {
+    // Refresh user details after phone number is added
+    if (session?.user?.email) {
+      fetchUserDetails(session.user.email);
     }
   };
   
   const handleSelectPackage = (link: string) => {
     setSelectedPackage(link);
   };
+  
+  // If still loading
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
   
   // If user is not authenticated, show login prompt
   if (status === 'unauthenticated') {
@@ -70,11 +96,19 @@ export default function BookingPage() {
     );
   }
   
-  // If still loading session or user ID
-  if (status === 'loading' || (status === 'authenticated' && !userId)) {
+  // If authenticated but no phone number, show phone number form
+  if (status === 'authenticated' && userId && userDetails && (!userDetails.phone || userDetails.phone === '')) {
     return (
-      <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
-        <div className="text-xl">Loading...</div>
+      <div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
+        <div className="my-12 w-full flex flex-col items-center">
+          <h2 className="text-3xl font-bold mb-8">Complete Your Profile</h2>
+          <div className="mb-6 max-w-md text-center">
+            <p className="text-gray-700">
+              Before you can book a driving lesson, we need your phone number to contact you about your bookings.
+            </p>
+          </div>
+          <PhoneNumberForm userId={userId} onPhoneNumberAdded={handlePhoneNumberAdded} />
+        </div>
       </div>
     );
   }

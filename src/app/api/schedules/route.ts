@@ -29,7 +29,7 @@ function generateTimeSlots(
   }
 
   const slots = [];
-  const SLOT_INTERVAL = 15 ; // Fixed 30-minute intervals between slot start times
+  const DEFAULT_SLOT_INTERVAL = 30; // Default 30-minute intervals (00 and 30)
 
   // Convert start and end times to minutes since midnight
   const [startHours, startMinutes] = availability.startTime.split(':').map(Number);
@@ -49,11 +49,11 @@ function generateTimeSlots(
     return aTotalMinutes - bTotalMinutes;
   });
   
-  // Generate slots at fixed 30-minute intervals
+  // Generate slots at fixed 30-minute intervals by default
   // Round up to the nearest 30-minute interval if needed
   let currentTimeInMinutes = startTimeInMinutes;
-  if (currentTimeInMinutes % SLOT_INTERVAL !== 0) {
-    currentTimeInMinutes = Math.ceil(currentTimeInMinutes / SLOT_INTERVAL) * SLOT_INTERVAL;
+  if (currentTimeInMinutes % 30 !== 0) {
+    currentTimeInMinutes = Math.ceil(currentTimeInMinutes / 30) * 30;
   }
   
   // Create blocked time ranges based on existing bookings including buffer times
@@ -102,27 +102,28 @@ function generateTimeSlots(
     mergedBlockedRanges.push(currentRange);
   }
   
-  // Generate slots, skipping blocked times
-  while (currentTimeInMinutes + duration <= endTimeInMinutes) {
-    // Convert current time back to HH:MM format
-    const currentHours = Math.floor(currentTimeInMinutes / 60);
-    const currentMinutes = currentTimeInMinutes % 60;
-    const startTime = `${currentHours.toString().padStart(2, '0')}:${currentMinutes.toString().padStart(2, '0')}`;
-    
-    // Calculate end time
-    const slotEndTimeInMinutes = currentTimeInMinutes + duration;
-    const endHours = Math.floor(slotEndTimeInMinutes / 60);
-    const endMinutes = slotEndTimeInMinutes % 60;
-    const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  // First, generate all possible valid slots (checking every 15 minutes)
+  const allPossibleSlots = [];
+  
+  // Start from the earliest possible time (rounded to 15 minutes)
+  let slotTimeInMinutes = startTimeInMinutes;
+  if (slotTimeInMinutes % 15 !== 0) {
+    slotTimeInMinutes = Math.ceil(slotTimeInMinutes / 15) * 15;
+  }
+  
+  // Generate all possible slots that don't overlap with blocked time ranges
+  while (slotTimeInMinutes + duration <= endTimeInMinutes) {
+    // Calculate slot end time
+    const slotEndTimeInMinutes = slotTimeInMinutes + duration;
     
     // Check if this slot overlaps with any blocked time range
     let isBlocked = false;
     for (const range of mergedBlockedRanges) {
       // Check for any kind of overlap
       if (
-        (currentTimeInMinutes >= range.start && currentTimeInMinutes < range.end) || // Slot starts during blocked time
+        (slotTimeInMinutes >= range.start && slotTimeInMinutes < range.end) || // Slot starts during blocked time
         (slotEndTimeInMinutes > range.start && slotEndTimeInMinutes <= range.end) || // Slot ends during blocked time
-        (currentTimeInMinutes <= range.start && slotEndTimeInMinutes >= range.end)    // Slot spans the entire blocked time
+        (slotTimeInMinutes <= range.start && slotEndTimeInMinutes >= range.end)    // Slot spans the entire blocked time
       ) {
         isBlocked = true;
         break;
@@ -131,15 +132,116 @@ function generateTimeSlots(
     
     // Add slot if it's not blocked
     if (!isBlocked) {
-      slots.push({
+      // Convert to HH:MM format
+      const hours = Math.floor(slotTimeInMinutes / 60);
+      const minutes = slotTimeInMinutes % 60;
+      const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      
+      const endHours = Math.floor(slotEndTimeInMinutes / 60);
+      const endMinutes = slotEndTimeInMinutes % 60;
+      const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+      
+      allPossibleSlots.push({
         startTime,
         endTime,
-        isBooked: isBlocked
-      });  
+        timeInMinutes: slotTimeInMinutes,
+        isStandardTime: minutes === 0 || minutes === 30
+      });
     }
     
-    // Move to next slot at fixed 30-minute interval
-    currentTimeInMinutes += SLOT_INTERVAL;
+    // Move to next 15-minute interval
+    slotTimeInMinutes += 15;
+  }
+  
+  // Now determine which non-standard slots (15 or 45) should be included
+  // We'll only include the first and last slots between two bookings
+  const specialTimeSlots = new Set<number>();
+  
+  // Sort the blocked ranges by start time
+  mergedBlockedRanges.sort((a, b) => a.start - b.start);
+  
+  // For each pair of adjacent blocked ranges, find the first and last valid slots between them
+  if (mergedBlockedRanges.length >= 2) {
+    for (let i = 0; i < mergedBlockedRanges.length - 1; i++) {
+      const currentRange = mergedBlockedRanges[i];
+      const nextRange = mergedBlockedRanges[i + 1];
+      
+      // Find the first valid slot after the current range
+      let firstSlotAfterCurrent: number | null = null;
+      let lastSlotBeforeNext: number | null = null;
+      
+      // Sort slots by time
+      const sortedSlots = [...allPossibleSlots].sort((a, b) => a.timeInMinutes - b.timeInMinutes);
+      
+      // Find the first valid slot after the current range
+      for (const slot of sortedSlots) {
+        const slotTime = slot.timeInMinutes;
+        const minutes = slotTime % 60;
+        
+        // Skip standard time slots (00 or 30)
+        if (minutes === 0 || minutes === 30) continue;
+        
+        // Check if this slot is right after the current range and before the next range
+        if (slotTime >= currentRange.end && slotTime + duration <= nextRange.start) {
+          if (firstSlotAfterCurrent === null) {
+            firstSlotAfterCurrent = slotTime;
+          }
+          
+          // Update the last slot before the next range
+          lastSlotBeforeNext = slotTime;
+        }
+      }
+      
+      // Add the first and last slots to the special slots set
+      if (firstSlotAfterCurrent !== null) {
+        specialTimeSlots.add(firstSlotAfterCurrent);
+      }
+      
+      if (lastSlotBeforeNext !== null && lastSlotBeforeNext !== firstSlotAfterCurrent) {
+        specialTimeSlots.add(lastSlotBeforeNext);
+      }
+    }
+  }
+  
+  // Also include slots that are directly adjacent to a single booking
+  // (when there's only one booking or at the edges of the schedule)
+  for (const slot of allPossibleSlots) {
+    const slotTime = slot.timeInMinutes;
+    const minutes = slotTime % 60;
+    
+    // Skip standard time slots (00 or 30)
+    if (minutes === 0 || minutes === 30) continue;
+    
+    // Check if this slot is directly adjacent to the start of a blocked range
+    for (const range of mergedBlockedRanges) {
+      if (slotTime + duration === range.start) {
+        specialTimeSlots.add(slotTime);
+        break;
+      }
+    }
+    
+    // Check if this slot is directly adjacent to the end of a blocked range
+    for (const range of mergedBlockedRanges) {
+      if (slotTime === range.end) {
+        specialTimeSlots.add(slotTime);
+        break;
+      }
+    }
+  }
+  
+  // Filter the all possible slots to include only standard slots and special slots
+  for (const slot of allPossibleSlots) {
+    const minutes = slot.timeInMinutes % 60;
+    const isStandardSlot = minutes === 0 || minutes === 30;
+    const isSpecialSlot = specialTimeSlots.has(slot.timeInMinutes);
+    
+    if (isStandardSlot || isSpecialSlot) {
+      slots.push({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isBooked: false
+      });
+    }
   }
   
   return slots;

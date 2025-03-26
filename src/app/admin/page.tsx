@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -647,7 +647,15 @@ export default function AdminDashboard() {
     <>
     <div className="w-full min-h-screen bg-white py-10 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <button 
+            onClick={() => signOut({ callbackUrl: '/' })}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg"
+          >
+            Cerrar sesión
+          </button>
+        </div>
         
         <div className="mb-6">
           <div className="flex border-b">
@@ -738,7 +746,7 @@ export default function AdminDashboard() {
                     {pendingBookings.map((booking) => (
                       <tr key={booking._id}>
                         <td className="py-2 px-4 border-b">
-                          {new Date(booking.date).toLocaleDateString()}
+                        {new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                         </td>
                         <td className="py-2 px-4 border-b">
                           {booking.startTime} - {booking.endTime}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -9,11 +9,28 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const errorParam = searchParams.get("error");
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Handle error parameter from URL
+  useEffect(() => {
+    if (errorParam) {
+      switch (errorParam) {
+        case "AccessDenied":
+          setError("Access denied. You don't have permission to access that page.");
+          break;
+        case "CredentialsSignin":
+          setError("Invalid email or password.");
+          break;
+        default:
+          setError("An error occurred. Please try again.");
+      }
+    }
+  }, [errorParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +55,7 @@ export default function LoginPage() {
       const session = await response.json();
       
       // Redirect based on user role
-      if (session?.user?.role === "student") {
+      if (session?.user?.role === "user") {
         router.push("/booking");
       } else if (session?.user?.role === "instructor") {
         router.push("/instructor");

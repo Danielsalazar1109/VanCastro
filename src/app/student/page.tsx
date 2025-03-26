@@ -17,7 +17,7 @@ export default function StudentDashboard() {
     } else if (status === "authenticated") {
       // Use string comparison for role check
       const userRole = session?.user?.role as string;
-      if (userRole !== "STUDENT") {
+      if (userRole !== "user") {
         router.push("/");
       }
       setLoading(false);
