@@ -1,6 +1,6 @@
 'use client'
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 
 // Definition of Booking type
@@ -142,7 +142,15 @@ export default function Tracking() {
     return (
       <div className="min-h-screen bg-gray-100 p-6">
         <div className="container mx-auto">
-          <h1 className="text-2xl font-bold mb-6">My Bookings</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">My Bookings</h1>
+            <button 
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg"
+            >
+              Cerrar sesión
+            </button>
+          </div>
           <h1>{session.user.name}</h1>
           
           {isLoading ? (

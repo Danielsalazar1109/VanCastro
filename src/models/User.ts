@@ -17,7 +17,7 @@ const UserSchema: Schema = new Schema(
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  phone: { type: String, required: true },
+  phone: { type: String, required: false }, // Made optional to support OAuth providers
   password: { type: String, required: false }, // Optional for OAuth providers
   googleId: { type: String, required: false }, // For Google authentication
     role: { 

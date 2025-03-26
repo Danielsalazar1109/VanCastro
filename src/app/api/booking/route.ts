@@ -5,6 +5,7 @@ import User from '@/models/User';
 import Instructor from '@/models/Instructor';
 import Schedule from '@/models/Schedule';
 import { hasTimeConflict, addBufferTime } from '@/lib/utils/bufferTime';
+import { sendBookingConfirmationEmail } from '@/lib/utils/emailService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -150,8 +151,38 @@ export async function POST(request: NextRequest) {
       paymentStatus: 'completed', // Set as completed since we're not using Stripe
     });
     
+    // Get user and instructor details for email
+    const userDetails = await User.findById(userId);
+    const instructorDetails = await Instructor.findById(instructorId).populate('user');
+    
+    // Send email notification to student
+    if (userDetails?.email) {
+      try {
+        // Get instructor name
+        const instructorName = instructorDetails?.user?.firstName 
+          ? `${instructorDetails.user.firstName} ${instructorDetails.user.lastName}`
+          : 'Your Instructor';
+          
+        await sendBookingConfirmationEmail(
+          {
+            ...booking.toObject(),
+            user: userDetails,
+            instructor: instructorDetails
+          },
+          instructorName
+        );
+        console.log('Booking confirmation email sent to student:', userDetails.email);
+      } catch (emailError) {
+        console.error('Error sending new booking email:', emailError);
+        // Continue with booking creation even if email fails
+      }
+    }
+    
     // Return the booking ID
-    return NextResponse.json({ bookingId: booking._id });
+    return NextResponse.json({ 
+      bookingId: booking._id,
+      emailSent: !!instructorDetails?.user?.email
+    });
   } catch (error) {
     console.error('Error creating booking:', error);
     return NextResponse.json(
@@ -248,6 +279,8 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+import { sendBookingCancellationEmail } from '@/lib/utils/emailService';
+
 export async function DELETE(request: NextRequest) {
   try {
     // Connect to the database
@@ -256,6 +289,10 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const bookingId = searchParams.get('bookingId');
     
+    // Parse request body for additional data
+    const body = await request.json();
+    const { sendEmail = false, instructorName = 'Your Instructor' } = body;
+    
     if (!bookingId) {
       return NextResponse.json(
         { error: 'Booking ID is required' },
@@ -263,8 +300,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Check if booking exists
-    const booking = await Booking.findById(bookingId);
+    // Check if booking exists and populate user and instructor details
+    const booking = await Booking.findById(bookingId)
+      .populate('user', 'firstName lastName email phone')
+      .populate({
+        path: 'instructor',
+        populate: {
+          path: 'user',
+          select: 'firstName lastName email'
+        }
+      });
+      
     if (!booking) {
       return NextResponse.json(
         { error: 'Booking not found' },
@@ -272,10 +318,24 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
+    // Send email notification if requested
+    if (sendEmail && booking.user.email) {
+      try {
+        await sendBookingCancellationEmail(booking, instructorName);
+        console.log('Cancellation email sent to:', booking.user.email);
+      } catch (emailError) {
+        console.error('Error sending cancellation email:', emailError);
+        // Continue with deletion even if email fails
+      }
+    }
+    
     // Delete booking
     await Booking.findByIdAndDelete(bookingId);
     
-    return NextResponse.json({ message: 'Booking deleted successfully' });
+    return NextResponse.json({ 
+      message: 'Booking deleted successfully',
+      emailSent: sendEmail
+    });
   } catch (error) {
     console.error('Error deleting booking:', error);
     return NextResponse.json(

@@ -129,6 +129,27 @@ const handler = NextAuth({
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // If the user is signing in with Google and doesn't have a phone number,
+      // redirect them to the complete-profile page
+      if (url.startsWith(baseUrl)) {
+        // Get the path without the baseUrl
+        const path = url.substring(baseUrl.length);
+        
+        // If the user is being redirected to a page other than complete-profile
+        if (!path.startsWith('/complete-profile')) {
+          // Check if the user has a phone number
+          const session = await fetch(`${baseUrl}/api/auth/session`).then(res => res.json());
+          
+          if (session?.user && (!session.user.phone || session.user.phone === '')) {
+            // Redirect to complete-profile with the original URL as the callback
+            return `${baseUrl}/complete-profile?callbackUrl=${encodeURIComponent(url)}`;
+          }
+        }
+      }
+      
+      return url;
+    },
   },
   pages: {
     signIn: "/login",
