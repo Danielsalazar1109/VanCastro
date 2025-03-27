@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
+import { Clock, LogOut, MapPin, UserCheck, Calendar } from "lucide-react";
 
 // Definition of Booking type
 interface Booking {
@@ -13,6 +14,7 @@ interface Booking {
   startTime: string;
   endTime: string;
   status: string;
+  price?: number;
   instructor?: {
     user?: {
       firstName: string;
@@ -112,24 +114,26 @@ export default function Tracking() {
   // Unauthenticated view
   if (status === "unauthenticated") {
     return (
-      <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
-        <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold mb-4 text-center">Login Required</h2>
-          <p className="mb-6 text-center">
-            You need to be logged in to track a driving lesson.
-          </p>
-          <div className="flex flex-col gap-4">
+      <div className="w-full min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-yellow-50 to-yellow-100 px-4">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-2xl border border-yellow-100">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-yellow-600 mb-4">Welcome Back</h2>
+            <p className="text-gray-600 mb-6">
+              Login to access your driving lesson tracking
+            </p>
+          </div>
+          <div className="space-y-4">
             <Link
               href="/login"
-              className="w-full py-2 px-4 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg text-center"
+              className="w-full py-3 px-4 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 text-center inline-block"
             >
               Login
             </Link>
             <Link
               href="/register"
-              className="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 text-black font-bold rounded-lg text-center"
+              className="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 text-center inline-block"
             >
-              Register
+              Create Account
             </Link>
           </div>
         </div>
@@ -140,76 +144,132 @@ export default function Tracking() {
   // Authenticated view
   if (status === "authenticated") {
     return (
-      <div className="min-h-screen bg-gray-100 p-6">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">My Bookings</h1>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+        <div className="container mx-auto max-w-4xl">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">My Driving Lessons</h1>
+              <p className="text-gray-600">Welcome, {session.user.name}</p>
+            </div>
             <button 
               onClick={() => signOut({ callbackUrl: '/' })}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg"
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg flex items-center gap-2 transition-all duration-300 hover:shadow-lg"
             >
-              Cerrar sesión
+              <LogOut size={18} />
+              Logout
             </button>
           </div>
-          <h1>{session.user.name}</h1>
           
           {isLoading ? (
-            <div className="text-center">Loading bookings...</div>
+            <div className="text-center py-12">
+              <div className="animate-pulse text-xl text-gray-500">Loading lessons...</div>
+            </div>
           ) : error ? (
-            <div className="text-red-500">{error}</div>
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">
+              {error}
+            </div>
           ) : bookings.length === 0 ? (
-            <div className="bg-white p-6 rounded-lg shadow-md text-center">
-              <p className="text-gray-600">No bookings found.</p>
+            <div className="bg-white p-8 rounded-2xl shadow-xl text-center">
+              <img 
+                src="/api/placeholder/400/300" 
+                alt="No bookings" 
+                className="mx-auto mb-6 rounded-xl"
+              />
+              <p className="text-gray-600 mb-4">No driving lessons booked yet</p>
               <Link 
                 href="/booking" 
-                className="mt-4 inline-block py-2 px-4 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg"
+                className="inline-block px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105"
               >
                 Book a Lesson
               </Link>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="space-y-6">
               {bookings.map((booking) => (
                 <div 
                   key={booking._id} 
-                  className="bg-white p-6 rounded-lg shadow-md"
+                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
                 >
-                  <h2 className="text-xl font-semibold mb-2">
-                    {booking.classType || 'Unnamed Class'} - {booking.package || 'No Package'}
-                  </h2>
-                  <p className="text-gray-600 mb-2">
-                    Location: {booking.location || 'No location specified'}
-                  </p>
-                  {booking.instructor && booking.instructor.user && (
-                    <p className="text-gray-600 mb-2">
-                      Instructor: {booking.instructor.user.firstName} {booking.instructor.user.lastName}
-                    </p>
-                  )}
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-500">
-                        Date: {new Date(booking.date).toLocaleDateString()}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        Time: {booking.startTime} - {booking.endTime}
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                          {booking.classType || 'Driving Lesson'}
+                        </h2>
+                        <p className="text-gray-600">{booking.package || 'Standard Package'}</p>
+                      </div>
+                      <span 
+                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          booking.status === 'approved' 
+                            ? 'bg-green-100 text-green-800' 
+                            : booking.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : booking.status === 'completed'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                       </span>
                     </div>
-                    {booking.status === 'pending' && booking.createdAt && (
-                        <CountdownTimer createdAt={booking.createdAt} />
+                    
+                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="text-gray-500" size={20} />
+                        <span className="text-gray-700">
+                          {new Date(booking.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Clock className="text-gray-500" size={20} />
+                        <span className="text-gray-700">
+                          {booking.startTime} - {booking.endTime}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <MapPin className="text-gray-500" size={20} />
+                        <span className="text-gray-700">
+                          {booking.location || 'Location Not Specified'}
+                        </span>
+                      </div>
+                      {booking.instructor && booking.instructor.user && (
+                        <div className="flex items-center gap-3">
+                          <UserCheck className="text-gray-500" size={20} />
+                          <span className="text-gray-700">
+                            {booking.instructor.user.firstName} {booking.instructor.user.lastName}
+                          </span>
+                        </div>
                       )}
-                    <span 
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        booking.status === 'approved' 
-                          ? 'bg-green-100 text-green-800' 
-                          : booking.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : booking.status === 'completed'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                    </span>
+                      {booking.price && (
+                        <div className="flex items-center gap-3">
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className="text-gray-500" 
+                            width="20" 
+                            height="20" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="16"></line>
+                            <line x1="8" y1="12" x2="16" y2="12"></line>
+                          </svg>
+                          <span className="text-green-600 font-semibold">
+                            ${booking.price.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {booking.status === 'pending' && booking.createdAt && (
+                      <div className="mt-4">
+                        <CountdownTimer createdAt={booking.createdAt} />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
