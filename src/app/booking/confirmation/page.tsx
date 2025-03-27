@@ -42,15 +42,18 @@ export default function ConfirmationPage() {
         }
         
         // Format the booking details
-        setBookingDetails({
-          firstName: booking.user.firstName,
-          lastName: booking.user.lastName,
-          email: booking.user.email,
-          date: new Date(booking.date).toLocaleDateString(),
-          timeSlot: booking.startTime,
-          service: booking.classType,
-          confirmationNumber: 'DRV-' + booking._id.substring(0, 6).toUpperCase(),
-        });
+          setBookingDetails({
+            firstName: booking.user.firstName,
+            lastName: booking.user.lastName,
+            email: booking.user.email,
+            date: new Date(booking.date).toLocaleDateString(),
+            timeSlot: booking.startTime,
+            service: booking.classType,
+            confirmationNumber: 'DRV-' + booking._id.substring(0, 6).toUpperCase(),
+            price: booking.price,
+            package: booking.package,
+            duration: booking.duration
+          });
         
         setLoading(false);
       } catch (err) {
@@ -144,6 +147,18 @@ export default function ConfirmationPage() {
             <div>
               <p className="text-gray-500 text-sm">Confirmation Number</p>
               <p className="font-medium">{bookingDetails.confirmationNumber}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Package</p>
+              <p className="font-medium">{bookingDetails.package}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Duration</p>
+              <p className="font-medium">{bookingDetails.duration} minutes</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Price</p>
+              <p className="font-medium text-green-600">${bookingDetails.price?.toFixed(2)}</p>
             </div>
           </div>
         </div>

@@ -7,7 +7,8 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone } from "lucide-react";
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star } from "lucide-react";
+import LoadingComponent from "@/components/layout/Loading";
 
 // Modal component for viewing booking details
 interface BookingModalProps {
@@ -505,11 +506,7 @@ export default function InstructorDashboard() {
   };
   
   if (status === 'loading' || loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="text-xl text-indigo-600 animate-pulse">Loading...</div>
-      </div>
-    );
+    return <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />;
   }
   
   if (error) {
@@ -586,10 +583,15 @@ export default function InstructorDashboard() {
         Welcome {session?.user?.name} 👋
       </div>
       
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-6 flex justify-between items-center">
+      <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 flex justify-between items-center rounded-t-3xl shadow-lg">
         <div className="flex items-center space-x-4">
-          <Calendar className="w-10 h-10" />
-          <h1 className="text-3xl font-bold tracking-tight hidden md:block">Instructor Dashboard</h1>
+          <div className="bg-white/20 p-3 rounded-full">
+            <Calendar className="w-10 h-10" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight hidden md:block">Instructor Dashboard</h1>
+            <p className="text-white/70 hidden md:block">Manage your schedule and bookings</p>
+          </div>
         </div>
         <button 
           onClick={() => signOut({ callbackUrl: '/' })}
@@ -600,28 +602,28 @@ export default function InstructorDashboard() {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row max-w-9xl mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden">
+      <div className="flex flex-col md:flex-row max-w-9xl mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden border-t-0">
         {/* Desktop Navigation */}
-        <div className="hidden md:flex flex-col border-b border-slate-200 bg-slate-50">
+        <div className="hidden md:flex flex-col border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white">
           {[
             { id: 'bookings', icon: Clock, label: 'Bookings' },
             { id: 'calendar', icon: Calendar, label: 'Calendar' },
             { id: 'availability', icon: User, label: 'Availability' }
           ].map((tab) => (
-            <button
-              key={tab.id}
-              className={`
-                flex items-center space-x-2 px-4 py-3 
-                ${activeTab === tab.id 
-                  ? 'text-indigo-600 border-b-2 border-indigo-600 font-semibold' 
-                  : 'text-slate-500 hover:bg-slate-100'}
-                transition-all duration-300
-              `}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <tab.icon className="w-5 h-5" />
-              <span>{tab.label}</span>
-            </button>
+              <button
+                key={tab.id}
+                className={`
+                  flex items-center space-x-2 px-6 py-4 
+                  ${activeTab === tab.id 
+                    ? 'text-pink-600 border-l-4 border-pink-500 bg-pink-50 font-semibold' 
+                    : 'text-slate-500 hover:bg-slate-100 border-l-4 border-transparent'}
+                  transition-all duration-300
+                `}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-pink-500' : ''}`} />
+                <span>{tab.label}</span>
+              </button>
           ))}
         </div>
 
@@ -639,7 +641,7 @@ export default function InstructorDashboard() {
                   <p className="text-slate-500">No approved bookings found.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-fadeIn">
                   {bookings.map((booking) => {
                     const getLocationColor = (location: string) => {
                       const locationColors = {
@@ -666,7 +668,7 @@ export default function InstructorDashboard() {
                         className={`
                           ${getLocationColor(booking.location)}
                           border-l-4 
-                          rounded-lg 
+                          rounded-2xl 
                           shadow-md 
                           p-5 
                           transform 
@@ -674,9 +676,13 @@ export default function InstructorDashboard() {
                           hover:scale-105 
                           hover:shadow-xl 
                           cursor-pointer
+                          relative
+                          overflow-hidden
                         `}
                         onClick={() => setActiveTab('calendar')}
                       >
+                        <div className="absolute -right-4 -top-4 bg-white/20 w-16 h-16 rounded-full"></div>
+                        <div className="absolute -right-2 -bottom-2 bg-white/10 w-12 h-12 rounded-full"></div>
                         <div className="flex justify-between items-center mb-3">
                           <div className="flex items-center space-x-2">
                             <MapPin className="w-5 h-5 text-current" />
@@ -802,22 +808,32 @@ export default function InstructorDashboard() {
 
           {activeTab === 'availability' && (
             <div className="space-y-6">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-6 rounded-2xl shadow-xl">
-                <div className="flex items-center space-x-4 mb-4">
-                  <User className="w-10 h-10" />
+              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                
+                <div className="flex items-center space-x-4 mb-4 relative z-10">
+                  <div className="bg-white/20 p-3 rounded-full">
+                    <User className="w-10 h-10" />
+                  </div>
                   <h2 className="text-3xl font-bold tracking-tight">Manage Your Availability</h2>
                 </div>
-                <p className="text-white/80 max-w-2xl">
+                <p className="text-white/80 max-w-2xl relative z-10">
                   Configure your weekly schedule with precision. Toggle availability for each day and set specific working hours. 
                   This helps students book lessons that fit perfectly into your calendar.
                 </p>
+                
+                <div className="absolute right-8 bottom-8 flex space-x-2">
+                  <Heart className="w-6 h-6 text-pink-200" />
+                  <Star className="w-6 h-6 text-yellow-200" />
+                </div>
               </div>
 
               <div className="grid gap-6">
                 {/* Availability Grid */}
-                <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                  <div className="bg-slate-100 p-4 border-b">
-                    <h3 className="text-xl font-semibold text-slate-700">Weekly Availability</h3>
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
+                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
+                    <h3 className="text-xl font-semibold text-pink-700">Weekly Availability</h3>
                   </div>
                   <div className="p-4 flex flex-row">
                     {availability.map((day, index) => (
@@ -878,9 +894,9 @@ export default function InstructorDashboard() {
                 </div>
 
                 {/* Time Configuration */}
-                <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                  <div className="bg-slate-100 p-4 border-b">
-                    <h3 className="text-xl font-semibold text-slate-700">Working Hours</h3>
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
+                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
+                    <h3 className="text-xl font-semibold text-pink-700">Working Hours</h3>
                   </div>
                   <div className="p-4 space-y-4 grid grid-cols-3 gap-4">
                     {availability.filter(day => day.isAvailable).map((day, index) => (
@@ -952,7 +968,7 @@ export default function InstructorDashboard() {
                     px-8 py-3 rounded-full font-bold transition-all duration-300
                     ${loading 
                       ? 'bg-slate-300 cursor-not-allowed' 
-                      : 'bg-indigo-500 hover:bg-indigo-600 text-white hover:shadow-lg'}
+                      : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white hover:shadow-lg'}
                   `}
                 >
                   {loading ? "Saving..." : "Save Availability"}

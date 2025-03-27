@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db/mongodb';
-import Booking from '@/models/Booking';
+import Booking, { IBooking } from '@/models/Booking';
 import User from '@/models/User';
 import Instructor from '@/models/Instructor';
 import Schedule from '@/models/Schedule';
+import Price from '@/models/Price';
 import { hasTimeConflict, addBufferTime } from '@/lib/utils/bufferTime';
 import { sendBookingConfirmationEmail } from '@/lib/utils/emailService';
 
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     
     // Parse the request body
     const body = await request.json();
-    const { 
+      const { 
       userId, 
       instructorId, 
       location, 
@@ -22,7 +23,8 @@ export async function POST(request: NextRequest) {
       packageType, 
       duration, 
       date, 
-      startTime 
+      startTime,
+      price
     } = body;
     
     // Validate required fields
@@ -136,20 +138,149 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Check if this booking would complete a package or be part of an existing package
+    // Count existing bookings by this user for this class type
+    const userExistingBookings = await Booking.find({
+      user: userId,
+      classType,
+      duration,
+      status: { $ne: 'cancelled' }
+    }).sort({ date: 1, startTime: 1 });
+    
+    const existingBookingsCount = userExistingBookings.length;
+    
+    console.log(`User ${userId} has ${existingBookingsCount} existing bookings for ${classType} (${duration} min)`);
+    
+    // Check if any existing booking already has a package discount
+    const existingPackageBooking = userExistingBookings.find(booking => booking.notes?.includes('package discount'));
+    
+    // Determine if this booking completes a package or is part of an existing package
+    let isPackageComplete = false;
+    let isPartOfExistingPackage = !!existingPackageBooking;
+    let packageDiscount = false;
+    let packageSize = 1;
+    
+    if (classType === 'class 5' && duration === 90) {
+      packageSize = 3;
+      if (existingBookingsCount === 2) {
+        // This is the 3rd booking for Class 5 (90 min), complete the package
+        isPackageComplete = true;
+        packageDiscount = true;
+        console.log('Completing Class 5 package (3 lessons)');
+      } else if (isPartOfExistingPackage || (existingBookingsCount > 0 && (existingBookingsCount + 1) % 3 === 0)) {
+        // This is part of an existing package or completes another package
+        packageDiscount = true;
+        console.log('Part of existing Class 5 package or completing another package');
+      }
+    } else if (classType === 'class 7' && duration === 60) {
+      packageSize = 10;
+      if (existingBookingsCount === 9) {
+        // This is the 10th booking for Class 7 (60 min), complete the package
+        isPackageComplete = true;
+        packageDiscount = true;
+        console.log('Completing Class 7 package (10 lessons)');
+      } else if (isPartOfExistingPackage || (existingBookingsCount > 0 && (existingBookingsCount + 1) % 10 === 0)) {
+        // This is part of an existing package or completes another package
+        packageDiscount = true;
+        console.log('Part of existing Class 7 package or completing another package');
+      }
+    }
+    
     // Create a new booking with pending status
-    const booking = await Booking.create({
+    const bookingData: Partial<IBooking> = {
       user: userId,
       instructor: instructorId,
       location,
       classType,
-      package: packageType,
+      package: packageType, // Always "1 lesson" as set in the form
       duration,
       date: new Date(date),
       startTime,
       endTime,
       status: 'pending',
-      paymentStatus: 'completed', // Set as completed since we're not using Stripe
-    });
+      paymentStatus: 'completed' // Set as completed since we're not using Stripe
+    };
+    
+    // Set the price based on whether this is part of a package
+    if (packageDiscount || isPartOfExistingPackage) {
+      // Look up the package price from the Price model
+      let packagePrice;
+      
+      try {
+        // Try to get the package price from the Price model
+        const packageType = classType === 'class 5' ? '3 lessons' : '10 lessons';
+        const priceRecord = await Price.findOne({
+          classType,
+          duration,
+          package: packageType
+        });
+        
+        if (priceRecord && priceRecord.price) {
+          packagePrice = priceRecord.price;
+          console.log(`Found package price in database: $${packagePrice} for ${classType} (${duration} min, ${packageType})`);
+        } else {
+          // Fall back to default values if no price record is found
+          if (classType === 'class 5' && duration === 90) {
+            // Class 5 (90 min) package price: $262.50
+            packagePrice = 262.50;
+          } else if (classType === 'class 7' && duration === 60) {
+            // Class 7 (60 min) package price: $892.50
+            packagePrice = 892.50;
+          }
+          console.log(`Using default package price: $${packagePrice} for ${classType} (${duration} min, ${packageSize} lessons)`);
+        }
+      } catch (error) {
+        console.error('Error fetching package price:', error);
+        // Fall back to default values if there's an error
+        if (classType === 'class 5' && duration === 90) {
+          packagePrice = 262.50;
+        } else if (classType === 'class 7' && duration === 60) {
+          packagePrice = 892.50;
+        }
+      }
+      
+      if (packagePrice) {
+        // Calculate the individual lesson price from the package
+        const individualPrice = packagePrice / packageSize;
+        bookingData.price = individualPrice;
+        
+        // Add a note about the package discount
+        bookingData.notes = `Part of a ${packageSize}-lesson package. Package discount applied.`;
+      } else if (price !== undefined && !isNaN(Number(price))) {
+        bookingData.price = Number(price);
+      }
+    } else if (price !== undefined && !isNaN(Number(price))) {
+      // Use the provided price if not part of a package
+      bookingData.price = Number(price);
+    }
+    
+    const booking = await Booking.create(bookingData);
+    
+    // If this booking completes a package, update the previous bookings to note they're part of a package
+    if (isPackageComplete) {
+      // Get the previous bookings in this package
+      const previousBookings = await Booking.find({
+        user: userId,
+        classType,
+        duration,
+        status: { $ne: 'cancelled' }
+      }).sort({ date: 1, startTime: 1 }).limit(packageSize - 1);
+      
+      console.log(`Found ${previousBookings.length} previous bookings to update with package discount`);
+      
+      // Update each previous booking with the package note and price
+      for (const prevBooking of previousBookings) {
+        prevBooking.notes = `Part of a ${packageSize}-lesson package. Package discount applied.`;
+        
+        // Update the price of previous bookings to match the package price
+        if (bookingData.price) {
+          prevBooking.price = bookingData.price;
+          console.log(`Updated previous booking ${prevBooking._id} with package price: ${bookingData.price}`);
+        }
+        
+        await prevBooking.save();
+      }
+    }
     
     // Get user and instructor details for email
     const userDetails = await User.findById(userId);
@@ -246,7 +377,7 @@ export async function PUT(request: NextRequest) {
     
     // Parse the request body
     const body = await request.json();
-    const { bookingId, status } = body;
+    const { bookingId, status, price } = body;
     
     // Validate required fields
     if (!bookingId || !status) {
@@ -265,8 +396,14 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    // Update booking status
+    // Update booking status and price if provided
     booking.status = status;
+    
+    // Only set price if it's provided and is a number
+    if (price !== undefined && !isNaN(Number(price))) {
+      booking.price = Number(price);
+    }
+    
     await booking.save();
     
     return NextResponse.json({ booking });

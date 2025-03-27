@@ -7,6 +7,8 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield } from "lucide-react";
+import LoadingComponent from "@/components/layout/Loading";
 
 interface User {
   _id: string;
@@ -72,31 +74,63 @@ const BookingModal = ({ booking, isOpen, onClose, onDelete }: BookingModalProps)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold">Booking Details</h3>
+          <h3 className="text-xl font-bold text-pink-600">Booking Details</h3>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-6 w-6" />
           </button>
         </div>
         
-        <div className="space-y-3">
-          <p><span className="font-medium">Student:</span> {booking.extendedProps.student}</p>
-          <p><span className="font-medium">Instructor:</span> {booking.extendedProps.instructor}</p>
-          <p><span className="font-medium">Location:</span> {booking.extendedProps.location}</p>
-          <p><span className="font-medium">Class Type:</span> {booking.extendedProps.classType}</p>
-          <p><span className="font-medium">Duration:</span> {booking.extendedProps.duration} mins</p>
+        <div className="space-y-4">
+          <div className="flex items-start space-x-3">
+            <User className="w-5 h-5 text-pink-500 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-700">Student</p>
+              <p className="text-gray-900">{booking.extendedProps.student}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start space-x-3">
+            <User className="w-5 h-5 text-indigo-500 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-700">Instructor</p>
+              <p className="text-gray-900">{booking.extendedProps.instructor}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start space-x-3">
+            <MapPin className="w-5 h-5 text-purple-500 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-700">Location</p>
+              <p className="text-gray-900">{booking.extendedProps.location}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start space-x-3">
+            <Info className="w-5 h-5 text-blue-500 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-700">Class Type</p>
+              <p className="text-gray-900">{booking.extendedProps.classType}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start space-x-3">
+            <Clock className="w-5 h-5 text-green-500 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-700">Duration</p>
+              <p className="text-gray-900">{booking.extendedProps.duration} mins</p>
+            </div>
+          </div>
         </div>
         
         <div className="mt-6 flex space-x-3 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+            className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
           >
             Close
           </button>
@@ -105,7 +139,7 @@ const BookingModal = ({ booking, isOpen, onClose, onDelete }: BookingModalProps)
               onDelete(booking.id);
               onClose();
             }}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 transition-colors shadow-md"
           >
             Delete Booking
           </button>
@@ -185,11 +219,20 @@ export default function AdminDashboard() {
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [prices, setPrices] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDateBookings, setSelectedDateBookings] = useState<Booking[]>([]);
   const [instructorColors, setInstructorColors] = useState<{[key: string]: string}>({});
   const [updatingExpired, setUpdatingExpired] = useState<boolean>(false);
   const [updateMessage, setUpdateMessage] = useState<string>("");
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [newPrice, setNewPrice] = useState({
+    classType: 'class 7',
+    duration: 60,
+    package: '1 lesson',
+    price: 0
+  });
+  const [editingPrice, setEditingPrice] = useState<any>(null);
   
   // Hardcoded locations and class types
   const locations = ["Surrey", "Burnaby", "North Vancouver"];
@@ -211,13 +254,29 @@ export default function AdminDashboard() {
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users';
+  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices';
   const [activeTab, setActiveTab] = useState<TabType>('bookings');
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string>("");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [slotMinTime, setSlotMinTime] = useState<string>("08:00");
   const [slotMaxTime, setSlotMaxTime] = useState<string>("17:00");
+  
+  // Check screen size
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsSmallScreen(window.innerWidth < 1024); // lg breakpoint in Tailwind
+    };
+    
+    // Initial check
+    checkScreenSize();
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
   
   // Generate a color for each instructor
   useEffect(() => {
@@ -286,9 +345,107 @@ export default function AdminDashboard() {
         fetchInstructors();
       } else if (activeTab === 'users') {
         fetchUsers();
+      } else if (activeTab === 'prices') {
+        fetchPrices();
       }
     }
   }, [isAdmin, activeTab]);
+  
+  const fetchPrices = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/prices');
+      const data = await response.json();
+      
+      setPrices(data.prices || []);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching prices:', error);
+      setError("Failed to load prices");
+      setLoading(false);
+    }
+  };
+  
+  const handleAddPrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/prices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newPrice),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to add price');
+      }
+      
+      // Reset form and refresh prices
+      setNewPrice({
+        classType: 'class 7',
+        duration: 60,
+        package: '1 lesson',
+        price: 0
+      });
+      
+      fetchPrices();
+    } catch (error) {
+      console.error('Error adding price:', error);
+      setError("Failed to add price");
+    }
+  };
+  
+  const handleUpdatePrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingPrice) return;
+    
+    try {
+      const response = await fetch(`/api/prices?priceId=${editingPrice._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          classType: editingPrice.classType,
+          duration: editingPrice.duration,
+          package: editingPrice.package,
+          price: editingPrice.price
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update price');
+      }
+      
+      // Reset editing state and refresh prices
+      setEditingPrice(null);
+      fetchPrices();
+    } catch (error) {
+      console.error('Error updating price:', error);
+      setError("Failed to update price");
+    }
+  };
+  
+  const handleDeletePrice = async (priceId: string) => {
+    try {
+      const response = await fetch(`/api/prices?priceId=${priceId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete price');
+      }
+      
+      // Refresh prices
+      fetchPrices();
+    } catch (error) {
+      console.error('Error deleting price:', error);
+      setError("Failed to delete price");
+    }
+  };
   
   const checkAdminStatus = async (email: string) => {
     try {
@@ -596,11 +753,7 @@ export default function AdminDashboard() {
   };
   
   if (status === 'loading' || loading) {
-    return (
-      <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
+    return <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />;
   }
   
   if (error) {
@@ -644,104 +797,148 @@ export default function AdminDashboard() {
   }
   
   return (
-    <>
-    <div className="w-full min-h-screen bg-white py-10 px-4 md:px-8">
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-10 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 flex justify-between items-center rounded-t-3xl shadow-lg mb-8">
+          <div className="flex items-center space-x-4">
+            <div className="bg-white/20 p-3 rounded-full">
+              <Shield className="w-10 h-10" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+              <p className="text-white/70">Manage bookings, instructors and users</p>
+            </div>
+          </div>
           <button 
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg"
+            className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition-all"
           >
-            Cerrar sesión
+            <LogOut className="w-5 h-5" />
+            <span>Logout</span>
           </button>
         </div>
         
-        <div className="mb-6">
+        <div className="bg-white shadow-2xl rounded-3xl overflow-hidden">
           <div className="flex border-b">
             <button
-              className={`px-4 py-2 ${
+              className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'bookings'
-                  ? 'border-b-2 border-yellow-400 font-bold'
-                  : 'text-gray-500'
-              }`}
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
               onClick={() => setActiveTab('bookings')}
             >
-              Pending Bookings
+              <Clock className={`w-5 h-5 ${activeTab === 'bookings' ? 'text-pink-500' : ''}`} />
+              <span>Pending Bookings</span>
             </button>
             <button
-              className={`px-4 py-2 ${
+              className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'calendar'
-                  ? 'border-b-2 border-yellow-400 font-bold'
-                  : 'text-gray-500'
-              }`}
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
               onClick={() => setActiveTab('calendar')}
             >
-              Calendar View
+              <Calendar className={`w-5 h-5 ${activeTab === 'calendar' ? 'text-pink-500' : ''}`} />
+              <span>Calendar View</span>
             </button>
             <button
-              className={`px-4 py-2 ${
+              className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'instructors'
-                  ? 'border-b-2 border-yellow-400 font-bold'
-                  : 'text-gray-500'
-              }`}
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
               onClick={() => setActiveTab('instructors')}
             >
-              Manage Instructors
+              <User className={`w-5 h-5 ${activeTab === 'instructors' ? 'text-pink-500' : ''}`} />
+              <span>Manage Instructors</span>
             </button>
             <button
-              className={`px-4 py-2 ${
+              className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'users'
-                  ? 'border-b-2 border-yellow-400 font-bold'
-                  : 'text-gray-500'
-              }`}
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
               onClick={() => setActiveTab('users')}
             >
-              View Users
+              <User className={`w-5 h-5 ${activeTab === 'users' ? 'text-pink-500' : ''}`} />
+              <span>View Users</span>
+            </button>
+            <button
+              className={`px-6 py-4 flex items-center space-x-2 ${
+                activeTab === 'prices'
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
+              onClick={() => setActiveTab('prices')}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`w-5 h-5 ${activeTab === 'prices' ? 'text-pink-500' : ''}`}
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+              </svg>
+              <span>Manage Prices</span>
             </button>
           </div>
-        </div>
+          
+          <div className="p-6">
         
-        {activeTab === 'bookings' && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Pending Bookings</h2>
-              <button
-                onClick={handleUpdateExpiredBookings}
-                disabled={updatingExpired}
-                className={`px-4 py-2 rounded-lg text-white font-medium ${
-                  updatingExpired ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
-                }`}
-              >
-                {updatingExpired ? 'Updating...' : 'Cancel Expired Bookings'}
-              </button>
-            </div>
+            {activeTab === 'bookings' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-slate-800 flex items-center">
+                    <Clock className="mr-3 text-pink-500" />
+                    Pending Bookings
+                  </h2>
+                  <button
+                    onClick={handleUpdateExpiredBookings}
+                    disabled={updatingExpired}
+                    className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
+                      updatingExpired 
+                        ? 'bg-gray-400' 
+                        : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600'
+                    } transition-all duration-300`}
+                  >
+                    {updatingExpired ? 'Updating...' : 'Cancel Expired Bookings'}
+                  </button>
+                </div>
             
-            {updateMessage && (
-              <div className="mb-4 p-3 bg-green-100 border border-green-300 rounded-lg text-green-800">
-                {updateMessage}
-              </div>
-            )}
+                {updateMessage && (
+                  <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-xl text-green-800 shadow-sm">
+                    {updateMessage}
+                  </div>
+                )}
             
-            {pendingBookings.length === 0 ? (
-              <p>No pending bookings found.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border">
-                  <thead>
-                    <tr>
-                      <th className="py-2 px-4 border-b">Date</th>
-                      <th className="py-2 px-4 border-b">Time</th>
-                      <th className="py-2 px-4 border-b">Location</th>
-                      <th className="py-2 px-4 border-b">Class</th>
-                      <th className="py-2 px-4 border-b">Duration</th>
-                      <th className="py-2 px-4 border-b">Student</th>
-                      <th className="py-2 px-4 border-b">Instructor</th>
-                      <th className="py-2 px-4 border-b">Payment</th>
-                      <th className="py-2 px-4 border-b">Time Remaining</th>
-                      <th className="py-2 px-4 border-b">Actions</th>
-                    </tr>
-                  </thead>
+                {pendingBookings.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-lg">
+                    <p className="text-slate-500">No pending bookings found.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl shadow-lg">
+                    <table className="min-w-full bg-white border">
+                      <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
+                        <tr>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Date</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Time</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Location</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Class</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Duration</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Student</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Instructor</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Payment</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Time Remaining</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Actions</th>
+                        </tr>
+                      </thead>
                   <tbody>
                     {pendingBookings.map((booking) => (
                       <tr key={booking._id}>
@@ -777,17 +974,17 @@ export default function AdminDashboard() {
                           {/* Replace the static calculation with the dynamic component */}
                           <TimeRemaining createdAt={booking.createdAt} />
                         </td>
-                        <td className="py-2 px-4 border-b">
+                        <td className="py-3 px-4 border-b">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleApproveBooking(booking._id)}
-                              className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                              className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-full hover:from-green-600 hover:to-teal-600 shadow-sm transition-all"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleRejectBooking(booking._id)}
-                              className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                              className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
                             >
                               Reject
                             </button>
@@ -802,24 +999,37 @@ export default function AdminDashboard() {
           </div>
         )}
         
-        {activeTab === 'instructors' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <h2 className="text-xl font-bold mb-4">Create Instructor</h2>
-              
-              <form onSubmit={handleCreateInstructor} className="space-y-4">
+            {activeTab === 'instructors' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <label className="block text-sm font-medium mb-1">First Name</label>
-                  <input
-                    type="text"
-                    value={newInstructor.firstName}
-                    onChange={(e) =>
-                      setNewInstructor({ ...newInstructor, firstName: e.target.value })
-                    }
-                    className="w-full p-2 border rounded"
-                    required
-                  />
-                </div>
+                  <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                    <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                    <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                    
+                    <div className="flex items-center space-x-4 mb-2 relative z-10">
+                      <div className="bg-white/20 p-2 rounded-full">
+                        <User className="w-8 h-8" />
+                      </div>
+                      <h2 className="text-2xl font-bold tracking-tight">Create Instructor</h2>
+                    </div>
+                    <p className="text-white/80 relative z-10">
+                      Add a new instructor to the system with their details and teaching preferences.
+                    </p>
+                  </div>
+                  
+                  <form onSubmit={handleCreateInstructor} className="space-y-4 bg-white p-6 rounded-2xl shadow-lg">
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">First Name</label>
+                      <input
+                        type="text"
+                        value={newInstructor.firstName}
+                        onChange={(e) =>
+                          setNewInstructor({ ...newInstructor, firstName: e.target.value })
+                        }
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        required
+                      />
+                    </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Last Name</label>
@@ -907,136 +1117,182 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 
-                <div>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg"
-                  >
-                    Create Instructor
-                  </button>
+                    <div>
+                      <button
+                        type="submit"
+                        className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                      >
+                        Create Instructor
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              </form>
-            </div>
             
-            <div>
-              <h2 className="text-xl font-bold mb-4">Current Instructors</h2>
-              
-              {instructors.length === 0 ? (
-                <p>No instructors found.</p>
-              ) : (
-                <div className="space-y-4">
-                  {instructors.map((instructor) => (
-                    <div key={instructor._id} className="border p-4 rounded">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-bold">
-                            {instructor.user.firstName} {instructor.user.lastName}
-                          </h3>
-                          <p className="text-sm text-gray-600">{instructor.user.email}</p>
-                          <p className="text-sm text-gray-600">{instructor.user.phone}</p>
-                          
-                          <div className="mt-2">
-                            <p className="text-sm font-medium">Locations:</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {instructor.locations.map((location) => (
-                                <span
-                                  key={location}
-                                  className="text-xs bg-gray-100 px-2 py-1 rounded"
-                                >
-                                  {location}
-                                </span>
-                              ))}
+                <div>
+                  <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                    <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                    <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                    
+                    <div className="flex items-center space-x-4 mb-2 relative z-10">
+                      <div className="bg-white/20 p-2 rounded-full">
+                        <User className="w-8 h-8" />
+                      </div>
+                      <h2 className="text-2xl font-bold tracking-tight">Current Instructors</h2>
+                    </div>
+                    <p className="text-white/80 relative z-10">
+                      View and manage all instructors in the system.
+                    </p>
+                  </div>
+                  
+                  {instructors.length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50 rounded-lg">
+                      <p className="text-slate-500">No instructors found.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {instructors.map((instructor) => (
+                        <div key={instructor._id} className="border border-pink-100 p-6 rounded-2xl shadow-md bg-white hover:shadow-lg transition-all">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="text-xl font-bold text-pink-600">
+                                {instructor.user.firstName} {instructor.user.lastName}
+                              </h3>
+                              <p className="text-sm text-gray-600">{instructor.user.email}</p>
+                              <p className="text-sm text-gray-600">{instructor.user.phone}</p>
+                              
+                              <div className="mt-3">
+                                <p className="text-sm font-medium text-purple-600">Locations:</p>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {instructor.locations.map((location) => (
+                                    <span
+                                      key={location}
+                                      className="text-xs bg-purple-100 text-purple-800 px-3 py-1 rounded-full"
+                                    >
+                                      {location}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              <div className="mt-3">
+                                <p className="text-sm font-medium text-indigo-600">Class Types:</p>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {instructor.classTypes.map((classType) => (
+                                    <span
+                                      key={classType}
+                                      className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
+                                    >
+                                      {classType}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          
-                          <div className="mt-2">
-                            <p className="text-sm font-medium">Class Types:</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {instructor.classTypes.map((classType) => (
-                                <span
-                                  key={classType}
-                                  className="text-xs bg-gray-100 px-2 py-1 rounded"
-                                >
-                                  {classType}
-                                </span>
-                              ))}
-                            </div>
+                            
+                            <button
+                              onClick={() => handleDeleteInstructor(instructor._id)}
+                              className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+                            >
+                              Delete
+                            </button>
                           </div>
                         </div>
-                        
-                        <button
-                          onClick={() => handleDeleteInstructor(instructor._id)}
-                          className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-        
-        {activeTab === 'calendar' && (
-          <div>
-            <h2 className="text-xl font-bold mb-4">Calendar View</h2>
-            
-            <div className="mb-4">
-              <div className="flex flex-wrap items-center gap-4">
-                {instructors.map((instructor) => (
-                  <div key={instructor._id} className="flex items-center">
-                    <div 
-                      className="w-4 h-4 mr-1 rounded-full" 
-                      style={{ backgroundColor: instructorColors[instructor._id] || '#808080' }}
-                    ></div>
-                    <span className="text-sm">{instructor.user.firstName} {instructor.user.lastName}</span>
-                  </div>
-                ))}
               </div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg shadow">
-              <FullCalendar
-                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView="timeGridWeek"
-                slotMinTime={slotMinTime}
-                slotMaxTime={slotMaxTime}
-                allDaySlot={false}
-                headerToolbar={{
-                  left: 'prev,next today',
-                  center: 'title',
-                  right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                }}
-                events={calendarEvents}
-                eventClick={(info) => {
-                  setSelectedBooking(info.event);
-                  setIsModalOpen(true);
-                }}
-                height="auto"
-              />
-            </div>
-          </div>
-        )}
+            )}
         
-        {activeTab === 'users' && (
-          <div>
-            <h2 className="text-xl font-bold mb-4">All Users</h2>
-            
-            {users.length === 0 ? (
-              <p>No users found.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border">
-                  <thead>
-                    <tr>
-                      <th className="py-2 px-4 border-b">Name</th>
-                      <th className="py-2 px-4 border-b">Email</th>
-                      <th className="py-2 px-4 border-b">Phone</th>
-                      <th className="py-2 px-4 border-b">Role</th>
-                    </tr>
-                  </thead>
+            {activeTab === 'calendar' && (
+              <div>
+                <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                  <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                  <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                  
+                  <div className="flex items-center space-x-4 mb-2 relative z-10">
+                    <div className="bg-white/20 p-2 rounded-full">
+                      <Calendar className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-bold tracking-tight">Calendar View</h2>
+                  </div>
+                  <p className="text-white/80 relative z-10">
+                    View all approved bookings in a calendar format.
+                  </p>
+                </div>
+                
+                <div className="mb-6 p-4 bg-white rounded-2xl shadow-lg">
+                  <h3 className="text-lg font-semibold mb-3 text-pink-600">Instructor Color Legend</h3>
+                  <div className="flex flex-wrap items-center gap-4">
+                    {instructors.map((instructor) => (
+                      <div key={instructor._id} className="flex items-center bg-white px-3 py-1 rounded-full shadow-sm">
+                        <div 
+                          className="w-4 h-4 mr-2 rounded-full" 
+                          style={{ backgroundColor: instructorColors[instructor._id] || '#808080' }}
+                        ></div>
+                        <span className="text-sm">{instructor.user.firstName} {instructor.user.lastName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-2xl shadow-lg">
+                  <FullCalendar
+                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                    initialView={isSmallScreen ? "timeGridDay" : "timeGridWeek"}
+                    slotMinTime={slotMinTime}
+                    slotMaxTime={slotMaxTime}
+                    allDaySlot={false}
+                    headerToolbar={{
+                      left: 'prev,next today',
+                      center: 'title',
+                      right: isSmallScreen ? 'timeGridDay' : 'dayGridMonth,timeGridWeek,timeGridDay'
+                    }}
+                    events={calendarEvents}
+                    eventClick={(info) => {
+                      setSelectedBooking(info.event);
+                      setIsModalOpen(true);
+                    }}
+                    height="auto"
+                    dayHeaderClassNames={['text-pink-600', 'font-semibold', 'py-2']}
+                    slotLabelClassNames={['text-xs', 'text-slate-500']}
+                  />
+                </div>
+              </div>
+            )}
+        
+            {activeTab === 'users' && (
+              <div>
+                <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                  <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                  <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                  
+                  <div className="flex items-center space-x-4 mb-2 relative z-10">
+                    <div className="bg-white/20 p-2 rounded-full">
+                      <User className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-bold tracking-tight">All Users</h2>
+                  </div>
+                  <p className="text-white/80 relative z-10">
+                    View all users registered in the system.
+                  </p>
+                </div>
+                
+                {users.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-lg">
+                    <p className="text-slate-500">No users found.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl shadow-lg">
+                    <table className="min-w-full bg-white border">
+                      <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
+                        <tr>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Name</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Email</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Phone</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Role</th>
+                        </tr>
+                      </thead>
                   <tbody>
                     {users.map((user) => (
                       <tr key={user._id}>
@@ -1047,7 +1303,7 @@ export default function AdminDashboard() {
                         <td className="py-2 px-4 border-b">{user.phone || 'N/A'}</td>
                         <td className="py-2 px-4 border-b">
                           <span
-                            className={`px-2 py-1 rounded text-xs ${
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
                               user.role === 'admin'
                                 ? 'bg-purple-100 text-purple-800'
                                 : user.role === 'instructor'
@@ -1066,6 +1322,288 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+        
+        {activeTab === 'prices' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                
+                <div className="flex items-center space-x-4 mb-2 relative z-10">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="w-8 h-8"
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="16"></line>
+                      <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Add New Price</h2>
+                </div>
+                <p className="text-white/80 relative z-10">
+                  Create pricing for different class types, durations, and packages.
+                </p>
+              </div>
+              
+              <form onSubmit={handleAddPrice} className="space-y-4 bg-white p-6 rounded-2xl shadow-lg">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Class Type</label>
+                  <select
+                    value={newPrice.classType}
+                    onChange={(e) => setNewPrice({ ...newPrice, classType: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    required
+                  >
+                    <option value="class 7">Class 7</option>
+                    <option value="class 5">Class 5</option>
+                    <option value="class 4">Class 4</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Duration (minutes)</label>
+                  <select
+                    value={newPrice.duration}
+                    onChange={(e) => setNewPrice({ ...newPrice, duration: parseInt(e.target.value) })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    required
+                  >
+                    <option value="60">60 minutes</option>
+                    <option value="90">90 minutes</option>
+                    <option value="120">120 minutes (Road Test)</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Package</label>
+                  <select
+                    value={newPrice.package}
+                    onChange={(e) => setNewPrice({ ...newPrice, package: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    required
+                  >
+                    <option value="1 lesson">1 Lesson</option>
+                    <option value="3 lessons">3 Lessons</option>
+                    <option value="10 lessons">10 Lessons</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newPrice.price}
+                    onChange={(e) => setNewPrice({ ...newPrice, price: parseFloat(e.target.value) })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                  >
+                    Add Price
+                  </button>
+                </div>
+              </form>
+              
+              {editingPrice && (
+                <div className="mt-8">
+                  <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                    <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                    <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                    
+                    <div className="flex items-center space-x-4 mb-2 relative z-10">
+                      <div className="bg-white/20 p-2 rounded-full">
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="w-8 h-8"
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 20h9"></path>
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                      </div>
+                      <h2 className="text-2xl font-bold tracking-tight">Edit Price</h2>
+                    </div>
+                    <p className="text-white/80 relative z-10">
+                      Update pricing information.
+                    </p>
+                  </div>
+                  
+                  <form onSubmit={handleUpdatePrice} className="space-y-4 bg-white p-6 rounded-2xl shadow-lg">
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">Class Type</label>
+                      <select
+                        value={editingPrice.classType}
+                        onChange={(e) => setEditingPrice({ ...editingPrice, classType: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        required
+                      >
+                        <option value="class 7">Class 7</option>
+                        <option value="class 5">Class 5</option>
+                        <option value="class 4">Class 4</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">Duration (minutes)</label>
+                      <select
+                        value={editingPrice.duration}
+                        onChange={(e) => setEditingPrice({ ...editingPrice, duration: parseInt(e.target.value) })}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        required
+                      >
+                        <option value="60">60 minutes</option>
+                        <option value="90">90 minutes</option>
+                        <option value="120">120 minutes (Road Test)</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">Package</label>
+                      <select
+                        value={editingPrice.package}
+                        onChange={(e) => setEditingPrice({ ...editingPrice, package: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        required
+                      >
+                        <option value="1 lesson">1 Lesson</option>
+                        <option value="3 lessons">3 Lessons</option>
+                        <option value="10 lessons">10 Lessons</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">Price ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editingPrice.price}
+                        onChange={(e) => setEditingPrice({ ...editingPrice, price: parseFloat(e.target.value) })}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="flex space-x-3">
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                      >
+                        Update Price
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingPrice(null)}
+                        className="px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-full shadow-md transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+            
+            <div>
+              <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                
+                <div className="flex items-center space-x-4 mb-2 relative z-10">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="w-8 h-8"
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="16"></line>
+                      <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Current Prices</h2>
+                </div>
+                <p className="text-white/80 relative z-10">
+                  View and manage all pricing in the system.
+                </p>
+              </div>
+              
+              {prices.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-lg">
+                  <p className="text-slate-500">No prices found. Add your first price using the form.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl shadow-lg">
+                  <table className="min-w-full bg-white border">
+                    <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
+                      <tr>
+                        <th className="py-3 px-4 border-b text-left text-pink-700">Class Type</th>
+                        <th className="py-3 px-4 border-b text-left text-pink-700">Duration</th>
+                        <th className="py-3 px-4 border-b text-left text-pink-700">Package</th>
+                        <th className="py-3 px-4 border-b text-left text-pink-700">Price</th>
+                        <th className="py-3 px-4 border-b text-left text-pink-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prices.map((price) => (
+                        <tr key={price._id}>
+                          <td className="py-2 px-4 border-b">{price.classType}</td>
+                          <td className="py-2 px-4 border-b">
+                            {price.duration === 120 ? '120 mins (Road Test)' : `${price.duration} mins`}
+                          </td>
+                          <td className="py-2 px-4 border-b">{price.package}</td>
+                          <td className="py-2 px-4 border-b">
+                            <span className="text-green-600 font-semibold">${price.price.toFixed(2)}</span>
+                          </td>
+                          <td className="py-3 px-4 border-b">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => setEditingPrice(price)}
+                                className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeletePrice(price._id)}
+                                className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
     
@@ -1076,6 +1614,7 @@ export default function AdminDashboard() {
       onClose={() => setIsModalOpen(false)}
       onDelete={handleDeleteBooking}
     />
-    </>
+  </div>
+  </div>
   );
-}
+};

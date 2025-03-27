@@ -7,6 +7,7 @@ import Link from "next/link";
 import PlansGrid from "@/components/plans/PlansGrid";
 import NewBookingForm from "@/components/forms/NewBookingForm";
 import PhoneNumberForm from "@/components/forms/PhoneNumberForm";
+import LoadingComponent from "@/components/layout/Loading";
 
 export default function BookingPage() {
   const searchParams = useSearchParams();
@@ -63,7 +64,7 @@ export default function BookingPage() {
   if (loading) {
     return (
       <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
-        <div className="text-xl">Loading...</div>
+        <LoadingComponent showText={true} />
       </div>
     );
   }
@@ -114,23 +115,8 @@ export default function BookingPage() {
   }
   
   return (
-    <div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
-      {!selectedPackage && (
-        <PlansGrid onSelectPackage={handleSelectPackage} />
-      )}
-
-      {selectedPackage && userId && (
-        <div className="my-12 w-full flex flex-col items-center">
-          <h2 className="text-3xl font-bold mb-8">Schedule Your Lesson</h2>
-          <NewBookingForm userId={userId} />
-          <button 
-            onClick={() => setSelectedPackage(null)} 
-            className="mt-8 bg-gray-200 hover:bg-gray-300 text-black font-bold py-3 px-8 rounded-lg transition duration-300"
-          >
-            Choose Another Package
-          </button>
+          <div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
+          <NewBookingForm userId={userId || ''} />
         </div>
-      )}
-    </div>
-  );
+  )
 }
