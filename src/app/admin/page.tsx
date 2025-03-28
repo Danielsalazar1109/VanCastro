@@ -67,9 +67,10 @@ interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDelete: (bookingId: string) => void;
+  onReschedule: (bookingId: string) => void;
 }
 
-const BookingModal = ({ booking, isOpen, onClose, onDelete }: BookingModalProps) => {
+const BookingModal = ({ booking, isOpen, onClose, onDelete, onReschedule }: BookingModalProps) => {
   if (!isOpen || !booking) return null;
 
   return (
@@ -141,7 +142,16 @@ const BookingModal = ({ booking, isOpen, onClose, onDelete }: BookingModalProps)
             }}
             className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 transition-colors shadow-md"
           >
-            Delete Booking
+            Cancel Booking
+          </button>
+          <button
+            onClick={() => {
+              onReschedule(booking.id);
+              onClose();
+            }}
+            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-red-500 text-white rounded-full hover:from-pink-600 hover:to-red-600 transition-colors shadow-md"
+          >
+            Reschedule Booking
           </button>
         </div>
       </div>
@@ -251,6 +261,18 @@ export default function AdminDashboard() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  
+  // State for reschedule modal
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+  const [rescheduleBookingId, setRescheduleBookingId] = useState<string | null>(null);
+  const [newBookingDate, setNewBookingDate] = useState<string>('');
+  const [newStartTime, setNewStartTime] = useState<string>('');
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<{startTime: string; endTime: string; isBooked: boolean}[]>([]);
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState<boolean>(false);
+  const [selectedInstructorId, setSelectedInstructorId] = useState<string>('');
+  const [availableInstructors, setAvailableInstructors] = useState<Instructor[]>([]);
+  const [loadingInstructors, setLoadingInstructors] = useState<boolean>(false);
+  const [originalBooking, setOriginalBooking] = useState<Booking | null>(null);
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
@@ -624,9 +646,188 @@ export default function AdminDashboard() {
       setError("Failed to reject booking");
     }
   };
-  
-  const handleDeleteBooking = async (bookingId: string) => {
+
+  const fetchAvailableInstructors = async (classType: string, location: string) => {
     try {
+      setLoadingInstructors(true);
+      
+      // Fetch instructors who can teach this class type and are available at this location
+      const response = await fetch(
+        `/api/instructors?classType=${classType}&location=${location}`
+      );
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch instructors");
+      }
+      
+      const data = await response.json();
+      setAvailableInstructors(data.instructors || []);
+    } catch (error: any) {
+      console.error("Error fetching available instructors:", error);
+      setError("Failed to load available instructors. Please try again.");
+    } finally {
+      setLoadingInstructors(false);
+    }
+  };
+
+  const fetchAvailableTimeSlots = async (instructorId: string, newDate: string, duration: number, location: string) => {
+    try {
+      setLoadingTimeSlots(true);
+      
+      // Generate/update the schedule with current parameters
+      const createResponse = await fetch('/api/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instructorId,
+          date: newDate,
+          duration,
+          location
+        }),
+      });
+      
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        throw new Error(errorData.error || "Failed to generate schedule");
+      }
+      
+      // Fetch the generated schedule
+      const fetchResponse = await fetch(
+        `/api/schedules?instructorId=${instructorId}&startDate=${newDate}&endDate=${newDate}`
+      );
+      
+      if (!fetchResponse.ok) {
+        throw new Error("Failed to fetch generated schedule");
+      }
+      
+      const data = await fetchResponse.json();
+      
+      // Extract available time slots
+      if (data.schedules && data.schedules.length > 0) {
+        const schedule = data.schedules[0];
+        const availableSlots = schedule.slots.filter(
+          (slot: {startTime: string; endTime: string; isBooked: boolean}) => !slot.isBooked
+        );
+        setAvailableTimeSlots(availableSlots);
+      } else {
+        setAvailableTimeSlots([]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching available time slots:", error);
+      setError("Failed to load available time slots. Please try again.");
+    } finally {
+      setLoadingTimeSlots(false);
+    }
+  };
+
+  const handleRescheduleBooking = async (bookingId: string) => {
+    try {
+      // Find the booking details
+      const booking = allBookings.find(b => b._id === bookingId) || 
+                     pendingBookings.find(b => b._id === bookingId);
+      
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+
+      // Store the original booking for reference
+      setOriginalBooking(booking);
+
+      // Set up the reschedule modal
+      setRescheduleBookingId(bookingId);
+      
+      // Initialize with current booking date and time
+      const dateObj = new Date(booking.date);
+      const formattedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      setNewBookingDate(formattedDate);
+      setNewStartTime(booking.startTime);
+      
+      // Set the initial instructor
+      setSelectedInstructorId(booking.instructor._id);
+      
+      // Fetch available instructors for this class type and location
+      await fetchAvailableInstructors(booking.classType, booking.location);
+      
+      // Fetch available time slots for the selected date and instructor
+      await fetchAvailableTimeSlots(
+        booking.instructor._id, 
+        formattedDate, 
+        booking.duration, 
+        booking.location
+      );
+      
+      // Close booking details modal and open reschedule modal
+      setIsModalOpen(false);
+      setIsRescheduleModalOpen(true);
+    } catch (error: any) {
+      console.error('Error preparing to reschedule booking:', error);
+      setError(error.message || "Failed to prepare reschedule");
+    }
+  }
+  
+  const submitReschedule = async () => {
+    if (!rescheduleBookingId || !newBookingDate || !newStartTime || !selectedInstructorId || !originalBooking) {
+      alert('Please select a date, time, and instructor');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Get admin name
+      const adminName = session?.user?.name || 'Admin';
+      
+      // Send reschedule request
+      const response = await fetch('/api/booking/reschedule', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId: rescheduleBookingId,
+          newDate: newBookingDate,
+          newStartTime,
+          newInstructorId: selectedInstructorId,
+          instructorName: adminName,
+          sendEmail: true
+        }),
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to reschedule booking');
+      }
+      
+      // Close modal and refresh bookings
+      setIsRescheduleModalOpen(false);
+      fetchAllBookings();
+      fetchPendingBookings();
+      setLoading(false);
+      
+      // Show success message
+      alert('Booking rescheduled successfully. The student has been notified.');
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Error rescheduling booking:', error);
+      alert(error.message || "Failed to reschedule booking");
+    }
+  }
+  
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      // Find the booking details
+      const booking = allBookings.find(b => b._id === bookingId) || 
+                     pendingBookings.find(b => b._id === bookingId);
+      
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+
+      // Get admin name
+      const adminName = session?.user?.name || 'Admin';
+
+      // Send cancellation request
       const response = await fetch(`/api/booking?bookingId=${bookingId}`, {
         method: 'DELETE',
         headers: {
@@ -634,18 +835,26 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           bookingId,
+          sendEmail: true,
+          instructorName: adminName,
         }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to delete booking');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to cancel booking');
       }
       
-      // Refresh bookings
+      // Close modal and refresh bookings
+      setIsModalOpen(false);
       fetchAllBookings();
-    } catch (error) {
-      console.error('Error deleting booking:', error);
-      setError("Failed to delete booking");
+      fetchPendingBookings();
+      
+      // Show success message
+      alert('Booking cancelled successfully. The student has been notified.');
+    } catch (error: any) {
+      console.error('Error cancelling booking:', error);
+      setError(error.message || "Failed to cancel booking");
     }
   };
   
@@ -1612,8 +1821,143 @@ export default function AdminDashboard() {
       booking={selectedBooking}
       isOpen={isModalOpen}
       onClose={() => setIsModalOpen(false)}
-      onDelete={handleDeleteBooking}
+      onDelete={handleCancelBooking}
+      onReschedule={handleRescheduleBooking}
     />
+    
+    {/* Reschedule Modal */}
+    {isRescheduleModalOpen && originalBooking && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold">Reschedule Booking</h3>
+            <button 
+              onClick={() => setIsRescheduleModalOpen(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <div className="space-y-4"> 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Select Instructor
+              </label>
+              {loadingInstructors ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
+                </div>
+              ) : (
+                <select
+                  value={selectedInstructorId}
+                  onChange={(e) => {
+                    const newInstructorId = e.target.value;
+                    setSelectedInstructorId(newInstructorId);
+                    if (newInstructorId && newBookingDate && originalBooking) {
+                      fetchAvailableTimeSlots(
+                        newInstructorId,
+                        newBookingDate,
+                        originalBooking.duration,
+                        originalBooking.location
+                      );
+                    }
+                  }}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Select an instructor</option>
+                  {availableInstructors.map((instructor) => (
+                    <option key={instructor._id} value={instructor._id}>
+                      {instructor.user.firstName} {instructor.user.lastName}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                New Date
+              </label>
+              <input
+                type="date"
+                value={newBookingDate}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setNewBookingDate(newDate);
+                  if (selectedInstructorId && originalBooking) {
+                    fetchAvailableTimeSlots(
+                      selectedInstructorId,
+                      newDate,
+                      originalBooking.duration,
+                      originalBooking.location
+                    );
+                  }
+                }}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Available Time Slots
+              </label>
+              
+              {loadingTimeSlots ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
+                </div>
+              ) : !selectedInstructorId ? (
+                <div className="bg-blue-50 border border-blue-300 p-4 rounded-md text-blue-800 text-center">
+                  Please select an instructor first.
+                </div>
+              ) : availableTimeSlots.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-md text-yellow-800 text-center">
+                  No time slots available for the selected date and instructor.
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  {availableTimeSlots
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                    .map((slot) => (
+                      <div
+                        key={`${slot.startTime}-${slot.endTime}`}
+                        className={`p-3 border-2 rounded-lg text-center cursor-pointer transition-all duration-300 ${
+                          newStartTime === slot.startTime
+                            ? "bg-orange-400 border-orange-500 shadow-md transform scale-105"
+                            : "bg-white border-gray-300 hover:border-orange-400 hover:bg-orange-50"
+                        }`}
+                        onClick={() => setNewStartTime(slot.startTime)}
+                      >
+                        <span className="font-medium">
+                          {slot.startTime} - {slot.endTime}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-2">
+            <button
+              onClick={() => setIsRescheduleModalOpen(false)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            
+            <button
+              onClick={submitReschedule}
+              disabled={loading || !newStartTime || !selectedInstructorId}
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-orange-300"
+            >
+              {loading ? "Processing..." : "Reschedule Booking"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
   </div>
   );

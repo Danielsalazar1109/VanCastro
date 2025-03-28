@@ -16,6 +16,7 @@ export default function BookingPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [hasPendingBooking, setHasPendingBooking] = useState(false);
   
   useEffect(() => {
     const packageParam = searchParams.get('package');
@@ -41,11 +42,31 @@ export default function BookingPage() {
         const user = data.users[0];
         setUserId(user._id);
         setUserDetails(user);
+        
+        // Check if user has pending bookings
+        if (user._id) {
+          checkPendingBookings(user._id);
+        }
       }
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user details:', error);
       setLoading(false);
+    }
+  };
+  
+  const checkPendingBookings = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/booking?userId=${userId}&status=pending`);
+      const data = await response.json();
+      
+      if (data.bookings && data.bookings.length > 0) {
+        setHasPendingBooking(true);
+      } else {
+        setHasPendingBooking(false);
+      }
+    } catch (error) {
+      console.error('Error checking pending bookings:', error);
     }
   };
   
@@ -114,9 +135,40 @@ export default function BookingPage() {
     );
   }
   
+  // If user has a pending booking, show error message
+  if (hasPendingBooking) {
+   return (
+  <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
+    <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md border-l-4 border-red-500">
+      <h2 className="text-2xl font-bold mb-4 text-center text-red-600">Pending Reservation</h2>
+      <div className="mb-6 p-4 bg-red-50 rounded-lg">
+        <p className="mb-4 text-gray-800">
+          You have a pending reservation that requires payment confirmation.
+        </p>
+        <p className="mb-4 text-gray-800">
+          Please contact administration to confirm your payment before scheduling new classes.
+        </p>
+        <p className="text-sm text-gray-600">
+          You can contact administration by phone or email to resolve this matter.
+        </p>
+      </div>
+      <div className="flex justify-center">
+        <Link 
+          href="/tracking" 
+          className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg text-center"
+        >
+          Track your booking status
+        </Link>
+      </div>
+    </div>
+  </div>
+);
+  }
+  
+  // If all checks pass, show the booking form
   return (
-          <div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
-          <NewBookingForm userId={userId || ''} />
-        </div>
+    <div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
+      <NewBookingForm userId={userId || ''} />
+    </div>
   )
 }

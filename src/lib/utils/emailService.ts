@@ -73,15 +73,21 @@ const emailTemplates = {
     newDate: string;
     newTime: string;
     location: string;
+    oldInstructorName?: string;
+    adminName?: string;
   }) => ({
     subject: 'Driving Lesson Rescheduled',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
         <h2 style="color: #f59e0b; text-align: center;">Booking Rescheduled</h2>
         <p>Hello ${data.studentName},</p>
-        <p>Your driving lesson has been rescheduled.</p>
+        <p>Your driving lesson has been rescheduled${data.adminName ? ` by ${data.adminName}` : ''}.</p>
         <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
-          <p><strong>Instructor:</strong> ${data.instructorName}</p>
+          ${data.oldInstructorName ? 
+            `<p><strong>Previous Instructor:</strong> ${data.oldInstructorName}</p>
+             <p><strong>New Instructor:</strong> ${data.instructorName}</p>` : 
+            `<p><strong>Instructor:</strong> ${data.instructorName}</p>`
+          }
           <p><strong>Previous Date:</strong> ${data.oldDate}</p>
           <p><strong>Previous Time:</strong> ${data.oldTime}</p>
           <p><strong>New Date:</strong> ${data.newDate}</p>
@@ -159,9 +165,11 @@ export async function sendBookingRescheduleEmail(
   booking: any,
   instructorName: string,
   newDate: string,
-  newTime: string
+  newTime: string,
+  oldInstructor?: any,
+  adminName?: string
 ) {
-  return sendEmail(booking.user.email, 'bookingReschedule', {
+  const emailData: any = {
     studentName: `${booking.user.firstName} ${booking.user.lastName}`,
     instructorName,
     oldDate: formatDate(booking.date),
@@ -169,5 +177,17 @@ export async function sendBookingRescheduleEmail(
     newDate: formatDate(newDate),
     newTime: newTime,
     location: booking.location,
-  });
+  };
+  
+  // If there's an instructor change, add the old instructor's name
+  if (oldInstructor && oldInstructor.user) {
+    emailData.oldInstructorName = `${oldInstructor.user.firstName} ${oldInstructor.user.lastName}`;
+  }
+  
+  // Add admin name if provided
+  if (adminName) {
+    emailData.adminName = adminName;
+  }
+  
+  return sendEmail(booking.user.email, 'bookingReschedule', emailData);
 }

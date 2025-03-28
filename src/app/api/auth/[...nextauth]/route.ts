@@ -130,30 +130,39 @@ const handler = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // If the user is signing in with Google and doesn't have a phone number,
-      // redirect them to the complete-profile page
-      if (url.startsWith(baseUrl)) {
-        // Get the path without the baseUrl
-        const path = url.substring(baseUrl.length);
+      console.log('Redirect URL:', url);
+  console.log('Base URL:', baseUrl);
+      try {
+        // Check if this is a Google authentication callback
+        if (url.includes('callback') && url.includes('google')) {
+          console.log('Google auth callback detected, redirecting to session-redirect');
+          return `${baseUrl}/api/auth/session-redirect`;
+        }
         
-        // If the user is being redirected to a page other than complete-profile
-        if (!path.startsWith('/complete-profile')) {
-          // Check if the user has a phone number
-          const session = await fetch(`${baseUrl}/api/auth/session`).then(res => res.json());
+        // If the URL is the default callback URL, redirect based on path
+        if (url.startsWith(baseUrl)) {
+          const path = url.substring(baseUrl.length);
           
-          if (session?.user && (!session.user.phone || session.user.phone === '')) {
-            // Redirect to complete-profile with the original URL as the callback
-            return `${baseUrl}/complete-profile?callbackUrl=${encodeURIComponent(url)}`;
+          // If coming from Google auth or redirected to root
+          if (path === '/' || path.startsWith('/api/auth/callback/google')) {
+            console.log('Root or Google callback path detected, redirecting to session-redirect');
+            return `${baseUrl}/api/auth/session-redirect`;
           }
         }
+        
+        // For all other cases, return the original URL
+        return url;
+      } catch (error) {
+        console.error('Error in redirect callback:', error);
+        // In case of error, redirect to the session-redirect endpoint
+        // which will handle the error appropriately
+        return `${baseUrl}/api/auth/session-redirect`;
       }
-      
-      return url;
     },
   },
   pages: {
     signIn: "/login",
-    error: "/login",
+    error: "/",
   },
   session: {
     strategy: "jwt",

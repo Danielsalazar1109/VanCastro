@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
       startTime,
       price
     } = body;
-    
     // Validate required fields
     if (!userId || !instructorId || !location || !classType || !packageType || !duration || !date || !startTime) {
       return NextResponse.json(
@@ -138,7 +137,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Check if this booking would complete a package or be part of an existing package
+    // Check if this booking would complete a package
     // Count existing bookings by this user for this class type
     const userExistingBookings = await Booking.find({
       user: userId,
@@ -151,13 +150,8 @@ export async function POST(request: NextRequest) {
     
     console.log(`User ${userId} has ${existingBookingsCount} existing bookings for ${classType} (${duration} min)`);
     
-    // Check if any existing booking already has a package discount
-    const existingPackageBooking = userExistingBookings.find(booking => booking.notes?.includes('package discount'));
-    
-    // Determine if this booking completes a package or is part of an existing package
+    // Determine if this booking completes a package
     let isPackageComplete = false;
-    let isPartOfExistingPackage = !!existingPackageBooking;
-    let packageDiscount = false;
     let packageSize = 1;
     
     if (classType === 'class 5' && duration === 90) {
@@ -165,24 +159,22 @@ export async function POST(request: NextRequest) {
       if (existingBookingsCount === 2) {
         // This is the 3rd booking for Class 5 (90 min), complete the package
         isPackageComplete = true;
-        packageDiscount = true;
         console.log('Completing Class 5 package (3 lessons)');
-      } else if (isPartOfExistingPackage || (existingBookingsCount > 0 && (existingBookingsCount + 1) % 3 === 0)) {
-        // This is part of an existing package or completes another package
-        packageDiscount = true;
-        console.log('Part of existing Class 5 package or completing another package');
+      } else if (existingBookingsCount >= 3 && ((existingBookingsCount + 1) % 3) === 0) {
+        // Only apply discount to every 3rd booking (3rd, 6th, 9th, etc.)
+        isPackageComplete = true;
+        console.log(`Completing another Class 5 package (booking #${existingBookingsCount + 1})`);
       }
     } else if (classType === 'class 7' && duration === 60) {
       packageSize = 10;
       if (existingBookingsCount === 9) {
         // This is the 10th booking for Class 7 (60 min), complete the package
         isPackageComplete = true;
-        packageDiscount = true;
         console.log('Completing Class 7 package (10 lessons)');
-      } else if (isPartOfExistingPackage || (existingBookingsCount > 0 && (existingBookingsCount + 1) % 10 === 0)) {
-        // This is part of an existing package or completes another package
-        packageDiscount = true;
-        console.log('Part of existing Class 7 package or completing another package');
+      } else if (existingBookingsCount >= 9 && ((existingBookingsCount + 1) % 10) === 0) {
+        // Only apply discount to every 10th booking (10th, 20th, 30th, etc.)
+        isPackageComplete = true;
+        console.log(`Completing another Class 7 package (booking #${existingBookingsCount + 1})`);
       }
     }
     
@@ -201,8 +193,8 @@ export async function POST(request: NextRequest) {
       paymentStatus: 'completed' // Set as completed since we're not using Stripe
     };
     
-    // Set the price based on whether this is part of a package
-    if (packageDiscount || isPartOfExistingPackage) {
+    // Set the price based on whether this is the last booking in a package
+    if (isPackageComplete) {
       // Look up the package price from the Price model
       let packagePrice;
       
@@ -241,11 +233,11 @@ export async function POST(request: NextRequest) {
       
       if (packagePrice) {
         // Calculate the individual lesson price from the package
-        const individualPrice = packagePrice / packageSize;
+        const individualPrice = price;
         bookingData.price = individualPrice;
         
         // Add a note about the package discount
-        bookingData.notes = `Part of a ${packageSize}-lesson package. Package discount applied.`;
+        bookingData.notes = `Last booking in a ${packageSize}-lesson package. Package discount applied.`;
       } else if (price !== undefined && !isNaN(Number(price))) {
         bookingData.price = Number(price);
       }
@@ -257,6 +249,7 @@ export async function POST(request: NextRequest) {
     const booking = await Booking.create(bookingData);
     
     // If this booking completes a package, update the previous bookings to note they're part of a package
+    // but don't change their prices
     if (isPackageComplete) {
       // Get the previous bookings in this package
       const previousBookings = await Booking.find({
@@ -266,18 +259,11 @@ export async function POST(request: NextRequest) {
         status: { $ne: 'cancelled' }
       }).sort({ date: 1, startTime: 1 }).limit(packageSize - 1);
       
-      console.log(`Found ${previousBookings.length} previous bookings to update with package discount`);
+      console.log(`Found ${previousBookings.length} previous bookings to update with package note`);
       
-      // Update each previous booking with the package note and price
+      // Update each previous booking with the package note only
       for (const prevBooking of previousBookings) {
-        prevBooking.notes = `Part of a ${packageSize}-lesson package. Package discount applied.`;
-        
-        // Update the price of previous bookings to match the package price
-        if (bookingData.price) {
-          prevBooking.price = bookingData.price;
-          console.log(`Updated previous booking ${prevBooking._id} with package price: ${bookingData.price}`);
-        }
-        
+        prevBooking.notes = `Part of a ${packageSize}-lesson package. Regular price applied.`;
         await prevBooking.save();
       }
     }
@@ -417,11 +403,15 @@ export async function PUT(request: NextRequest) {
 }
 
 import { sendBookingCancellationEmail } from '@/lib/utils/emailService';
+import { getServerSession } from 'next-auth';
 
 export async function DELETE(request: NextRequest) {
   try {
     // Connect to the database
     await connectToDatabase();
+    
+    // Check if the user is authenticated and has admin role
+    const session = await getServerSession();
     
     const { searchParams } = new URL(request.url);
     const bookingId = searchParams.get('bookingId');
