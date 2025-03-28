@@ -170,6 +170,9 @@ export default function ConfirmationPage() {
           <Link href="/" className="btn-primary">
             Return to Home
           </Link>
+          <Link href="/booking" className="btn-secondary ml-4">
+            Book Another Lesson
+          </Link>
         </div>
       </div>
     </div>

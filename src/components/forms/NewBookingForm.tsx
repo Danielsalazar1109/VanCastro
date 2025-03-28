@@ -241,17 +241,22 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
   const [instructorId, setInstructorId] = useState<string>("");
   const [timeSlot, setTimeSlot] = useState<string>("");
   const [price, setPrice] = useState<number | null>(null);
+  const [isPackageComplete, setIsPackageComplete] = useState<boolean>(false);
+  const [packageSize, setPackageSize] = useState<number>(1);
+  const [discountedPrice, setDiscountedPrice] = useState<number | null>(null);
   
   // Data state
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [prices, setPrices] = useState<any[]>([]);
+  const [userExistingBookings, setUserExistingBookings] = useState<any[]>([]);
   
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [step, setStep] = useState<number>(1);
+  const [checkingPackage, setCheckingPackage] = useState<boolean>(false);
   
   // Knowledge test modal state
   const [showKnowledgeTestModal, setShowKnowledgeTestModal] = useState<boolean>(false);
@@ -344,6 +349,21 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     }
   }, [classType, duration, packageType, prices]);
   
+  // Check if this booking would complete a package when user, class type, and duration are selected
+  useEffect(() => {
+    if (userId && classType && duration) {
+      checkPackageCompletion();
+    }
+  }, [userId, classType, duration]);
+  
+  // Also check when moving to step 3 (final step)
+  useEffect(() => {
+    if (step === 3 && userId && classType && duration) {
+      console.log("Step 3 - Checking package completion");
+      checkPackageCompletion();
+    }
+  }, [step]);
+  
   // Load instructors based on selected location and class type
   useEffect(() => {
     if (location && classType) {
@@ -381,6 +401,147 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     }
   };
   
+  // Check if this booking would complete a package
+  const checkPackageCompletion = async () => {
+    if (!userId || !classType || !duration) {
+      return;
+    }
+    
+    try {
+      setCheckingPackage(true);
+      console.log(`Checking package completion for user ${userId}, class ${classType}, duration ${duration}`);
+      
+      // Fetch user's existing bookings for this class type and duration
+      const response = await fetch(
+        `/api/booking?userId=${userId}&status=approved`
+      );
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch user bookings");
+      }
+      
+      const data = await response.json();
+      console.log (data);
+      const bookings = data.bookings || [];
+      
+      // Filter bookings by class type and duration
+      const filteredBookings = bookings.filter(
+        (booking: any) => 
+          booking.classType === classType && 
+          booking.duration === duration &&
+          booking.status !== 'cancelled'
+      );
+
+      console.log (bookings)
+      console.log(filteredBookings);
+      console.log(`Found ${filteredBookings.length} existing bookings for this class type and duration`);
+      setUserExistingBookings(filteredBookings);
+      
+      // Determine if this booking completes a package
+      let isComplete = false;
+      let pkgSize = 1;
+      
+      if (classType === 'class 5' && duration === 90) {
+        pkgSize = 3;
+        // Check if this is the 3rd booking (user already has 2 bookings)
+        if (filteredBookings.length === 2) {
+          // This is the 3rd booking for Class 5 (90 min), complete the package
+          isComplete = true;
+          console.log("This is the 3rd booking for Class 5 (90 min), completing the package");
+        } else if (filteredBookings.length >= 3 && ((filteredBookings.length + 1) % 3) === 0) {
+          // Only apply discount to every 3rd booking (3rd, 6th, 9th, etc.)
+          isComplete = true;
+          console.log(`This is booking #${filteredBookings.length + 1} for Class 5 (90 min), completing another package`);
+        }
+      } else if (classType === 'class 7' && duration === 60) {
+        pkgSize = 10;
+        // Check if this is the 10th booking (user already has 9 bookings)
+        if (filteredBookings.length === 9) {
+          // This is the 10th booking for Class 7 (60 min), complete the package
+          isComplete = true;
+          console.log("This is the 10th booking for Class 7 (60 min), completing the package");
+        } else if (filteredBookings.length >= 9 && ((filteredBookings.length + 1) % 10) === 0) {
+          // Only apply discount to every 10th booking (10th, 20th, 30th, etc.)
+          isComplete = true;
+          console.log(`This is booking #${filteredBookings.length + 1} for Class 7 (60 min), completing another package`);
+        }
+      }
+      
+      // For debugging - log the package completion status
+      console.log(`Package completion check: isComplete=${isComplete}, packageSize=${pkgSize}, existingBookings=${filteredBookings.length}`);
+      
+      // Note: The line below was used for testing purposes and has been removed
+      // isComplete = true;
+      
+      console.log(`Package completion: ${isComplete}, Package size: ${pkgSize}`);
+      setIsPackageComplete(isComplete);
+      setPackageSize(pkgSize);
+      
+      // If this booking completes a package, calculate the discounted price
+      if (isComplete) {
+        calculateDiscountedPrice(pkgSize);
+      } else {
+        setDiscountedPrice(null);
+      }
+      
+      setCheckingPackage(false);
+    } catch (error) {
+      console.error("Error checking package completion:", error);
+      setCheckingPackage(false);
+    }
+  };
+  
+  // Calculate the discounted price for the last booking in a package
+  const calculateDiscountedPrice = async (pkgSize: number) => {
+    if (!classType || !duration || !price) {
+      console.log("Cannot calculate discounted price - missing classType, duration, or price");
+      return;
+    }
+    
+    console.log(`Calculating discounted price for packageSize=${pkgSize}, classType=${classType}, duration=${duration}`);
+    
+    try {
+      // Try to get the package price from the Price model
+      const packageType = classType === 'class 5' ? '3 lessons' : '10 lessons';
+      console.log(`Looking for package price for ${classType}, ${duration} min, ${packageType}`);
+      
+      // Find the package price in the already fetched prices
+      const packagePriceRecord = prices.find(
+        (p) => 
+          p.classType === classType && 
+          p.duration === duration && 
+          p.package === packageType
+      );
+      
+      let packagePrice;
+      
+      if (packagePriceRecord && packagePriceRecord.price) {
+        packagePrice = packagePriceRecord.price;
+        console.log(`Found package price in database: $${packagePrice}`);
+      } else {
+        // Fall back to default values if no price record is found
+        if (classType === 'class 5' && duration === 90) {
+          // Class 5 (90 min) package price: $262.50
+          packagePrice = 262.50;
+        } else if (classType === 'class 7' && duration === 60) {
+          // Class 7 (60 min) package price: $892.50
+          packagePrice = 892.50;
+        }
+        console.log(`Using default package price: $${packagePrice}`);
+      }
+      
+      if (packagePrice) {
+        // Calculate the individual lesson price from the package
+        const individualPrice = packagePrice - price * (pkgSize - 1);
+        console.log(`Regular price: $${price}, Package price: $${packagePrice}, Package size: ${pkgSize}`);
+        console.log(`Calculated discounted price: $${individualPrice} = $${packagePrice} - $${price} * (${pkgSize} - 1)`);
+        setDiscountedPrice(individualPrice);
+      }
+    } catch (error) {
+      console.error("Error calculating discounted price:", error);
+    }
+  };
+  
   // Update the price based on selected class type, duration, and package
   const updatePrice = () => {
     if (prices.length === 0 || !classType || !duration || !packageType) {
@@ -395,9 +556,18 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     );
     
     if (matchingPrice) {
+      console.log(`Setting regular price to $${matchingPrice.price}`);
       setPrice(matchingPrice.price);
+      
+      // If this is the last booking in a package, recalculate the discounted price
+      if (isPackageComplete && packageSize > 1) {
+        console.log("Recalculating discounted price after price update");
+        calculateDiscountedPrice(packageSize);
+      }
     } else {
+      console.log("No matching price found");
       setPrice(null);
+      setDiscountedPrice(null);
     }
   };
   
@@ -502,6 +672,10 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
         throw new Error("Invalid time slot selected");
       }
       
+      // Use discounted price if this is the last booking in a package
+      const finalPrice = isPackageComplete && discountedPrice !== null ? discountedPrice : price;
+      console.log(`Submitting booking with price: $${finalPrice} (isPackageComplete: ${isPackageComplete}, discountedPrice: ${discountedPrice}, regular price: ${price})`);
+      
       const response = await fetch("/api/booking", {
         method: "POST",
         headers: {
@@ -516,7 +690,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
           duration,
           date,
           startTime: selectedSlot.startTime,
-          price: price,
+          price: finalPrice,
           hasPassedKnowledgeTest: classType === "class 7" ? true : undefined
         }),
       });
@@ -854,7 +1028,24 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                   <p className="mb-2"><span className="font-semibold text-gray-700">Class Type:</span> <span className="text-gray-900">{classType}</span></p>
                   <p className="mb-2"><span className="font-semibold text-gray-700">Package:</span> <span className="text-gray-900">{packageType}</span></p>
                   <p className="mb-2"><span className="font-semibold text-gray-700">Duration:</span> <span className="text-gray-900">{duration} minutes</span></p>
-                  {price !== null && (
+                  {isPackageComplete && discountedPrice !== null ? (
+                    <div>
+                      <p className="mb-2">
+                        <span className="font-semibold text-gray-700">Regular Price:</span>{" "}
+                        <span className="text-gray-500 line-through">${price !== null ? price.toFixed(2) : '0.00'}</span>
+                      </p>
+                      <p className="mb-2">
+                        <span className="font-semibold text-gray-700">Discounted Price:</span>{" "}
+                        <span className="text-green-600 font-semibold">${discountedPrice.toFixed(2)}</span>
+                        <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                          Package Discount
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        This is your {packageSize}th lesson in a {packageSize}-lesson package!
+                      </p>
+                    </div>
+                  ) : price !== null && (
                     <p className="mb-2">
                       <span className="font-semibold text-gray-700">Price:</span>{" "}
                       <span className="text-green-600 font-semibold">${price.toFixed(2)}</span>

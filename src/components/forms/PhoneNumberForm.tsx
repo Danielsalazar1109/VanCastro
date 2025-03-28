@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 interface PhoneNumberFormProps {
   userId: string;
@@ -19,7 +21,7 @@ export default function PhoneNumberForm({ userId, onPhoneNumberAdded }: PhoneNum
     setError("");
 
     // Basic validation
-    if (!phone || phone.trim().length < 10) {
+    if (!phone || phone.trim().length < 6) {
       setError("Please enter a valid phone number");
       setLoading(false);
       return;
@@ -76,14 +78,20 @@ export default function PhoneNumberForm({ userId, onPhoneNumberAdded }: PhoneNum
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="phone">
               Phone Number
             </label>
-            <input
-              id="phone"
-              type="tel"
-              className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              placeholder="Enter your phone number"
+            <PhoneInput
+              country={'us'}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
+              onChange={(value) => setPhone(value)}
+              inputProps={{
+                id: 'phone',
+                name: 'phone',
+                required: true,
+                className: "w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              }}
+              containerClass="w-full"
+              inputClass="w-full p-3"
+              buttonClass="border rounded-l-md"
+              dropdownClass="bg-white"
             />
             <p className="text-xs text-gray-500 mt-1">
               We need your phone number to contact you about your bookings.

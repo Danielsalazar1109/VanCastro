@@ -87,20 +87,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
           </div>
         </div>
         
-        <div className="mt-6 flex justify-end space-x-2">
-          <button 
-            onClick={() => onReschedule(booking.id)}
-            className="px-4 py-2 border border-orange-300 bg-orange-50 rounded-lg text-orange-700 hover:bg-orange-100"
-          >
-            Reschedule
-          </button>
-          <button
-            onClick={() => onCancel(booking.id)}
-            className="px-4 py-2 border border-red-300 bg-red-50 rounded-lg text-red-700 hover:bg-red-100"
-          >
-            Cancel
-          </button>
-          
+        <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
             className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
