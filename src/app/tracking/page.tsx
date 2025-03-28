@@ -72,43 +72,100 @@ export default function Tracking() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch bookings effect
-  useEffect(() => {
-    async function fetchBookings() {
-      if (status === "authenticated" && session?.user) {
-        setIsLoading(true);
-        try {
-          const response = await fetch(`/api/users?userId=${session.user.id}&bookings=true`);
-          const data = await response.json();
+  // State to track if there are any pending bookings
+  const [hasPendingBookings, setHasPendingBookings] = useState<boolean>(false);
+  const [lastBookingStatuses, setLastBookingStatuses] = useState<{[key: string]: string}>({});
+
+  // Function to fetch bookings
+  const fetchBookings = async (showLoading = true) => {
+    if (status === "authenticated" && session?.user) {
+      if (showLoading) setIsLoading(true);
+      try {
+        const response = await fetch(`/api/users?userId=${session.user.id}&bookings=true`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          const userBookings = data.users[0]?.bookings || [];
           
-          if (response.ok) {
-            const userBookings = data.users[0]?.bookings || [];
-            setBookings(userBookings);
-            
-            if (userBookings.length === 0) {
-              try {
-                const bookingsResponse = await fetch(`/api/booking?userId=${session.user.id}`);
-                const bookingsData = await bookingsResponse.json();
-                
-                if (bookingsResponse.ok && bookingsData.bookings) {
-                  setBookings(bookingsData.bookings);
-                }
-              } catch (err) {
-                console.error("Error fetching from bookings API:", err);
+          // Check if we need to fetch from the bookings API
+          if (userBookings.length === 0) {
+            try {
+              const bookingsResponse = await fetch(`/api/booking?userId=${session.user.id}`);
+              const bookingsData = await bookingsResponse.json();
+              
+              if (bookingsResponse.ok && bookingsData.bookings) {
+                processBookings(bookingsData.bookings);
               }
+            } catch (err) {
+              console.error("Error fetching from bookings API:", err);
             }
           } else {
-            setError(data.error || "Failed to fetch bookings");
+            processBookings(userBookings);
           }
-        } catch (err) {
-          setError("An error occurred while fetching bookings");
-        } finally {
-          setIsLoading(false);
+        } else {
+          if (showLoading) setError(data.error || "Failed to fetch bookings");
         }
+      } catch (err) {
+        if (showLoading) setError("An error occurred while fetching bookings");
+      } finally {
+        if (showLoading) setIsLoading(false);
       }
     }
+  };
 
-    fetchBookings();
+  // Process bookings and check for status changes
+  const processBookings = (newBookings: Booking[]) => {
+    // Check if there are any pending bookings
+    const pendingExists = newBookings.some(booking => booking.status === 'pending');
+    setHasPendingBookings(pendingExists);
+    
+    // Check for status changes, especially from pending to approved
+    const newStatusMap: {[key: string]: string} = {};
+    let statusChanged = false;
+    
+    newBookings.forEach(booking => {
+      newStatusMap[booking._id] = booking.status;
+      
+      // Check if this booking's status has changed
+      if (lastBookingStatuses[booking._id] && 
+          lastBookingStatuses[booking._id] !== booking.status &&
+          lastBookingStatuses[booking._id] === 'pending' && 
+          booking.status === 'approved') {
+        statusChanged = true;
+        
+        // Play notification sound if supported
+        try {
+          const audio = new Audio('/notification.mp3');
+          audio.play().catch(e => console.log('Audio play failed:', e));
+        } catch (e) {
+          console.log('Audio not supported');
+        }
+      }
+    });
+    
+    // Update the status map
+    setLastBookingStatuses(newStatusMap);
+    
+    // Update bookings state
+    setBookings(newBookings);
+  };
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchBookings(true);
+  }, [status, session]);
+  
+  // Set up polling for bookings updates, focusing on status changes
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      // Set up polling every 3 seconds
+      const pollingInterval = setInterval(() => {
+        fetchBookings(false);
+      }, 3000);
+      
+      // Clean up interval on component unmount
+      return () => clearInterval(pollingInterval);
+    }
   }, [status, session]);
 
   // Unauthenticated view
