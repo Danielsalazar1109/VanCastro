@@ -113,9 +113,10 @@ export default function ConfirmationPage() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-green-600 mb-2">Booking Confirmed!</h1>
+          <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Submitted!</h1>
           <p className="text-gray-600">
-            Your driving lesson has been successfully booked and payment has been processed.
+            Your driving lesson has been successfully booked and is now pending approval.
+            You can track the status of your booking in the tracking page.
           </p>
         </div>
 
@@ -167,10 +168,13 @@ export default function ConfirmationPage() {
           <p className="text-gray-600 mb-6">
             A confirmation email has been sent to {bookingDetails.email} with all the details.
           </p>
-          <Link href="/" className="btn-primary">
+          <Link href="/tracking" className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-6 rounded-lg transition-all duration-300">
+            Track Your Booking
+          </Link>
+          <Link href="/" className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg ml-4 transition-all duration-300">
             Return to Home
           </Link>
-          <Link href="/booking" className="btn-secondary ml-4">
+          <Link href="/booking" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg ml-4 transition-all duration-300">
             Book Another Lesson
           </Link>
         </div>

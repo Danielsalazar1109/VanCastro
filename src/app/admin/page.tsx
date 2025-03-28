@@ -356,11 +356,31 @@ export default function AdminDashboard() {
     }
   }, [status, session, router]);
   
+  // State to track if there are new pending bookings
+  const [hasNewPendingBookings, setHasNewPendingBookings] = useState<boolean>(false);
+  const [pendingBookingsCount, setPendingBookingsCount] = useState<number>(0);
+  
+  // Set up polling for pending bookings regardless of active tab
   useEffect(() => {
     if (isAdmin) {
-      if (activeTab === 'bookings') {
-        fetchPendingBookings();
-      } else if (activeTab === 'calendar') {
+      // Initial fetch with loading indicator
+      fetchPendingBookings(true);
+      
+      // Set up polling every 2 seconds for ultra-responsive updates
+      const pollingInterval = setInterval(() => {
+        // Background fetch without loading indicator
+        fetchPendingBookings(false);
+      }, 2000); // 2 seconds
+      
+      // Clean up interval on component unmount
+      return () => clearInterval(pollingInterval);
+    }
+  }, [isAdmin]);
+  
+  // Handle other tabs data loading
+  useEffect(() => {
+    if (isAdmin) {
+      if (activeTab === 'calendar') {
         fetchAllBookings();
         fetchInstructors();
       } else if (activeTab === 'instructors') {
@@ -493,18 +513,56 @@ export default function AdminDashboard() {
     }
   };
   
-  const fetchPendingBookings = async () => {
+  const fetchPendingBookings = async (showLoading = true) => {
     try {
-      setLoading(true);
+      // Only show loading state for initial load, not for background polling
+      if (showLoading) setLoading(true);
+      
       const response = await fetch('/api/booking?status=pending');
       const data = await response.json();
       
-      setPendingBookings(data.bookings || []);
-      setLoading(false);
+      // Smart update - only update state if there are changes
+      // This prevents unnecessary re-renders
+      const newBookings = data.bookings || [];
+      
+      // Check if the bookings have changed by comparing IDs and timestamps
+      const hasChanges = newBookings.length !== pendingBookings.length || 
+        newBookings.some((newBooking: Booking, index: number) => {
+          const oldBooking = pendingBookings[index];
+          return !oldBooking || 
+                 newBooking._id !== oldBooking._id || 
+                 newBooking.updatedAt !== oldBooking.updatedAt;
+        });
+      
+      // Only update state if there are changes
+      if (hasChanges) {
+        // Check if there are new pending bookings (more than before)
+        if (newBookings.length > pendingBookingsCount) {
+          setHasNewPendingBookings(true);
+          
+          // If not on bookings tab, show notification
+          if (activeTab !== 'bookings') {
+            // Play notification sound if supported
+            try {
+              const audio = new Audio('/notification.mp3');
+              audio.play().catch(e => console.log('Audio play failed:', e));
+            } catch (e) {
+              console.log('Audio not supported');
+            }
+          }
+        }
+        
+        setPendingBookings(newBookings);
+        setPendingBookingsCount(newBookings.length);
+      }
+      
+      if (showLoading) setLoading(false);
     } catch (error) {
       console.error('Error fetching pending bookings:', error);
-      setError("Failed to load pending bookings");
-      setLoading(false);
+      if (showLoading) {
+        setError("Failed to load pending bookings");
+        setLoading(false);
+      }
     }
   };
   
@@ -1034,11 +1092,20 @@ export default function AdminDashboard() {
                 activeTab === 'bookings'
                   ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
-              } transition-all duration-300`}
-              onClick={() => setActiveTab('bookings')}
+              } transition-all duration-300 relative`}
+              onClick={() => {
+                setActiveTab('bookings');
+                setHasNewPendingBookings(false);
+              }}
             >
               <Clock className={`w-5 h-5 ${activeTab === 'bookings' ? 'text-pink-500' : ''}`} />
               <span>Pending Bookings</span>
+              {hasNewPendingBookings && activeTab !== 'bookings' && (
+                <span className="absolute top-2 right-2 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              )}
             </button>
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
@@ -1150,7 +1217,10 @@ export default function AdminDashboard() {
                       </thead>
                   <tbody>
                     {pendingBookings.map((booking) => (
-                      <tr key={booking._id}>
+                      <tr 
+                        key={booking._id}
+                        className="transition-all duration-300 animate-fadeIn"
+                      >
                         <td className="py-2 px-4 border-b">
                         {new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                         </td>
