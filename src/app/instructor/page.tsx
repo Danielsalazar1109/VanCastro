@@ -9,6 +9,8 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star } from "lucide-react";
 import LoadingComponent from "@/components/layout/Loading";
+import { I } from "@fullcalendar/core/internal-common";
+import { IBooking } from "@/models/Booking";
 
 // Modal component for viewing booking details
 interface BookingModalProps {
@@ -147,6 +149,7 @@ export default function InstructorDashboard() {
   const [isMobile, setIsMobile] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [showTodayBookings, setShowTodayBookings] = useState(false);
   
   const locations = ["Surrey", "Burnaby", "North Vancouver"];
   
@@ -384,6 +387,47 @@ export default function InstructorDashboard() {
     }
   }
 
+  const toggleTodayBookings = async () => {
+    try {
+      setLoading(true);
+      
+      // Toggle the state
+      const newShowTodayBookings = !showTodayBookings;
+      setShowTodayBookings(newShowTodayBookings);
+      
+      if (newShowTodayBookings) {
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date();
+        const todayFormatted = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        console.log ('Today\'s date:', todayFormatted);
+        
+        // Fetch bookings for the instructor
+        const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+        const data = await response.json();
+        
+        // Filter bookings to only include those for today
+        const todayBookings = data.bookings.filter((booking: IBooking) => {
+          // Handle dates like "2025-03-24T00:00:00.000+00:00"
+          const bookingDate = new Date(booking.date).toISOString().split('T')[0]; // Extract just the YYYY-MM-DD part
+          console.log ('Booking date:', bookingDate);
+          return bookingDate === todayFormatted;
+        });
+        
+        // Update state with filtered bookings
+        setBookings(todayBookings || []);
+      } else {
+        // Fetch all approved bookings
+        await fetchBookings();
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error toggling today\'s bookings:', error);
+      setError("Failed to load bookings");
+      setLoading(false);
+    }
+  }
+
   // State for reschedule modal
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [rescheduleBookingId, setRescheduleBookingId] = useState<string | null>(null);
@@ -618,10 +662,39 @@ export default function InstructorDashboard() {
         <div className="w-full p-4 md:p-6">
           {activeTab === 'bookings' && (
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-slate-800 mb-4 flex items-center">
-                <Clock className="mr-3 text-indigo-500" />
-                Approved Bookings
-              </h2>
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center">
+                  <Clock className="mr-3 text-indigo-500" />
+                  Approved Bookings
+                </h2>
+                <div className="flex items-center space-x-2">
+                  <span className={`text-sm ${showTodayBookings ? 'text-gray-400' : 'text-indigo-600 font-medium'}`}>All</span>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTodayBookings}
+                      onChange={toggleTodayBookings}
+                      className="hidden peer"
+                    />
+                    <div className={`
+                      w-14 h-7 rounded-full relative transition-all duration-300 
+                      ${showTodayBookings 
+                        ? 'bg-indigo-500' 
+                        : 'bg-gray-300'}
+                      after:content-[''] after:absolute after:top-1 
+                      after:left-1 after:bg-white after:rounded-full 
+                      after:h-5 after:w-5 
+                      ${showTodayBookings 
+                        ? 'after:translate-x-7' 
+                        : 'after:translate-x-0'}
+                      after:transition-all after:duration-300
+                    `}></div>
+                  </label>
+                  <span className={`text-sm ${showTodayBookings ? 'text-indigo-600 font-medium' : 'text-gray-400'}`}>Today</span>
+                </div>
+              </div>
+            </div>
               
               {bookings.length === 0 ? (
                 <div className="text-center py-10 bg-slate-50 rounded-lg">
@@ -817,68 +890,68 @@ export default function InstructorDashboard() {
               </div>
 
               <div className="grid gap-6">
-                {/* Availability Grid */}
-                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
-                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-                    <h3 className="text-xl font-semibold text-pink-700">Weekly Availability</h3>
-                  </div>
-                  <div className="p-4 flex flex-row">
-                    {availability.map((day, index) => (
-                      <div 
-                        key={day.day} 
-                        className={`
-                          flex items-center justify-between p-3 
-                          ${day.isAvailable 
-                            ? 'bg-green-50 hover:bg-green-100' 
-                            : 'bg-slate-50 hover:bg-slate-100'}
-                          rounded-lg mb-2 transition-all duration-300
-                        `}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <span className={`
-                            w-10 h-10 rounded-full flex items-center justify-center
-                            ${day.isAvailable 
-                              ? 'bg-green-500 text-white' 
-                              : 'bg-slate-300 text-slate-500'}
-                          `}>
-                            {day.day.charAt(0)}
-                          </span>
-                          <span className={`
-                            font-medium 
-                            ${day.isAvailable ? 'text-green-800' : 'text-slate-500'}
-                          `}>
-                            {day.day}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-3">
-                          <label className="flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={day.isAvailable}
-                              onChange={(e) => handleAvailabilityChange(index, 'isAvailable', e.target.checked)}
-                              className="hidden peer"
-                            />
-                            <div className={`
-                              w-14 h-7 rounded-full relative transition-all duration-300 
-                              ${day.isAvailable 
-                                ? 'bg-green-500' 
-                                : 'bg-slate-300'}
-                              after:content-[''] after:absolute after:top-1 
-                              after:left-1 after:bg-white after:rounded-full 
-                              after:h-5 after:w-5 
-                              ${day.isAvailable 
-                                ? 'after:translate-x-full' 
-                                : 'after:translate-x-0'}
-                              after:transition-all after:duration-300
-                            `}
-                            ></div>
-                          </label>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+  {/* Availability Grid */}
+  <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
+    <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
+      <h3 className="text-xl font-semibold text-pink-700">Weekly Availability</h3>
+    </div>
+    
+    {/* Added overflow-x-auto for horizontal scroll */}
+    <div className="p-4 overflow-x-auto">
+      {/* Added min-width to ensure it scrolls on small screens */}
+      <div className="flex flex-row min-w-max">
+        {availability.map((day, index) => (
+          <div
+            key={day.day}
+            className={`
+              flex items-center justify-between p-3 mx-1
+              ${day.isAvailable
+                ? 'bg-green-50 hover:bg-green-100'
+                : 'bg-slate-50 hover:bg-slate-100'}
+              rounded-lg mb-2 transition-all duration-300
+            `}
+          >
+            <div className="flex items-center space-x-16 ml-10">
+              <span className={`
+                w-10 h-10 rounded-full flex items-center justify-center
+                ${day.isAvailable
+                  ? 'bg-green-500 text-white'
+                  : 'bg-slate-300 text-slate-500'}
+              `}>
+                {day.day.charAt(0)}
+              </span>
+            </div>
+            
+            {/* Increased margin between text and toggle using mr-6 */}
+            <div className="flex items-center space-x-3 ml-16 mr-6">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={day.isAvailable}
+                  onChange={(e) => handleAvailabilityChange(index, 'isAvailable', e.target.checked)}
+                  className="hidden peer"
+                />
+                <div className={`
+                  w-14 h-7 rounded-full relative transition-all duration-300
+                  ${day.isAvailable
+                    ? 'bg-green-500'
+                    : 'bg-slate-300'}
+                  after:content-[''] after:absolute after:top-1 
+                  after:left-1 after:bg-white after:rounded-full
+                  after:h-5 after:w-5
+                  ${day.isAvailable
+                    ? 'after:translate-x-full'
+                    : 'after:translate-x-0'}
+                  after:transition-all after:duration-300
+                `}
+                ></div>
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
 
                 {/* Time Configuration */}
                 <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">

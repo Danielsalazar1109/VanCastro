@@ -51,7 +51,7 @@ interface Booking {
   updatedAt?: string;
 }
 
-// Modal component for viewing and deleting bookings
+// Modal components for viewing/deleting bookings and updating prices
 interface BookingModalProps {
   booking: {
     id: string;
@@ -69,6 +69,106 @@ interface BookingModalProps {
   onDelete: (bookingId: string) => void;
   onReschedule: (bookingId: string) => void;
 }
+
+interface PriceUpdateModalProps {
+  price: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdate: (e: React.FormEvent) => void;
+  onPriceChange: (field: string, value: any) => void;
+}
+
+const PriceUpdateModal = ({ price, isOpen, onClose, onUpdate, onPriceChange }: PriceUpdateModalProps) => {
+  if (!isOpen || !price) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-pink-600">Update Price</h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <form onSubmit={onUpdate} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Class Type</label>
+            <select
+              value={price.classType}
+              onChange={(e) => onPriceChange('classType', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            >
+              <option value="class 7">Class 7</option>
+              <option value="class 5">Class 5</option>
+              <option value="class 4">Class 4</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Duration (minutes)</label>
+            <select
+              value={price.duration}
+              onChange={(e) => onPriceChange('duration', parseInt(e.target.value))}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            >
+              <option value="60">60 minutes</option>
+              <option value="90">90 minutes</option>
+              <option value="120">120 minutes (Road Test)</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Package</label>
+            <select
+              value={price.package}
+              onChange={(e) => onPriceChange('package', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            >
+              <option value="1 lesson">1 Lesson</option>
+              <option value="3 lessons">3 Lessons</option>
+              <option value="10 lessons">10 Lessons</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Price ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={price.price}
+              onChange={(e) => onPriceChange('price', parseFloat(e.target.value))}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div className="mt-6 flex space-x-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+            >
+              Update Price
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const BookingModal = ({ booking, isOpen, onClose, onDelete, onReschedule }: BookingModalProps) => {
   if (!isOpen || !booking) return null;
@@ -243,6 +343,7 @@ export default function AdminDashboard() {
     price: 0
   });
   const [editingPrice, setEditingPrice] = useState<any>(null);
+  const [isPriceModalOpen, setIsPriceModalOpen] = useState<boolean>(false);
   
   // Hardcoded locations and class types
   const locations = ["Surrey", "Burnaby", "North Vancouver"];
@@ -464,11 +565,19 @@ export default function AdminDashboard() {
       
       // Reset editing state and refresh prices
       setEditingPrice(null);
+      setIsPriceModalOpen(false);
       fetchPrices();
     } catch (error) {
       console.error('Error updating price:', error);
       setError("Failed to update price");
     }
+  };
+  
+  const handlePriceChange = (field: string, value: any) => {
+    setEditingPrice({
+      ...editingPrice,
+      [field]: value
+    });
   };
   
   const handleDeletePrice = async (priceId: string) => {
@@ -1698,108 +1807,6 @@ export default function AdminDashboard() {
                 </div>
               </form>
               
-              {editingPrice && (
-                <div className="mt-8">
-                  <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
-                    <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
-                    <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
-                    
-                    <div className="flex items-center space-x-4 mb-2 relative z-10">
-                      <div className="bg-white/20 p-2 rounded-full">
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className="w-8 h-8"
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        >
-                          <path d="M12 20h9"></path>
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                      </div>
-                      <h2 className="text-2xl font-bold tracking-tight">Edit Price</h2>
-                    </div>
-                    <p className="text-white/80 relative z-10">
-                      Update pricing information.
-                    </p>
-                  </div>
-                  
-                  <form onSubmit={handleUpdatePrice} className="space-y-4 bg-white p-6 rounded-2xl shadow-lg">
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">Class Type</label>
-                      <select
-                        value={editingPrice.classType}
-                        onChange={(e) => setEditingPrice({ ...editingPrice, classType: e.target.value })}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                        required
-                      >
-                        <option value="class 7">Class 7</option>
-                        <option value="class 5">Class 5</option>
-                        <option value="class 4">Class 4</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">Duration (minutes)</label>
-                      <select
-                        value={editingPrice.duration}
-                        onChange={(e) => setEditingPrice({ ...editingPrice, duration: parseInt(e.target.value) })}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                        required
-                      >
-                        <option value="60">60 minutes</option>
-                        <option value="90">90 minutes</option>
-                        <option value="120">120 minutes (Road Test)</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">Package</label>
-                      <select
-                        value={editingPrice.package}
-                        onChange={(e) => setEditingPrice({ ...editingPrice, package: e.target.value })}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                        required
-                      >
-                        <option value="1 lesson">1 Lesson</option>
-                        <option value="3 lessons">3 Lessons</option>
-                        <option value="10 lessons">10 Lessons</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">Price ($)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editingPrice.price}
-                        onChange={(e) => setEditingPrice({ ...editingPrice, price: parseFloat(e.target.value) })}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="flex space-x-3">
-                      <button
-                        type="submit"
-                        className="flex-1 px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
-                      >
-                        Update Price
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingPrice(null)}
-                        className="px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-full shadow-md transition-all"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
             </div>
             
             <div>
@@ -1861,7 +1868,10 @@ export default function AdminDashboard() {
                           <td className="py-3 px-4 border-b">
                             <div className="flex space-x-2">
                               <button
-                                onClick={() => setEditingPrice(price)}
+                                onClick={() => {
+                                  setEditingPrice(price);
+                                  setIsPriceModalOpen(true);
+                                }}
                                 className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
                               >
                                 Edit
@@ -1893,6 +1903,18 @@ export default function AdminDashboard() {
       onClose={() => setIsModalOpen(false)}
       onDelete={handleCancelBooking}
       onReschedule={handleRescheduleBooking}
+    />
+    
+    {/* Price Update Modal */}
+    <PriceUpdateModal
+      price={editingPrice}
+      isOpen={isPriceModalOpen}
+      onClose={() => {
+        setIsPriceModalOpen(false);
+        setEditingPrice(null);
+      }}
+      onUpdate={handleUpdatePrice}
+      onPriceChange={handlePriceChange}
     />
     
     {/* Reschedule Modal */}
