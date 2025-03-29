@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { Clock, LogOut, MapPin, UserCheck, Calendar } from "lucide-react";
+import { Clock, LogOut, MapPin, UserCheck, Calendar, Trash } from "lucide-react";
 
 // Definition of Booking type
 interface Booking {
@@ -71,10 +71,44 @@ export default function Tracking() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // State to track if there are any pending bookings
   const [hasPendingBookings, setHasPendingBookings] = useState<boolean>(false);
   const [lastBookingStatuses, setLastBookingStatuses] = useState<{[key: string]: string}>({});
+
+  // Handle deleting a booking
+  const handleDeleteBooking = async (bookingId: string) => {
+    if (!confirm("Are you sure you want to delete this booking?")) {
+      return;
+    }
+    
+    setIsDeleting(bookingId);
+    
+    try {
+      const response = await fetch(`/api/booking?bookingId=${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sendEmail: false
+        }),
+      });
+      
+      if (response.ok) {
+        // Remove the booking from the state
+        setBookings(bookings.filter(booking => booking._id !== bookingId));
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to delete booking");
+      }
+    } catch (err) {
+      setError("An error occurred while deleting the booking");
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   // Function to fetch bookings
   const fetchBookings = async (showLoading = true) => {
@@ -132,14 +166,6 @@ export default function Tracking() {
           lastBookingStatuses[booking._id] === 'pending' && 
           booking.status === 'approved') {
         statusChanged = true;
-        
-        // Play notification sound if supported
-        try {
-          const audio = new Audio('/notification.mp3');
-          audio.play().catch(e => console.log('Audio play failed:', e));
-        } catch (e) {
-          console.log('Audio not supported');
-        }
       }
     });
     
@@ -255,19 +281,40 @@ export default function Tracking() {
                         </h2>
                         <p className="text-gray-600">{booking.package || 'Standard Package'}</p>
                       </div>
-                      <span 
-                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          booking.status === 'approved' 
-                            ? 'bg-green-100 text-green-800' 
-                            : booking.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : booking.status === 'completed'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span 
+                          className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                            booking.status === 'approved' 
+                              ? 'bg-green-100 text-green-800' 
+                              : booking.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : booking.status === 'completed'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                        </span>
+                        
+                      {booking.status === 'cancelled' && (
+                      <button
+                       onClick={(e) => {
+                      e.preventDefault();
+                      handleDeleteBooking(booking._id);
+                    }}
+                     disabled={isDeleting === booking._id}
+                     className={`px-3 py-1 ${isDeleting === booking._id ? 'bg-gray-400' : 'bg-red-500 hover:bg-red-600'} text-white text-md font-bold rounded-full transition-all duration-300`}
+                     aria-label="Delete booking"
+  >
+    {isDeleting === booking._id ? 'Deleting...' : (
+      <>
+        <Trash className="inline mr-1" size={20} />
+        Delete
+      </>
+    )}
+  </button>
+)}
+                      </div>
                     </div>
                     
                     <div className="grid sm:grid-cols-2 gap-4 mb-4">
