@@ -234,13 +234,7 @@ export default function Tracking() {
               <h1 className="text-3xl font-bold text-gray-800">My Driving Lessons</h1>
               <p className="text-gray-600">Welcome, {session.user.name}</p>
             </div>
-            <button 
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg flex items-center gap-2 transition-all duration-300 hover:shadow-lg"
-            >
-              <LogOut size={18} />
-              Logout
-            </button>
+            {/* Logout button moved to navbar */}
           </div>
           
           {isLoading ? (

@@ -575,13 +575,7 @@ export default function InstructorDashboard() {
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 bg-white z-50">
           <div className="p-4 space-y-4">
-            <button 
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="w-full flex items-center justify-center space-x-2 bg-indigo-500 text-white px-4 py-2 rounded-full"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
+            {/* Logout button moved to navbar */}
             
             {[
               { id: 'bookings', icon: Clock, label: 'Bookings' },
@@ -624,13 +618,7 @@ export default function InstructorDashboard() {
             <p className="text-white/70 hidden md:block">Manage your schedule and bookings</p>
           </div>
         </div>
-        <button 
-          onClick={() => signOut({ callbackUrl: '/' })}
-          className="hidden md:flex items-center space-x-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition-all"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Logout</span>
-        </button>
+        {/* Logout button moved to navbar */}
       </div>
 
       <div className="flex flex-col md:flex-row max-w-9xl mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden border-t-0">
