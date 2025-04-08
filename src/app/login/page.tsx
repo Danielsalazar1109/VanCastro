@@ -55,7 +55,7 @@ export default function LoginPage() {
             } else if (session?.user?.role === "instructor") {
               router.push("/instructor");
             } else if (session?.user?.role === "user") {
-              router.push("/booking");
+              router.push("/student");
             } else {
               // If we can't determine the role, try a normal form submission
               const form = document.querySelector("form");
@@ -96,7 +96,7 @@ export default function LoginPage() {
       
       // Redirect based on user role
       if (session?.user?.role === "user") {
-        router.push("/booking");
+        router.push("/student");
       } else if (session?.user?.role === "instructor") {
         router.push("/instructor");
       } else if (session?.user?.role === "admin") {

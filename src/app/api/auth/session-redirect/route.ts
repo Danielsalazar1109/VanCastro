@@ -72,8 +72,8 @@ export async function GET(request: NextRequest) {
       console.log('User is instructor, redirecting to instructor page');
       return NextResponse.redirect(new URL('/instructor', request.url));
     } else if (userRole === 'user') {
-      console.log('User is regular user, redirecting to booking page');
-      return NextResponse.redirect(new URL('/booking', request.url));
+      console.log('User is regular user, redirecting to student page');
+      return NextResponse.redirect(new URL('/student', request.url));
     }
 
     // Default fallback
