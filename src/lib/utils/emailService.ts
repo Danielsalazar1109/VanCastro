@@ -11,6 +11,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Logo configuration
+const LOGO_URL = process.env.LOGO_URL || 'https://framerusercontent.com/images/jPAQ8xuOTcFAmT9WHP9tr41J4.png';
+const LOGO_ALT = 'VanCastro Driving School';
+
 // Email templates
 const emailTemplates = {
   bookingConfirmation: (data: {
@@ -24,6 +28,9 @@ const emailTemplates = {
     subject: 'Driving Lesson Booking Confirmation',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
+        </div>
         <h2 style="color: #4f46e5; text-align: center;">Booking Confirmation</h2>
         <p>Hello ${data.studentName},</p>
         <p>Your driving lesson has been successfully booked!</p>
@@ -50,6 +57,9 @@ const emailTemplates = {
     subject: 'Driving Lesson Cancellation Confirmation',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
+        </div>
         <h2 style="color: #ef4444; text-align: center;">Booking Cancellation</h2>
         <p>Hello ${data.studentName},</p>
         <p>Your driving lesson has been cancelled.</p>
@@ -79,6 +89,9 @@ const emailTemplates = {
     subject: 'Driving Lesson Rescheduled',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
+        </div>
         <h2 style="color: #f59e0b; text-align: center;">Booking Rescheduled</h2>
         <p>Hello ${data.studentName},</p>
         <p>Your driving lesson has been rescheduled${data.adminName ? ` by ${data.adminName}` : ''}.</p>

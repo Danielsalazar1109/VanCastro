@@ -1185,13 +1185,7 @@ export default function AdminDashboard() {
               <p className="text-white/70">Manage bookings, instructors and users</p>
             </div>
           </div>
-          <button 
-            onClick={() => signOut({ callbackUrl: '/' })}
-            className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
+          {/* Logout button moved to navbar */}
         </div>
         
         <div className="bg-white shadow-2xl rounded-3xl overflow-hidden">
