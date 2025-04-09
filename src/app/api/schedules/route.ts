@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
     
     // Parse the request body
     const body = await request.json();
-    const { instructorId, date, duration, location = 'Surrey' } = body;
+    const { instructorId, date, duration, location = 'Surrey', userId } = body;
     
     // Validate required fields
     if (!instructorId || !date) {
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
     scheduleDate.setHours(0, 0, 0, 0);
     
     // Fetch existing bookings for this instructor and date
-    const existingBookings = await Booking.find({
+    const existingInstructorBookings = await Booking.find({
       instructor: instructorId,
       date: {
         $gte: scheduleDate,
@@ -301,12 +301,36 @@ export async function POST(request: NextRequest) {
       status: { $ne: 'cancelled' }
     });
     
-    // Format bookings for conflict checking
-    const bookingsForConflictCheck = existingBookings.map(booking => ({
+    // Format instructor bookings for conflict checking
+    const instructorBookingsForConflictCheck = existingInstructorBookings.map(booking => ({
       startTime: booking.startTime,
       endTime: booking.endTime,
       location: booking.location
     }));
+    
+    // Combine all bookings for conflict checking
+    let bookingsForConflictCheck = [...instructorBookingsForConflictCheck];
+    
+    // If userId is provided, fetch user's existing bookings for the same date
+    if (userId) {
+      const existingUserBookings = await Booking.find({
+        user: userId,
+        date: {
+          $gte: scheduleDate,
+          $lt: new Date(scheduleDate.getTime() + 24 * 60 * 60 * 1000)
+        },
+        status: { $ne: 'cancelled' }
+      });
+      
+      // Add user bookings to conflict check
+      const userBookingsForConflictCheck = existingUserBookings.map(booking => ({
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        location: booking.location
+      }));
+      
+      bookingsForConflictCheck = [...bookingsForConflictCheck, ...userBookingsForConflictCheck];
+    }
     
     // Generate time slots based on instructor's availability, considering existing bookings
     const slots = generateTimeSlots(
@@ -364,6 +388,7 @@ export async function GET(request: NextRequest) {
     const instructorId = searchParams.get('instructorId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const userId = searchParams.get('userId');
     
     // Build query based on parameters
     const query: any = {};
@@ -397,32 +422,54 @@ export async function GET(request: NextRequest) {
       })
       .sort({ date: 1 });
     
-    // Get bookings for these schedules to mark booked slots
-    const bookings = await Booking.find({
+    // Get instructor bookings for these schedules to mark booked slots
+    const instructorBookings = await Booking.find({
       instructor: instructorId,
       date: query.date,
       status: { $ne: 'cancelled' }
     });
     
+    // Get user bookings if userId is provided
+    let userBookings: any[] = [];
+    if (userId) {
+      userBookings = await Booking.find({
+        user: userId,
+        date: query.date,
+        status: { $ne: 'cancelled' }
+      });
+    }
+    
     // Mark booked slots
     const schedulesWithBookings = schedules.map(schedule => {
       const scheduleObj = schedule.toObject();
       
-      // Find bookings for this date
-      const dateBookings = bookings.filter(booking => 
+      // Find instructor bookings for this date
+      const dateInstructorBookings = instructorBookings.filter(booking => 
         booking.date.toDateString() === new Date(scheduleObj.date).toDateString()
       );
       
-      // Mark slots as booked if they overlap with bookings
+      // Find user bookings for this date
+      const dateUserBookings = userBookings.filter(booking => 
+        booking.date.toDateString() === new Date(scheduleObj.date).toDateString()
+      );
+      
+      // Mark slots as booked if they overlap with instructor bookings or user bookings
       scheduleObj.slots = scheduleObj.slots.map((slot: { startTime: string; endTime: string; isBooked?: boolean }) => {
-        const isBooked = dateBookings.some(booking =>
+        // Check if slot overlaps with instructor bookings
+        const isInstructorBooked = dateInstructorBookings.some(booking =>
+          (booking.startTime <= slot.startTime && booking.endTime > slot.startTime) ||
+          (booking.startTime >= slot.startTime && booking.startTime < slot.endTime)
+        );
+        
+        // Check if slot overlaps with user bookings
+        const isUserBooked = dateUserBookings.some(booking =>
           (booking.startTime <= slot.startTime && booking.endTime > slot.startTime) ||
           (booking.startTime >= slot.startTime && booking.startTime < slot.endTime)
         );
         
         return {
           ...slot,
-          isBooked
+          isBooked: isInstructorBooked || isUserBooked
         };
       });
       

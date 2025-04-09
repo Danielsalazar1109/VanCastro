@@ -24,10 +24,12 @@ export async function POST(request: NextRequest) {
       duration, 
       date, 
       startTime,
-      price
+      price,
+      termsAccepted,
+      termsAcceptedAt
     } = body;
     // Validate required fields
-    if (!userId || !instructorId || !location || !classType || !packageType || !duration || !date || !startTime) {
+    if (!userId || !instructorId || !location || !classType || !packageType || !duration || !date || !startTime || !termsAccepted) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -114,8 +116,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Check for time conflicts
-    const existingBookings = await Booking.find({
+    // Check for time conflicts with the instructor's schedule
+    const existingInstructorBookings = await Booking.find({
       instructor: instructorId,
       date: {
         $gte: new Date(bookingDate.setHours(0, 0, 0, 0)),
@@ -124,15 +126,56 @@ export async function POST(request: NextRequest) {
       status: { $ne: 'cancelled' }
     });
     
-    const bookingsForConflictCheck = existingBookings.map(booking => ({
+    const instructorBookingsForConflictCheck = existingInstructorBookings.map(booking => ({
       startTime: booking.startTime,
       endTime: booking.endTime,
       location: booking.location
     }));
     
-    if (hasTimeConflict(startTime, endTime, location, bookingsForConflictCheck)) {
+    if (hasTimeConflict(startTime, endTime, location, instructorBookingsForConflictCheck)) {
       return NextResponse.json(
-        { error: 'Time slot is not available due to scheduling conflicts' },
+        { error: 'Time slot is not available due to scheduling conflicts with the instructor' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if the user already has a booking at the same time with any instructor
+    const existingUserBookings = await Booking.find({
+      user: userId,
+      date: {
+        $gte: new Date(bookingDate.setHours(0, 0, 0, 0)),
+        $lt: new Date(bookingDate.setHours(23, 59, 59, 999))
+      },
+      status: { $ne: 'cancelled' }
+    });
+    
+    // Check if any of the user's existing bookings conflict with the requested time
+    const userHasConflict = existingUserBookings.some(booking => {
+      const bookingStartTime = booking.startTime;
+      const bookingEndTime = booking.endTime;
+      
+      // Convert times to minutes for easier comparison
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const [endHour, endMinute] = endTime.split(':').map(Number);
+      const [bookingStartHour, bookingStartMinute] = bookingStartTime.split(':').map(Number);
+      const [bookingEndHour, bookingEndMinute] = bookingEndTime.split(':').map(Number);
+      
+      const newStartInMinutes = startHour * 60 + startMinute;
+      const newEndInMinutes = endHour * 60 + endMinute;
+      const existingStartInMinutes = bookingStartHour * 60 + bookingStartMinute;
+      const existingEndInMinutes = bookingEndHour * 60 + bookingEndMinute;
+      
+      // Check if there's an overlap
+      return (
+        (newStartInMinutes >= existingStartInMinutes && newStartInMinutes < existingEndInMinutes) ||
+        (newEndInMinutes > existingStartInMinutes && newEndInMinutes <= existingEndInMinutes) ||
+        (newStartInMinutes <= existingStartInMinutes && newEndInMinutes >= existingEndInMinutes)
+      );
+    });
+    
+    if (userHasConflict) {
+      return NextResponse.json(
+        { error: 'You already have a booking at this time. Please select a different time slot.' },
         { status: 400 }
       );
     }
@@ -190,8 +233,21 @@ export async function POST(request: NextRequest) {
       startTime,
       endTime,
       status: 'pending',
-      paymentStatus: 'completed' // Set as completed since we're not using Stripe
+      paymentStatus: 'completed', // Set as completed since we're not using Stripe
+      termsAccepted: termsAccepted,
+      termsAcceptedAt: new Date() // Always set to current date to ensure it's saved
     };
+
+    // If termsAcceptedAt was provided in the request, use that instead
+    if (termsAcceptedAt) {
+      try {
+        bookingData.termsAcceptedAt = new Date(termsAcceptedAt);
+        console.log('Using provided termsAcceptedAt:', bookingData.termsAcceptedAt);
+      } catch (error) {
+        console.error('Error parsing termsAcceptedAt date:', error);
+        // Keep the default current date if parsing fails
+      }
+    }
     
     // Set the price based on whether this is the last booking in a package
     if (isPackageComplete) {
