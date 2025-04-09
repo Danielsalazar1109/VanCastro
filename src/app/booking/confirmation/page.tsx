@@ -4,6 +4,48 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
+// Countdown component to handle real-time updates
+const CountdownTimer = ({ createdAt }: { createdAt: string }) => {
+  const [timeRemaining, setTimeRemaining] = useState<string>("00:00:00");
+
+  useEffect(() => {
+    // Function to calculate and update remaining time
+    const updateRemainingTime = () => {
+      const createdDate = new Date(createdAt);
+      const expirationDate = new Date(createdDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours later
+      const now = new Date();
+      
+      const difference = expirationDate.getTime() - now.getTime();
+      
+      if (difference <= 0) {
+        setTimeRemaining("Expired");
+        return;
+      }
+      
+      const hours = Math.floor(difference / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+      
+      setTimeRemaining(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    // Initial update
+    updateRemainingTime();
+
+    // Set up interval to update every second
+    const timer = setInterval(updateRemainingTime, 1000);
+
+    // Clean up interval on component unmount
+    return () => clearInterval(timer);
+  }, [createdAt]);
+
+  return (
+    <span className="text-4xl text-red-500 font-bold">
+      Time Remaining: {timeRemaining}
+    </span>
+  );
+};
+
 export default function ConfirmationPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -52,7 +94,8 @@ export default function ConfirmationPage() {
             confirmationNumber: 'DRV-' + booking._id.substring(0, 6).toUpperCase(),
             price: booking.price,
             package: booking.package,
-            duration: booking.duration
+            duration: booking.duration,
+            createdAt: booking.createdAt
           });
         
         setLoading(false);
@@ -114,6 +157,10 @@ export default function ConfirmationPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Submitted!</h1>
+          <CountdownTimer createdAt={bookingDetails.createdAt} />
+          <p className="text-xl font-semibold text-yellow-600 mt-4 mb-2">
+            You have 24 hours to complete the payment. Please <Link href="/contact" className="text-primary-600 hover:underline">contact us</Link> to process your payment.
+          </p>
           <p className="text-gray-600">
             Your driving lesson has been successfully booked and is now pending approval.
             You can track the status of your booking in the tracking page.

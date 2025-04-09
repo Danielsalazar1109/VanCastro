@@ -244,6 +244,8 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
   const [isPackageComplete, setIsPackageComplete] = useState<boolean>(false);
   const [packageSize, setPackageSize] = useState<number>(1);
   const [discountedPrice, setDiscountedPrice] = useState<number | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
+  const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(null);
   
   // Data state
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -607,7 +609,8 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
           instructorId,
           date,
           duration,
-          location
+          location,
+          userId
         }),
       });
       
@@ -619,7 +622,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
       
       // Fetch the newly created/updated schedule
       const fetchResponse = await fetch(
-        `/api/schedules?instructorId=${instructorId}&startDate=${date}&endDate=${date}`
+        `/api/schedules?instructorId=${instructorId}&startDate=${date}&endDate=${date}&userId=${userId}`
       );
       
       if (!fetchResponse.ok) {
@@ -691,7 +694,9 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
           date,
           startTime: selectedSlot.startTime,
           price: finalPrice,
-          hasPassedKnowledgeTest: classType === "class 7" ? true : undefined
+          hasPassedKnowledgeTest: classType === "class 7" ? true : undefined,
+          termsAccepted,
+          termsAcceptedAt
         }),
       });
       
@@ -1069,6 +1074,36 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
               </div>
             </div>
             
+            <div className="mt-6 mb-6">
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => {
+                      setTermsAccepted(e.target.checked);
+                      if (e.target.checked) {
+                        setTermsAcceptedAt(new Date().toISOString());
+                      } else {
+                        setTermsAcceptedAt(null);
+                      }
+                    }}
+                    className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-yellow-300"
+                    required
+                  />
+                </div>
+                <label htmlFor="terms" className="ml-2 text-sm font-medium text-gray-700">
+                  I agree to the <a href="#" className="text-blue-600 hover:underline">Terms and Conditions</a> and acknowledge the <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+                </label>
+              </div>
+              {step === 3 && timeSlot !== "" && !termsAccepted && (
+                <p className="text-sm text-red-500 mt-2">
+                  You must accept the terms and conditions to continue.
+                </p>
+              )}
+            </div>
+            
             <div className="flex justify-between mt-6">
               <button
                 type="button"
@@ -1079,9 +1114,9 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
               </button>
               <button
                 type="submit"
-                disabled={loading || !isStepValid()}
+                disabled={loading || !isStepValid() || !termsAccepted}
                 className={`px-4 py-2 rounded-md ${
-                  !loading && isStepValid()
+                  !loading && isStepValid() && termsAccepted
                     ? "bg-yellow-400 hover:bg-yellow-500 text-black"
                     : "bg-gray-300 cursor-not-allowed text-gray-700"
                 }`}
