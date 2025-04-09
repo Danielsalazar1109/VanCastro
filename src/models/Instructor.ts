@@ -13,6 +13,7 @@ export interface IInstructor extends Document {
   locations: string[];
   classTypes: string[];
   availability: IAvailability[];
+  image?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,7 +30,7 @@ const InstructorSchema: Schema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     locations: [{ 
       type: String, 
-      enum: ['Surrey', 'Burnaby', 'North Vancouver'],
+      // Removed enum validation to allow any location string
       required: true 
     }],
     classTypes: [{ 
@@ -37,7 +38,8 @@ const InstructorSchema: Schema = new Schema(
       enum: ['class 4', 'class 5', 'class 7'],
       required: true 
     }],
-    availability: [AvailabilitySchema]
+    availability: [AvailabilitySchema],
+    image: { type: String }
   },
   { timestamps: true }
 );

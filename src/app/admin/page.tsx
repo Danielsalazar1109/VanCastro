@@ -7,7 +7,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield } from "lucide-react";
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield, Image, Edit } from "lucide-react";
 import LoadingComponent from "@/components/layout/Loading";
 import Booking from "@/models/Booking";
 
@@ -33,6 +33,7 @@ interface Instructor {
   locations: string[];
   classTypes: string[];
   availability?: Availability[];
+  image?: string;
 }
 
 interface Booking {
@@ -79,6 +80,172 @@ interface PriceUpdateModalProps {
   onUpdate: (e: React.FormEvent) => void;
   onPriceChange: (field: string, value: any) => void;
 }
+
+interface InstructorModalProps {
+  instructor: Instructor | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdate: (e: React.FormEvent) => void;
+  onInstructorChange: (field: string, value: any) => void;
+  onLocationChange: (location: string) => void;
+  onClassTypeChange: (classType: string) => void;
+  onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  locations: string[];
+  classTypes: string[];
+  locationMapping: { [key: string]: string[] };
+}
+
+const InstructorModal = ({ 
+  instructor, 
+  isOpen, 
+  onClose, 
+  onUpdate, 
+  onInstructorChange, 
+  onLocationChange, 
+  onClassTypeChange, 
+  onImageUpload,
+  locations,
+  classTypes,
+  locationMapping
+}: InstructorModalProps) => {
+  if (!isOpen || !instructor) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-pink-600">Edit Instructor</h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <form onSubmit={onUpdate} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">First Name</label>
+            <input
+              type="text"
+              value={instructor.user.firstName}
+              onChange={(e) => onInstructorChange('firstName', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Last Name</label>
+            <input
+              type="text"
+              value={instructor.user.lastName}
+              onChange={(e) => onInstructorChange('lastName', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+            <input
+              type="email"
+              value={instructor.user.email}
+              onChange={(e) => onInstructorChange('email', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Phone</label>
+            <input
+              type="tel"
+              value={instructor.user.phone}
+              onChange={(e) => onInstructorChange('phone', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Profile Image</label>
+            <div className="flex items-center space-x-4">
+              {instructor.image && (
+                <img 
+                  src={instructor.image} 
+                  alt={`${instructor.user.firstName} ${instructor.user.lastName}`} 
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={onImageUpload}
+                className="w-full p-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+          </div>
+          
+  <div>
+    <label className="block text-sm font-medium mb-1 text-gray-700">Locations</label>
+    <div className="flex flex-wrap gap-2">
+      {locations.map((location) => {
+        // Only check for exact matches to allow individual location selection
+        const isChecked = instructor.locations.includes(location);
+        
+        return (
+          <label key={location} className="flex items-center">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={() => onLocationChange(location)}
+              className="mr-1"
+            />
+            {location}
+          </label>
+        );
+      })}
+    </div>
+  </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Class Types</label>
+            <div className="flex flex-wrap gap-2">
+              {classTypes.map((classType) => (
+                <label key={classType} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={instructor.classTypes.includes(classType)}
+                    onChange={() => onClassTypeChange(classType)}
+                    className="mr-1"
+                  />
+                  {classType}
+                </label>
+              ))}
+            </div>
+          </div>
+          
+          <div className="mt-6 flex space-x-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+            >
+              Update Instructor
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const PriceUpdateModal = ({ price, isOpen, onClose, onUpdate, onPriceChange }: PriceUpdateModalProps) => {
   if (!isOpen || !price) return null;
@@ -348,7 +515,33 @@ export default function AdminDashboard() {
   const [isPriceModalOpen, setIsPriceModalOpen] = useState<boolean>(false);
   
   // Hardcoded locations and class types
-  const locations = ["Surrey", "Burnaby", "North Vancouver"];
+  const locations = [
+    "Vancouver, 999 Kingsway",
+    "Vancouver, 4126 McDonald St",
+    "Burnaby, 3880 Lougheed Hwy",
+    "Burnaby, 4399 Wayburne Dr",
+    "North Vancouver, 1331 Marine Drive"
+  ];
+  
+  // Map general locations to full location names
+  const locationMapping: { [key: string]: string[] } = {
+    'Surrey': ["Vancouver, 999 Kingsway", "Vancouver, 4126 McDonald St"],
+    'Burnaby': ["Burnaby, 3880 Lougheed Hwy", "Burnaby, 4399 Wayburne Dr"],
+    'North Vancouver': ["North Vancouver, 1331 Marine Drive"]
+  };
+  
+  // Function to get full location names from general locations
+  const getFullLocationNames = (generalLocations: string[]): string[] => {
+    let fullLocations: string[] = [];
+    generalLocations.forEach(loc => {
+      if (locationMapping[loc]) {
+        fullLocations = [...fullLocations, ...locationMapping[loc]];
+      } else {
+        fullLocations.push(loc);
+      }
+    });
+    return fullLocations;
+  };
   const classTypes = ["class 4", "class 5", "class 7"];
   
   const [newInstructor, setNewInstructor] = useState({
@@ -359,7 +552,52 @@ export default function AdminDashboard() {
     phone: "",
     locations: [] as string[],
     classTypes: [] as string[],
+    image: ""
   });
+  
+  // State for instructor edit modal
+  const [isInstructorModalOpen, setIsInstructorModalOpen] = useState(false);
+  const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
+  
+  // Function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+  
+  // Handle image upload for new instructor
+  const handleNewInstructorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      try {
+        const base64Image = await fileToBase64(e.target.files[0]);
+        setNewInstructor({
+          ...newInstructor,
+          image: base64Image
+        });
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+      }
+    }
+  };
+  
+  // Handle image upload for editing instructor
+  const handleEditInstructorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && editingInstructor) {
+      try {
+        const base64Image = await fileToBase64(e.target.files[0]);
+        setEditingInstructor({
+          ...editingInstructor,
+          image: base64Image
+        });
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+      }
+    }
+  };
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1044,6 +1282,7 @@ export default function AdminDashboard() {
           phone: newInstructor.phone,
           locations: newInstructor.locations,
           classTypes: newInstructor.classTypes,
+          image: newInstructor.image
         }),
       });
       
@@ -1060,12 +1299,101 @@ export default function AdminDashboard() {
         phone: "",
         locations: [],
         classTypes: [],
+        image: ""
       });
       
       fetchInstructors();
     } catch (error) {
       console.error('Error creating instructor:', error);
       setError("Failed to create instructor");
+    }
+  };
+  
+  const handleUpdateInstructor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingInstructor) return;
+    
+    try {
+      const response = await fetch('/api/instructors', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          instructorId: editingInstructor._id,
+          firstName: editingInstructor.user.firstName,
+          lastName: editingInstructor.user.lastName,
+          email: editingInstructor.user.email,
+          phone: editingInstructor.user.phone,
+          locations: editingInstructor.locations,
+          classTypes: editingInstructor.classTypes,
+          image: editingInstructor.image
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update instructor');
+      }
+      
+      // Close modal and refresh instructors
+      setIsInstructorModalOpen(false);
+      setEditingInstructor(null);
+      fetchInstructors();
+    } catch (error) {
+      console.error('Error updating instructor:', error);
+      setError("Failed to update instructor");
+    }
+  };
+  
+  const handleInstructorChange = (field: string, value: any) => {
+    if (!editingInstructor) return;
+    
+    if (field === 'firstName' || field === 'lastName' || field === 'email' || field === 'phone') {
+      setEditingInstructor({
+        ...editingInstructor,
+        user: {
+          ...editingInstructor.user,
+          [field]: value
+        }
+      });
+    } else {
+      setEditingInstructor({
+        ...editingInstructor,
+        [field]: value
+      });
+    }
+  };
+  
+  const handleEditLocationChange = (location: string) => {
+    if (!editingInstructor) return;
+    
+    if (editingInstructor.locations.includes(location)) {
+      setEditingInstructor({
+        ...editingInstructor,
+        locations: editingInstructor.locations.filter(loc => loc !== location)
+      });
+    } else {
+      setEditingInstructor({
+        ...editingInstructor,
+        locations: [...editingInstructor.locations, location]
+      });
+    }
+  };
+  
+  const handleEditClassTypeChange = (classType: string) => {
+    if (!editingInstructor) return;
+    
+    if (editingInstructor.classTypes.includes(classType)) {
+      setEditingInstructor({
+        ...editingInstructor,
+        classTypes: editingInstructor.classTypes.filter(type => type !== classType)
+      });
+    } else {
+      setEditingInstructor({
+        ...editingInstructor,
+        classTypes: [...editingInstructor.classTypes, classType]
+      });
     }
   };
   
@@ -1486,6 +1814,25 @@ export default function AdminDashboard() {
                     required
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Profile Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleNewInstructorImageUpload}
+                    className="w-full p-2 border rounded"
+                  />
+                  {newInstructor.image && (
+                    <div className="mt-2">
+                      <img 
+                        src={newInstructor.image} 
+                        alt="Profile Preview" 
+                        className="w-20 h-20 object-cover rounded-full"
+                      />
+                    </div>
+                  )}
+                </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Locations</label>
@@ -1557,48 +1904,73 @@ export default function AdminDashboard() {
                       {instructors.map((instructor) => (
                         <div key={instructor._id} className="border border-pink-100 p-6 rounded-2xl shadow-md bg-white hover:shadow-lg transition-all">
                           <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="text-xl font-bold text-pink-600">
-                                {instructor.user.firstName} {instructor.user.lastName}
-                              </h3>
-                              <p className="text-sm text-gray-600">{instructor.user.email}</p>
-                              <p className="text-sm text-gray-600">{instructor.user.phone}</p>
-                              
-                              <div className="mt-3">
-                                <p className="text-sm font-medium text-purple-600">Locations:</p>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                  {instructor.locations.map((location) => (
-                                    <span
-                                      key={location}
-                                      className="text-xs bg-purple-100 text-purple-800 px-3 py-1 rounded-full"
-                                    >
-                                      {location}
-                                    </span>
-                                  ))}
+                            <div className="flex items-start space-x-4">
+                              {instructor.image ? (
+                                <img 
+                                  src={instructor.image} 
+                                  alt={`${instructor.user.firstName} ${instructor.user.lastName}`} 
+                                  className="w-16 h-16 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <User className="w-8 h-8 text-gray-400" />
                                 </div>
-                              </div>
-                              
-                              <div className="mt-3">
-                                <p className="text-sm font-medium text-indigo-600">Class Types:</p>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                  {instructor.classTypes.map((classType) => (
-                                    <span
-                                      key={classType}
-                                      className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
-                                    >
-                                      {classType}
-                                    </span>
-                                  ))}
+                              )}
+                              <div>
+                                <h3 className="text-xl font-bold text-pink-600">
+                                  {instructor.user.firstName} {instructor.user.lastName}
+                                </h3>
+                                <p className="text-sm text-gray-600">{instructor.user.email}</p>
+                                <p className="text-sm text-gray-600">{instructor.user.phone}</p>
+                                
+                                <div className="mt-3">
+                                  <p className="text-sm font-medium text-purple-600">Locations:</p>
+                                  <div className="flex flex-wrap gap-2 mt-1">
+                                    {instructor.locations.map((location) => (
+                                      <span
+                                        key={location}
+                                        className="text-xs bg-purple-100 text-purple-800 px-3 py-1 rounded-full"
+                                      >
+                                        {location}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                
+                                <div className="mt-3">
+                                  <p className="text-sm font-medium text-indigo-600">Class Types:</p>
+                                  <div className="flex flex-wrap gap-2 mt-1">
+                                    {instructor.classTypes.map((classType) => (
+                                      <span
+                                        key={classType}
+                                        className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
+                                      >
+                                        {classType}
+                                      </span>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                             
-                            <button
-                              onClick={() => handleDeleteInstructor(instructor._id)}
-                              className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
-                            >
-                              Delete
-                            </button>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingInstructor(instructor);
+                                  setIsInstructorModalOpen(true);
+                                }}
+                                className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteInstructor(instructor._id)}
+                                className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1933,6 +2305,24 @@ export default function AdminDashboard() {
       onPriceChange={handlePriceChange}
     />
     
+    {/* Instructor Edit Modal */}
+    <InstructorModal
+  instructor={editingInstructor}
+  isOpen={isInstructorModalOpen}
+  onClose={() => {
+    setIsInstructorModalOpen(false);
+    setEditingInstructor(null);
+  }}
+  onUpdate={handleUpdateInstructor}
+  onInstructorChange={handleInstructorChange}
+  onLocationChange={handleEditLocationChange}
+  onClassTypeChange={handleEditClassTypeChange}
+  onImageUpload={handleEditInstructorImageUpload}
+  locations={locations}
+  classTypes={classTypes}
+  locationMapping={locationMapping}
+    />
+    
     {/* Reschedule Modal */}
     {isRescheduleModalOpen && originalBooking && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -2069,4 +2459,4 @@ export default function AdminDashboard() {
   </div>
   </div>
   );
-};
+}

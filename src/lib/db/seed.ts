@@ -15,9 +15,11 @@ export async function seedDatabase() {
     // Seed locations
     console.log('Seeding locations...');
     const locations = [
-      { name: 'Surrey' },
-      { name: 'Burnaby' },
-      { name: 'North Vancouver' }
+      { name: 'Vancouver, 999 Kingsway' },
+      { name: 'Vancouver, 4126 McDonald St' },
+      { name: 'Burnaby, 3880 Lougheed Hwy' },
+      { name: 'Burnaby, 4399 Wayburne Dr' },
+      { name: 'North Vancouver, 1331 Marine Drive' }
     ];
 
     for (const location of locations) {

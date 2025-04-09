@@ -221,6 +221,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    
     // Create a new booking with pending status
     const bookingData: Partial<IBooking> = {
       user: userId,

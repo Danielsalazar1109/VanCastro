@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
       password,
       locations, 
       classTypes,
-      availability 
+      availability,
+      image
     } = body;
     
     // Validate required fields
@@ -34,8 +35,22 @@ export async function POST(request: NextRequest) {
     
     // Validate locations
     if (locations && locations.length > 0) {
-      const validLocations = ['Surrey', 'Burnaby', 'North Vancouver'];
-      const invalidLocations = locations.filter((loc: string) => !validLocations.includes(loc));
+      // Validate that all locations are from our predefined list
+      const validLocations = [
+        'Surrey', 'Burnaby', 'North Vancouver', // Legacy values
+        'Vancouver, 999 Kingsway', 'Vancouver, 4126 McDonald St', 
+        'Burnaby, 3880 Lougheed Hwy', 'Burnaby, 4399 Wayburne Dr', 
+        'North Vancouver, 1331 Marine Drive'
+      ];
+      
+      // More lenient validation - check if the location contains one of our valid location prefixes
+      const invalidLocations = locations.filter((loc: string) => {
+        // Check if the location matches any of our valid locations
+        return !validLocations.some(validLoc => 
+          loc === validLoc || // Exact match
+          (validLoc.includes(',') && loc.includes(validLoc.split(',')[0])) // Match prefix before comma
+        );
+      });
       
       if (invalidLocations.length > 0) {
         return NextResponse.json(
@@ -92,9 +107,10 @@ export async function POST(request: NextRequest) {
     // Create instructor
     const instructor = await Instructor.create({
       user: user._id,
-      locations,
+      locations: locations,
       classTypes,
-      availability: availability || []
+      availability: availability || [],
+      image
     });
     
     // Populate user data
@@ -165,7 +181,8 @@ export async function PUT(request: NextRequest) {
       phone, 
       locations, 
       classTypes,
-      availability 
+      availability,
+      image
     } = body;
     
     // Validate required fields
@@ -185,10 +202,27 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    // Validate locations if provided
-    if (locations && locations.length > 0) {
-      const validLocations = ['Surrey', 'Burnaby', 'North Vancouver'];
-      const invalidLocations = locations.filter((loc: string) => !validLocations.includes(loc));
+    // Replace locations if provided (don't accumulate)
+    if (locations) {
+      // Store the full location names as they are
+      // This prevents the accumulation issue by not mapping to general locations
+      
+      // Validate that all locations are from our predefined list
+      const validLocations = [
+        'Surrey', 'Burnaby', 'North Vancouver', // Legacy values
+        'Vancouver, 999 Kingsway', 'Vancouver, 4126 McDonald St', 
+        'Burnaby, 3880 Lougheed Hwy', 'Burnaby, 4399 Wayburne Dr', 
+        'North Vancouver, 1331 Marine Drive'
+      ];
+      
+      // More lenient validation - check if the location contains one of our valid location prefixes
+      const invalidLocations = locations.filter((loc: string) => {
+        // Check if the location matches any of our valid locations
+        return !validLocations.some(validLoc => 
+          loc === validLoc || // Exact match
+          (validLoc.includes(',') && loc.includes(validLoc.split(',')[0])) // Match prefix before comma
+        );
+      });
       
       if (invalidLocations.length > 0) {
         return NextResponse.json(
@@ -197,7 +231,14 @@ export async function PUT(request: NextRequest) {
         );
       }
       
-      instructor.locations = locations;
+      // Store the full location names directly without mapping to general locations
+      // Just remove duplicates to prevent accumulation
+      const uniqueLocations = locations.filter((loc: string, index: number, self: string[]) => 
+        self.indexOf(loc) === index
+      );
+      
+      // Replace the entire locations array
+      instructor.locations = uniqueLocations;
     }
     
     // Validate class types if provided
@@ -217,6 +258,9 @@ export async function PUT(request: NextRequest) {
     
     // Update availability if provided
     if (availability) instructor.availability = availability;
+    
+    // Update image if provided
+    if (image !== undefined) instructor.image = image;
     
     await instructor.save();
     
