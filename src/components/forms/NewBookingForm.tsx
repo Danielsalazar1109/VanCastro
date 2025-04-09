@@ -13,6 +13,7 @@ interface Instructor {
   };
   locations: string[];
   classTypes: string[];
+  image?: string;
 }
 
 interface TimeSlot {
@@ -73,7 +74,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
                   : 'text-gray-600 group-hover:text-yellow-600'
                 }
                 ${index + 1 < currentStep 
-                  ? 'text-white' 
+                  ? 'text-green-600' 
                   : ''
                 }
               `}
@@ -94,7 +95,6 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
               }
             `}
           >
-            {step}
           </span>
         </div>
       ))}
@@ -171,16 +171,17 @@ const InstructorCard = ({
       `}
     >
       <div className="w-24 h-24 bg-gray-200 rounded-full mb-4 flex items-center justify-center">
-        <span className="text-3xl font-bold text-gray-600">
-          {instructor.user.firstName[0]}{instructor.user.lastName[0]}
-        </span>
+        <Image
+          src={instructor.image || ''} 
+          alt={instructor.user.firstName} 
+          width={400} 
+          height={400}
+          className="w-full h-full object-cover rounded-full"
+        />
       </div>
       <h3 className="font-bold text-lg">
         {instructor.user.firstName} {instructor.user.lastName}
       </h3>
-      <p className="text-sm text-gray-600">
-        {instructor.locations.join(', ')}
-      </p>
       {selected && (
         <div className="mt-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs">
           Selected
@@ -232,20 +233,39 @@ const EnhancedDatePicker = ({
 export default function NewBookingForm({ userId }: NewBookingFormProps) {
   const router = useRouter();
   
+  // Load saved form state from localStorage on component mount
+  const loadSavedState = () => {
+    if (typeof window === 'undefined') return null;
+    
+    const savedState = localStorage.getItem(`booking_form_${userId}`);
+    if (savedState) {
+      try {
+        return JSON.parse(savedState);
+      } catch (e) {
+        console.error("Error parsing saved form state:", e);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // Form state with localStorage persistence
+  const savedState = loadSavedState();
+  
   // Form state
-  const [location, setLocation] = useState<string>("");
-  const [classType, setClassType] = useState<string>("");
-  const [packageType, setPackageType] = useState<string>("");
-  const [duration, setDuration] = useState<number>(0);
-  const [date, setDate] = useState<string>("");
-  const [instructorId, setInstructorId] = useState<string>("");
-  const [timeSlot, setTimeSlot] = useState<string>("");
-  const [price, setPrice] = useState<number | null>(null);
-  const [isPackageComplete, setIsPackageComplete] = useState<boolean>(false);
-  const [packageSize, setPackageSize] = useState<number>(1);
-  const [discountedPrice, setDiscountedPrice] = useState<number | null>(null);
-  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
-  const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(null);
+  const [location, setLocation] = useState<string>(savedState?.location || "");
+  const [classType, setClassType] = useState<string>(savedState?.classType || "");
+  const [packageType, setPackageType] = useState<string>(savedState?.packageType || "");
+  const [duration, setDuration] = useState<number>(savedState?.duration || 0);
+  const [date, setDate] = useState<string>(savedState?.date || "");
+  const [instructorId, setInstructorId] = useState<string>(savedState?.instructorId || "");
+  const [timeSlot, setTimeSlot] = useState<string>(savedState?.timeSlot || "");
+  const [price, setPrice] = useState<number | null>(savedState?.price || null);
+  const [isPackageComplete, setIsPackageComplete] = useState<boolean>(savedState?.isPackageComplete || false);
+  const [packageSize, setPackageSize] = useState<number>(savedState?.packageSize || 1);
+  const [discountedPrice, setDiscountedPrice] = useState<number | null>(savedState?.discountedPrice || null);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(savedState?.termsAccepted || false);
+  const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(savedState?.termsAcceptedAt || null);
   
   // Data state
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -257,25 +277,81 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const [step, setStep] = useState<number>(1);
+  const [step, setStep] = useState<number>(savedState?.step || 1);
   const [checkingPackage, setCheckingPackage] = useState<boolean>(false);
   
   // Knowledge test modal state
   const [showKnowledgeTestModal, setShowKnowledgeTestModal] = useState<boolean>(false);
-  const [hasPassedKnowledgeTest, setHasPassedKnowledgeTest] = useState<boolean | null>(null);
+  const [hasPassedKnowledgeTest, setHasPassedKnowledgeTest] = useState<boolean | null>(savedState?.hasPassedKnowledgeTest || null);
+  
+  // Save form state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const stateToSave = {
+      location,
+      classType,
+      packageType,
+      duration,
+      date,
+      instructorId,
+      timeSlot,
+      price,
+      isPackageComplete,
+      packageSize,
+      discountedPrice,
+      termsAccepted,
+      termsAcceptedAt,
+      step,
+      hasPassedKnowledgeTest
+    };
+    
+    localStorage.setItem(`booking_form_${userId}`, JSON.stringify(stateToSave));
+  }, [
+    location, 
+    classType, 
+    packageType, 
+    duration, 
+    date, 
+    instructorId, 
+    timeSlot, 
+    price, 
+    isPackageComplete, 
+    packageSize, 
+    discountedPrice, 
+    termsAccepted, 
+    termsAcceptedAt, 
+    step, 
+    hasPassedKnowledgeTest,
+    userId
+  ]);
+  
+  // Clear saved form state
+  const clearSavedState = () => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(`booking_form_${userId}`);
+  };
   
   const locationOptions = [
     { 
-      value: "Surrey",  
-      alt: "Surrey Location" 
+      value: "Vancouver, 999 Kingsway",  
+      alt: "Vancouver - Kingsway Location" 
     },
     { 
-      value: "Burnaby", 
-      alt: "Burnaby Location" 
+      value: "Vancouver, 4126 McDonald St",  
+      alt: "Vancouver - McDonald St Location" 
     },
     { 
-      value: "North Vancouver",  
-      alt: "North Vancouver Location" 
+      value: "Burnaby, 3880 Lougheed Hwy",  
+      alt: "Burnaby - Lougheed Hwy Location" 
+    },
+    { 
+      value: "Burnaby, 4399 Wayburne Dr",  
+      alt: "Burnaby - Wayburne Dr Location" 
+    },
+    { 
+      value: "North Vancouver, 1331 Marine Drive",  
+      alt: "North Vancouver - Marine Drive Location" 
     }
   ];
 
@@ -706,6 +782,9 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
         throw new Error(data.error || "Failed to create booking");
       }
       
+      // Clear saved form state after successful submission
+      clearSavedState();
+      
       // Redirect to confirmation page
       router.push(`/booking/confirmation?bookingId=${data.bookingId}`);
     } catch (error: any) {
@@ -781,7 +860,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
             setStep(newStep);
           }
         }}
-        steps={['Select Package', 'Select Instructor', 'Select Time']}
+        steps={['', '', '']}
       />
       
       {showKnowledgeTestModal && <KnowledgeTestModal />}
@@ -789,35 +868,33 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
       <form onSubmit={handleSubmit}>
         {step === 1 && (
           <div className="space-y-8">
-            {/* Location Selection - Styled Select Dropdown */}
+            {/* Location Selection - Traditional Radio Buttons */}
             <div className="mb-6">
               <label className="block text-gray-700 text-sm font-bold mb-3">
                 Select Location
               </label>
-              <div className="relative">
-                <select
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="block appearance-none w-full bg-white border-2 border-yellow-300 hover:border-yellow-400 px-4 py-3 pr-8 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all duration-300 text-gray-700 font-medium"
-                >
-                  <option value="">Select a location</option>
-                  {locationOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+              <div className="space-y-2">
+                {locationOptions.map((option) => (
+                  <label key={option.value} className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="location"
+                      value={option.value}
+                      checked={location === option.value}
+                      onChange={() => setLocation(option.value)}
+                      className="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-500"
+                    />
+                    <span className="ml-2 text-gray-700">
                       {option.value}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-yellow-600">
-                  <svg className="fill-current h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                  </svg>
-                </div>
+                    </span>
+                  </label>
+                ))}
               </div>
             </div>
             
             {/* Class Type - Keep CircularSelector */}
             <CircularSelector
-              label="Class Type"
+              label="Select Class Type"
               options={classTypeOptions}
               selectedValue={classType}
               onChange={handleClassTypeChange}
@@ -851,7 +928,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
             
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2">
-                Duration
+                Select Duration
               </label>
               <div className="flex gap-4 justify-center">
                 {durations.map((dur) => (
@@ -1094,7 +1171,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                   />
                 </div>
                 <label htmlFor="terms" className="ml-2 text-sm font-medium text-gray-700">
-                  I agree to the <a href="#" className="text-blue-600 hover:underline">Terms and Conditions</a> and acknowledge the <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+                  I agree to the <a href={classType ? `/contracts/${classType.replace(/\s+/g, '')}` : "#"} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Terms and Conditions</a> 
                 </label>
               </div>
               {step === 3 && timeSlot !== "" && !termsAccepted && (

@@ -31,11 +31,10 @@ const BookingSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     instructor: { type: Schema.Types.ObjectId, ref: 'Instructor', required: true },
-    location: { 
-      type: String, 
-      enum: ['Surrey', 'Burnaby', 'North Vancouver'],
-      required: true 
-    },
+  location: { 
+    type: String, 
+    required: true 
+  },
     classType: { 
       type: String, 
       enum: ['class 4', 'class 5', 'class 7'],

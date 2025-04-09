@@ -151,7 +151,13 @@ export default function InstructorDashboard() {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showTodayBookings, setShowTodayBookings] = useState(false);
   
-  const locations = ["Surrey", "Burnaby", "North Vancouver"];
+  const locations = [
+    "Vancouver, 999 Kingsway",
+    "Vancouver, 4126 McDonald St",
+    "Burnaby, 3880 Lougheed Hwy",
+    "Burnaby, 4399 Wayburne Dr",
+    "North Vancouver, 1331 Marine Drive"
+  ];
   
   // Check if device is mobile
   useEffect(() => {
@@ -213,15 +219,14 @@ export default function InstructorDashboard() {
   }, [bookings]);
   
   const getColorForLocation = (location: string) => {
-    switch(location) {
-      case 'Surrey':
-        return '#4285F4'; // Blue
-      case 'Burnaby':
-        return '#EA4335'; // Red
-      case 'North Vancouver':
-        return '#FBBC05'; // Yellow
-      default:
-        return '#34A853'; // Green
+    if (location.includes('Vancouver, 999 Kingsway') || location.includes('Vancouver, 4126 McDonald St')) {
+      return '#4285F4'; // Blue (previously Surrey)
+    } else if (location.includes('Burnaby')) {
+      return '#EA4335'; // Red
+    } else if (location.includes('North Vancouver')) {
+      return '#FBBC05'; // Yellow
+    } else {
+      return '#34A853'; // Green (default)
     }
   };
   
@@ -692,12 +697,15 @@ export default function InstructorDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-fadeIn">
                   {bookings.map((booking) => {
                     const getLocationColor = (location: string) => {
-                      const locationColors = {
-                        'Surrey': 'bg-blue-100 border-blue-500 text-blue-800',
-                        'Burnaby': 'bg-red-100 border-red-500 text-red-800',
-                        'North Vancouver': 'bg-yellow-100 border-yellow-500 text-yellow-800'
-                      };
-                      return locationColors[location as keyof typeof locationColors] || 'bg-green-100 border-green-500 text-green-800';
+                      if (location.includes('Vancouver')) {
+                        return 'bg-blue-100 border-blue-500 text-blue-800'; // Previously Surrey
+                      } else if (location.includes('Burnaby')) {
+                        return 'bg-red-100 border-red-500 text-red-800';
+                      } else if (location.includes('North Vancouver')) {
+                        return 'bg-yellow-100 border-yellow-500 text-yellow-800';
+                      } else {
+                        return 'bg-green-100 border-green-500 text-green-800'; // Default
+                      }
                     };
 
                     const formatDate = (dateString: string) => {
@@ -774,10 +782,10 @@ export default function InstructorDashboard() {
           {activeTab === 'calendar' && (
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
               <div className="bg-gradient-to-r from-white to-yellow-300 p-4 flex justify-between items-center">
-                <div className="flex space-x-2">
+              <div className="flex space-x-2">
                   <div className="flex items-center space-x-1">
                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-xl text-black">Surrey</span>
+                    <span className="text-xl text-black">Vancouver</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -811,13 +819,26 @@ export default function InstructorDashboard() {
                       hour12: false
                     }}
                     eventClassNames={(arg) => {
+                      const location = arg.event.extendedProps.location;
                       const locationColors = {
-                        'Surrey': 'bg-blue-500 border-blue-600 text-white',
-                        'Burnaby': 'bg-red-500 border-red-600 text-white',
-                        'North Vancouver': 'bg-yellow-500 border-yellow-600 text-black'
+                        'Vancouver, 999 Kingsway': 'bg-blue-500 border-blue-600 text-white',
+                        'Vancouver, 4126 McDonald St': 'bg-blue-500 border-blue-600 text-white',
+                        'Burnaby, 3880 Lougheed Hwy': 'bg-red-500 border-red-600 text-white',
+                        'Burnaby, 4399 Wayburne Dr': 'bg-red-500 border-red-600 text-white',
+                        'North Vancouver, 1331 Marine Drive': 'bg-yellow-500 border-yellow-600 text-black'
                       };
                       
-                      const location = arg.event.extendedProps.location;
+                      // Fallback logic for partial matches
+                      if (!locationColors[location as keyof typeof locationColors]) {
+                        if (location.includes('Vancouver')) {
+                          return 'bg-blue-500 border-blue-600 text-white';
+                        } else if (location.includes('Burnaby')) {
+                          return 'bg-red-500 border-red-600 text-white';
+                        } else if (location.includes('North Vancouver')) {
+                          return 'bg-yellow-500 border-yellow-600 text-black';
+                        }
+                      }
+                      
                       return [
                         locationColors[location as keyof typeof locationColors] || 'bg-green-500 border-green-600',
                         'rounded-lg',
