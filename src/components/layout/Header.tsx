@@ -61,7 +61,7 @@ export default function Header() {
               {status === "authenticated" ? (
                 <button 
                   onClick={() => signOut({ callbackUrl: '/' })}
-                  className="bg-red-500 px-4 py-2 rounded-md text-white hover:text-gray-400 transition-colors duration-200 flex items-center space-x-2"
+                  className="bg-red-500 px-4 py-2 rounded-md text-white hover:bg-red-600 transition-colors duration-200 flex items-center space-x-2"
                 >
                   <span>Logout</span>
                 </button>

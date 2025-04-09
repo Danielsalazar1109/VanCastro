@@ -9,6 +9,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield } from "lucide-react";
 import LoadingComponent from "@/components/layout/Loading";
+import Booking from "@/models/Booking";
 
 interface User {
   _id: string;
@@ -49,6 +50,7 @@ interface Booking {
   paymentStatus: string;
   createdAt?: string;
   updatedAt?: string;
+  termsAcceptedAt: string;
 }
 
 // Modal components for viewing/deleting bookings and updating prices
@@ -1312,6 +1314,9 @@ export default function AdminDashboard() {
                           <th className="py-3 px-4 border-b text-left text-pink-700">Class</th>
                           <th className="py-3 px-4 border-b text-left text-pink-700">Duration</th>
                           <th className="py-3 px-4 border-b text-left text-pink-700">Student</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Email</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Phone</th>
+                          <th className="py-3 px-4 border-b text-left text-pink-700">Terms checked time</th>
                           <th className="py-3 px-4 border-b text-left text-pink-700">Instructor</th>
                           <th className="py-3 px-4 border-b text-left text-pink-700">Payment</th>
                           <th className="py-3 px-4 border-b text-left text-pink-700">Time Remaining</th>
@@ -1335,6 +1340,23 @@ export default function AdminDashboard() {
                         <td className="py-2 px-4 border-b">{booking.duration} mins</td>
                         <td className="py-2 px-4 border-b">
                           {booking.user.firstName} {booking.user.lastName}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.user.email}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.user.phone}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.termsAcceptedAt 
+                            ? new Date(booking.termsAcceptedAt).toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Not accepted'}
                         </td>
                         <td className="py-2 px-4 border-b">
                           {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
