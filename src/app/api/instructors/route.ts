@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     // Connect to the database
     await connectToDatabase();
     
-  // Parse the request body
+    // Parse the request body
     const body = await request.json();
     const { 
       firstName, 
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       locations, 
       classTypes,
       availability,
+      absences,
       image
     } = body;
     
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
     const instructorData = await Instructor.create({
       user: user._id,
       availability: availability || [],
+      absences: absences || [],
       image
     });
     
@@ -97,6 +99,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const instructorId = searchParams.get('instructorId');
     const location = searchParams.get('location');
+    const checkDate = searchParams.get('checkDate');
     
     // Build query based on parameters
     const query: any = {};
@@ -110,7 +113,7 @@ export async function GET(request: NextRequest) {
       .populate('user', 'firstName lastName email phone')
       .sort({ 'user.firstName': 1, 'user.lastName': 1 });
     
-    // If location is specified, filter instructors by location
+    // Filter instructors by location if specified
     if (location) {
       // We need to filter after fetching because locations is a virtual property
       const filteredInstructors = [];
@@ -131,6 +134,25 @@ export async function GET(request: NextRequest) {
       }
       
       instructors = filteredInstructors;
+    }
+    
+    // Filter out instructors who are absent on the specified date
+    if (checkDate) {
+      const date = new Date(checkDate);
+      
+      // Filter out instructors who have absences that include the check date
+      instructors = instructors.filter((instructor: any) => {
+        if (!instructor.absences || instructor.absences.length === 0) {
+          return true; // Keep instructors with no absences
+        }
+        
+        // Check if any absence period includes the check date
+        return !instructor.absences.some((absence: any) => {
+          const startDate = new Date(absence.startDate);
+          const endDate = new Date(absence.endDate);
+          return date >= startDate && date <= endDate;
+        });
+      });
     }
     
     return NextResponse.json({ instructors });
@@ -159,6 +181,7 @@ export async function PUT(request: NextRequest) {
       locations, 
       classTypes,
       availability,
+      absences,
       image
     } = body;
     
@@ -179,9 +202,11 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    
     // Update availability if provided
     if (availability) instructor.availability = availability;
+    
+    // Update absences if provided
+    if (absences) instructor.absences = absences;
     
     // Update image if provided
     if (image !== undefined) instructor.image = image;
