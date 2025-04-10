@@ -9,9 +9,16 @@ export interface IAvailability {
   isAvailable: boolean;
 }
 
+export interface IAbsence {
+  startDate: Date;
+  endDate: Date;
+  reason?: string;
+}
+
 export interface IInstructor extends Document {
   user: IUser['_id'];
   availability: IAvailability[];
+  absences: IAbsence[];
   image?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -28,10 +35,17 @@ const AvailabilitySchema: Schema = new Schema({
   isAvailable: { type: Boolean, default: true }
 });
 
+const AbsenceSchema: Schema = new Schema({
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  reason: { type: String }
+});
+
 const InstructorSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     availability: [AvailabilitySchema],
+    absences: [AbsenceSchema],
     image: { type: String }
   },
   { timestamps: true }

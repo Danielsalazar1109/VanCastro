@@ -472,19 +472,186 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     }
   }, [step]);
   
-  // Load instructors based on selected location and class type
+  // Load instructors based on selected location, class type, and date
   useEffect(() => {
-    if (location && classType) {
+    if (location && classType && date) {
       fetchInstructors();
     }
-  }, [location, classType]);
+  }, [location, classType, date]);
   
+  // State for availability
+  const [globalAvailability, setGlobalAvailability] = useState<{day: string; isAvailable: boolean}[]>([]);
+  const [specialAvailability, setSpecialAvailability] = useState<any[]>([]);
+  const [loadingGlobalAvailability, setLoadingGlobalAvailability] = useState<boolean>(false);
+  const [loadingSpecialAvailability, setLoadingSpecialAvailability] = useState<boolean>(false);
+  const [dateIsAvailable, setDateIsAvailable] = useState<boolean>(true);
+  const [showDateUnavailableModal, setShowDateUnavailableModal] = useState<boolean>(false);
+  const [unavailableDayOfWeek, setUnavailableDayOfWeek] = useState<string>("");
+  const [unavailableReason, setUnavailableReason] = useState<string>("");
+
+  // Fetch global availability settings
+  const fetchGlobalAvailability = async () => {
+    try {
+      setLoadingGlobalAvailability(true);
+      const response = await fetch('/api/global-availability');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch global availability settings');
+      }
+      
+      const data = await response.json();
+      
+      if (data.globalAvailability && data.globalAvailability.length > 0) {
+        setGlobalAvailability(data.globalAvailability.map((item: any) => ({
+          day: item.day,
+          isAvailable: item.isAvailable
+        })));
+      }
+      
+      setLoadingGlobalAvailability(false);
+    } catch (error) {
+      console.error('Error fetching global availability:', error);
+      setLoadingGlobalAvailability(false);
+    }
+  };
+
+  // Fetch special availability for a specific date
+  const fetchSpecialAvailability = async (dateStr: string) => {
+    if (!dateStr) return;
+    
+    try {
+      setLoadingSpecialAvailability(true);
+      const response = await fetch(`/api/special-availability?checkDate=${dateStr}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch special availability settings');
+      }
+      
+      const data = await response.json();
+      
+      if (data.specialAvailability && data.specialAvailability.length > 0) {
+        setSpecialAvailability(data.specialAvailability);
+      } else {
+        setSpecialAvailability([]);
+      }
+      
+      setLoadingSpecialAvailability(false);
+    } catch (error) {
+      console.error('Error fetching special availability:', error);
+      setLoadingSpecialAvailability(false);
+    }
+  };
+
+  // Fetch global availability on component mount
+  useEffect(() => {
+    fetchGlobalAvailability();
+  }, []);
+
   // Calculate minimum booking date (2 days from now)
   const getMinBookingDate = () => {
     const today = new Date();
     const minDate = new Date(today);
     minDate.setDate(today.getDate() + 2);
     return minDate.toISOString().split("T")[0];
+  };
+
+  // Check if a date is available based on global and special availability settings
+  const isDateAvailable = async (dateStr: string) => {
+    if (!dateStr) return true;
+    
+    // Set time to noon to ensure consistent day interpretation in local timezone
+    const date = new Date(dateStr + 'T12:00:00');
+    // Use local timezone to match what the date picker returns
+    const dayIndex = date.getDay();
+    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIndex];
+    
+    console.log(`Checking availability for date: ${dateStr}`);
+    console.log(`Date with noon time: ${date.toISOString()}`);
+    console.log(`Day index from getDay(): ${dayIndex}`);
+    console.log(`Day of week: ${dayOfWeek}`);
+    
+    // First check special availability for this specific date
+    await fetchSpecialAvailability(dateStr);
+    
+    // If we have special availability settings for this date, they override global settings
+    if (specialAvailability.length > 0) {
+      console.log(`Found special availability settings for ${dateStr}:`, specialAvailability);
+      
+      // Find the special availability setting for this day of week
+      const specialDayAvailability = specialAvailability.find(item => item.day === dayOfWeek);
+      
+      if (specialDayAvailability) {
+        console.log(`Special availability for ${dayOfWeek} on ${dateStr}: isAvailable=${specialDayAvailability.isAvailable}`);
+        
+        if (!specialDayAvailability.isAvailable) {
+          setUnavailableReason(`This date (${new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}) has special availability settings and is marked as unavailable.`);
+          return false;
+        }
+      }
+    }
+    
+    // If no special availability or the special availability doesn't make it unavailable,
+    // check global availability
+    if (globalAvailability.length === 0) {
+      // If no global availability settings are loaded, use default (Sunday is unavailable)
+      console.log(`No global availability settings loaded. Using default (Sunday is unavailable).`);
+      if (dayOfWeek === 'Sunday') {
+        setUnavailableReason(`Bookings are not allowed on Sundays as per default settings.`);
+        return false;
+      }
+      return true;
+    }
+    
+    console.log(`Global availability settings:`, globalAvailability);
+    const dayAvailability = globalAvailability.find(item => item.day === dayOfWeek);
+    console.log(`Day availability for ${dayOfWeek}:`, dayAvailability);
+    
+    // If no availability setting found for this day, use default (Sunday is unavailable)
+    if (!dayAvailability) {
+      console.log(`No availability setting found for ${dayOfWeek}. Using default (Sunday is unavailable).`);
+      if (dayOfWeek === 'Sunday') {
+        setUnavailableReason(`Bookings are not allowed on Sundays as per default settings.`);
+        return false;
+      }
+      return true;
+    }
+    
+    console.log(`${dayOfWeek} is ${dayAvailability.isAvailable ? 'available' : 'unavailable'}`);
+    if (!dayAvailability.isAvailable) {
+      setUnavailableReason(`Bookings are not allowed on ${dayOfWeek}s as per admin settings.`);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Function to handle date changes and check availability
+  const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    
+    // First check if the date is available
+    const available = await isDateAvailable(newDate);
+    
+    if (!available) {
+      // Use the same local timezone-based day of week determination as in isDateAvailable
+      const date = new Date(newDate + 'T12:00:00');
+      const dayIndex = date.getDay();
+      const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIndex];
+      
+      // Set state to show the modal and disable the Next button
+      setDateIsAvailable(false);
+      setUnavailableDayOfWeek(dayOfWeek);
+      setShowDateUnavailableModal(true);
+      
+      // Still set the date so the input shows the selected date
+      setDate(newDate);
+      return;
+    }
+    
+    // Date is available
+    setDateIsAvailable(true);
+    setError("");
+    setDate(newDate);
   };
 
   // Load schedules based on selected instructor, date, and duration
@@ -683,7 +850,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/instructors?location=${location}&classType=${classType}`
+        `/api/instructors?location=${location}&classType=${classType}${date ? `&checkDate=${date}` : ''}`
       );
       
       if (!response.ok) {
@@ -829,7 +996,8 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
       case 1:
         return location !== "" && classType !== "" && packageType !== "" && duration !== 0;
       case 2:
-        return instructorId !== "" && date !== "";
+        // Also check if the selected date is available
+        return instructorId !== "" && date !== "" && dateIsAvailable;
       case 3:
         return timeSlot !== "";
       default:
@@ -866,6 +1034,30 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     );
   };
   
+  // Date Unavailable Modal Component
+  const DateUnavailableModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <h3 className="text-xl font-bold mb-4 text-red-600">Date Not Available</h3>
+          <p className="mb-6">
+            {unavailableReason || `Bookings are not allowed on ${unavailableDayOfWeek}s as per admin settings.`}
+            <br /><br />
+            Please select a different date to continue.
+          </p>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowDateUnavailableModal(false)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="w-full max-w-2xl mx-auto bg-gradient-to-b from-white to-yellow-50 p-10 rounded-xl shadow-lg border border-yellow-200">
       <h2 className="text-3xl font-bold mb-8 text-center text-yellow-800">Book Your Driving Lesson</h2>
@@ -894,6 +1086,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
       />
       
       {showKnowledgeTestModal && <KnowledgeTestModal />}
+      {showDateUnavailableModal && <DateUnavailableModal />}
       
       <form onSubmit={handleSubmit}>
         {step === 1 && (
@@ -1057,13 +1250,24 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                 Select Your Lesson Date
               </label>
               <div className="bg-white rounded-lg shadow-md p-6 border-2 border-yellow-300 hover:border-yellow-400 transition-all duration-300">
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  min={getMinBookingDate()}
-                  className="w-full bg-transparent text-center text-xl font-bold text-yellow-700 focus:outline-none"
-                />
+                {loadingGlobalAvailability ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={handleDateChange}
+                      min={getMinBookingDate()}
+                      className="w-full bg-transparent text-center text-xl font-bold text-yellow-700 focus:outline-none"
+                    />
+                    <div className="mt-3 text-xs text-gray-600">
+                      <p>Note: Some days may be unavailable due to admin settings.</p>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between mt-4 text-sm text-gray-600">
                   <span>Earliest Date: {new Date(getMinBookingDate()).toLocaleDateString()}</span>
                   <span>Selected: {date ? new Date(date + 'T00:00:00').toLocaleDateString() : 'None'}</span>
@@ -1103,7 +1307,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                   Available Time Slots
                 </label>
                 <p className="text-sm text-gray-600 mb-4">
-                  These time slots are automatically generated based on the instructor's availability for {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}.
+                  These time slots are automatically generated based on global availability settings for {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}.
                 </p>
                 {loading ? (
                   <div className="flex justify-center py-8">

@@ -305,8 +305,8 @@ export default function InstructorDashboard() {
           const existingDay = instructorAvailability.find((a: any) => a.day === day);
           return existingDay || {
             day,
-            startTime: '09:00',
-            endTime: '17:00',
+            startTime: '00:00',
+            endTime: '23:59',
             isAvailable: false
           };
         });
@@ -597,8 +597,7 @@ export default function InstructorDashboard() {
             
             {[
               { id: 'bookings', icon: Clock, label: 'Bookings' },
-              { id: 'calendar', icon: Calendar, label: 'Calendar' },
-              { id: 'availability', icon: User, label: 'Availability' }
+              { id: 'calendar', icon: Calendar, label: 'Calendar' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -642,11 +641,10 @@ export default function InstructorDashboard() {
       <div className="flex flex-col md:flex-row max-w-9xl mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden border-t-0">
         {/* Desktop Navigation */}
         <div className="hidden md:flex flex-col border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white">
-          {[
-            { id: 'bookings', icon: Clock, label: 'Bookings' },
-            { id: 'calendar', icon: Calendar, label: 'Calendar' },
-            { id: 'availability', icon: User, label: 'Availability' }
-          ].map((tab) => (
+            {[
+              { id: 'bookings', icon: Clock, label: 'Bookings' },
+              { id: 'calendar', icon: Calendar, label: 'Calendar' }
+            ].map((tab) => (
               <button
                 key={tab.id}
                 className={`
@@ -914,176 +912,6 @@ export default function InstructorDashboard() {
             </div>
           )}
 
-          {activeTab === 'availability' && (
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
-                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
-                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
-                
-                <div className="flex items-center space-x-4 mb-4 relative z-10">
-                  <div className="bg-white/20 p-3 rounded-full">
-                    <User className="w-10 h-10" />
-                  </div>
-                  <h2 className="text-3xl font-bold tracking-tight">Manage Your Availability</h2>
-                </div>
-                <p className="text-white/80 max-w-2xl relative z-10">
-                  Configure your weekly schedule with precision. Toggle availability for each day and set specific working hours. 
-                  This helps students book lessons that fit perfectly into your calendar.
-                </p>
-                
-                <div className="absolute right-8 bottom-8 flex space-x-2">
-                  <Heart className="w-6 h-6 text-pink-200" />
-                  <Star className="w-6 h-6 text-yellow-200" />
-                </div>
-              </div>
-
-              <div className="grid gap-6">
-  {/* Availability Grid */}
-  <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
-    <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-      <h3 className="text-xl font-semibold text-pink-700">Weekly Availability</h3>
-    </div>
-    
-    {/* Added overflow-x-auto for horizontal scroll */}
-    <div className="p-4 overflow-x-auto">
-      {/* Added min-width to ensure it scrolls on small screens */}
-      <div className="flex flex-row min-w-max">
-        {availability.map((day, index) => (
-          <div
-            key={day.day}
-            className={`
-              flex items-center justify-between p-3 mx-1
-              ${day.isAvailable
-                ? 'bg-green-50 hover:bg-green-100'
-                : 'bg-slate-50 hover:bg-slate-100'}
-              rounded-lg mb-2 transition-all duration-300
-            `}
-          >
-            <div className="flex items-center space-x-16 ml-10">
-              <span className={`
-                w-10 h-10 rounded-full flex items-center justify-center
-                ${day.isAvailable
-                  ? 'bg-green-500 text-white'
-                  : 'bg-slate-300 text-slate-500'}
-              `}>
-                {day.day.charAt(0)}
-              </span>
-            </div>
-            
-            {/* Increased margin between text and toggle using mr-6 */}
-            <div className="flex items-center space-x-3 ml-16 mr-6">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={day.isAvailable}
-                  onChange={(e) => handleAvailabilityChange(index, 'isAvailable', e.target.checked)}
-                  className="hidden peer"
-                />
-                <div className={`
-                  w-14 h-7 rounded-full relative transition-all duration-300
-                  ${day.isAvailable
-                    ? 'bg-green-500'
-                    : 'bg-slate-300'}
-                  after:content-[''] after:absolute after:top-1 
-                  after:left-1 after:bg-white after:rounded-full
-                  after:h-5 after:w-5
-                  ${day.isAvailable
-                    ? 'after:translate-x-full'
-                    : 'after:translate-x-0'}
-                  after:transition-all after:duration-300
-                `}
-                ></div>
-              </label>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-
-                {/* Time Configuration */}
-                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
-                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-                    <h3 className="text-xl font-semibold text-pink-700">Working Hours</h3>
-                  </div>
-                  <div className="p-4 space-y-4 grid grid-cols-3 gap-4">
-                    {availability.filter(day => day.isAvailable).map((day, index) => (
-                      <div 
-                        key={day.day} 
-                        className="bg-slate-50 p-4 rounded-lg border border-slate-200"
-                      >
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="font-semibold text-slate-700">{day.day}</span>
-                          <div className="flex items-center space-x-2">
-                            <Clock className="w-5 h-5 text-indigo-500" />
-                            <span className="text-sm text-slate-600">
-                              {day.startTime} - {day.endTime}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">Start Time</label>
-                            <input
-                              type="time"
-                              value={day.startTime}
-                              onChange={(e) => handleAvailabilityChange(
-                                availability.findIndex(a => a.day === day.day), 
-                                'startTime', 
-                                e.target.value
-                              )}
-                              disabled={!day.isAvailable}
-                              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 transition-all
-                                disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">End Time</label>
-                            <input
-                              type="time"
-                              value={day.endTime}
-                              onChange={(e) => handleAvailabilityChange(
-                                availability.findIndex(a => a.day === day.day), 
-                                'endTime', 
-                                e.target.value
-                              )}
-                              disabled={!day.isAvailable}
-                              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 transition-all
-                                disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {availability.filter(day => !day.isAvailable).length > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-center">
-                        <Info className="w-6 h-6 mx-auto mb-2 text-blue-500" />
-                        <p className="text-blue-800 text-sm">
-                          Days marked as unavailable will not show up for bookings.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Save Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={saveAvailability}
-                  disabled={loading}
-                  className={`
-                    px-8 py-3 rounded-full font-bold transition-all duration-300
-                    ${loading 
-                      ? 'bg-slate-300 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white hover:shadow-lg'}
-                  `}
-                >
-                  {loading ? "Saving..." : "Save Availability"}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
