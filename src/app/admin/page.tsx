@@ -87,12 +87,12 @@ interface InstructorModalProps {
   onClose: () => void;
   onUpdate: (e: React.FormEvent) => void;
   onInstructorChange: (field: string, value: any) => void;
-  onLocationChange: (location: string) => void;
-  onClassTypeChange: (classType: string) => void;
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  locations: string[];
-  classTypes: string[];
-  locationMapping: { [key: string]: string[] };
+  onLocationChange?: (location: string) => void;
+  onClassTypeChange?: (classType: string) => void;
+  locations?: string[];
+  classTypes?: string[];
+  locationMapping?: { [key: string]: string[] };
 }
 
 const InstructorModal = ({ 
@@ -101,9 +101,9 @@ const InstructorModal = ({
   onClose, 
   onUpdate, 
   onInstructorChange, 
-  onLocationChange, 
-  onClassTypeChange, 
   onImageUpload,
+  onLocationChange,
+  onClassTypeChange,
   locations,
   classTypes,
   locationMapping
@@ -187,41 +187,42 @@ const InstructorModal = ({
             </div>
           </div>
           
-  <div>
-    <label className="block text-sm font-medium mb-1 text-gray-700">Locations</label>
-    <div className="flex flex-wrap gap-2">
-      {locations.map((location) => {
-        // Only check for exact matches to allow individual location selection
-        const isChecked = instructor.locations.includes(location);
-        
-        return (
-          <label key={location} className="flex items-center">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={() => onLocationChange(location)}
-              className="mr-1"
-            />
-            {location}
-          </label>
-        );
-      })}
-    </div>
-  </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Locations</label>
+            <div className="grid grid-cols-2 gap-2">
+              {locations && locations.map((location: any) => (
+                <div key={location._id} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`location-${location._id}`}
+                    checked={instructor.locations.includes(location.name)}
+                    onChange={() => onLocationChange && onLocationChange(location.name)}
+                    className="mr-2"
+                  />
+                  <label htmlFor={`location-${location._id}`} className="text-sm">
+                    {location.name}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
           
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700">Class Types</label>
-            <div className="flex flex-wrap gap-2">
-              {classTypes.map((classType) => (
-                <label key={classType} className="flex items-center">
+            <div className="grid grid-cols-2 gap-2">
+              {classTypes && classTypes.map((type) => (
+                <div key={type} className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={instructor.classTypes.includes(classType)}
-                    onChange={() => onClassTypeChange(classType)}
-                    className="mr-1"
+                    id={`class-${type}`}
+                    checked={instructor.classTypes.includes(type)}
+                    onChange={() => onClassTypeChange && onClassTypeChange(type)}
+                    className="mr-2"
                   />
-                  {classType}
-                </label>
+                  <label htmlFor={`class-${type}`} className="text-sm">
+                    {type}
+                  </label>
+                </div>
               ))}
             </div>
           </div>
@@ -514,14 +515,6 @@ export default function AdminDashboard() {
   const [editingPrice, setEditingPrice] = useState<any>(null);
   const [isPriceModalOpen, setIsPriceModalOpen] = useState<boolean>(false);
   
-  // Hardcoded locations and class types
-  const locations = [
-    "Vancouver, 999 Kingsway",
-    "Vancouver, 4126 McDonald St",
-    "Burnaby, 3880 Lougheed Hwy",
-    "Burnaby, 4399 Wayburne Dr",
-    "North Vancouver, 1331 Marine Drive"
-  ];
   
   // Map general locations to full location names
   const locationMapping: { [key: string]: string[] } = {
@@ -550,8 +543,6 @@ export default function AdminDashboard() {
     email: "",
     password: "",
     phone: "",
-    locations: [] as string[],
-    classTypes: [] as string[],
     image: ""
   });
   
@@ -617,8 +608,12 @@ export default function AdminDashboard() {
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices';
+  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices' | 'locations';
   const [activeTab, setActiveTab] = useState<TabType>('bookings');
+  const [locations, setLocations] = useState<any[]>([]);
+  const [newLocation, setNewLocation] = useState({ name: '' });
+  const [editingLocation, setEditingLocation] = useState<any>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string>("");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
@@ -730,9 +725,115 @@ export default function AdminDashboard() {
         fetchUsers();
       } else if (activeTab === 'prices') {
         fetchPrices();
+      } else if (activeTab === 'locations') {
+        fetchLocations();
       }
     }
   }, [isAdmin, activeTab]);
+  
+  const fetchLocations = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/locations');
+      const data = await response.json();
+      
+      setLocations(data.locations || []);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      setError("Failed to load locations");
+      setLoading(false);
+    }
+  };
+  
+  const handleAddLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/locations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newLocation),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to add location');
+      }
+      
+      // Reset form and refresh locations
+      setNewLocation({ name: '' });
+      fetchLocations();
+    } catch (error) {
+      console.error('Error adding location:', error);
+      setError("Failed to add location");
+    }
+  };
+  
+  const handleUpdateLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingLocation) return;
+    
+    try {
+      const response = await fetch('/api/locations', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          locationId: editingLocation._id,
+          name: editingLocation.name,
+          isActive: editingLocation.isActive
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update location');
+      }
+      
+      // Reset editing state and refresh locations
+      setEditingLocation(null);
+      setIsLocationModalOpen(false);
+      fetchLocations();
+    } catch (error) {
+      console.error('Error updating location:', error);
+      setError("Failed to update location");
+    }
+  };
+  
+  const handleLocationChange = (field: string, value: any) => {
+    setEditingLocation({
+      ...editingLocation,
+      [field]: value
+    });
+  };
+  
+  const handleToggleLocationStatus = async (locationId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch('/api/locations', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          locationId,
+          isActive: !currentStatus
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update location status');
+      }
+      
+      // Refresh locations
+      fetchLocations();
+    } catch (error) {
+      console.error('Error updating location status:', error);
+      setError("Failed to update location status");
+    }
+  };
   
   const fetchPrices = async () => {
     try {
@@ -1280,8 +1381,6 @@ export default function AdminDashboard() {
           email: newInstructor.email,
           password: newInstructor.password,
           phone: newInstructor.phone,
-          locations: newInstructor.locations,
-          classTypes: newInstructor.classTypes,
           image: newInstructor.image
         }),
       });
@@ -1297,8 +1396,6 @@ export default function AdminDashboard() {
         email: "",
         password: "",
         phone: "",
-        locations: [],
-        classTypes: [],
         image: ""
       });
       
@@ -1430,33 +1527,7 @@ export default function AdminDashboard() {
     }
   }
   
-  const handleLocationChange = (locationId: string) => {
-    if (newInstructor.locations.includes(locationId)) {
-      setNewInstructor({
-        ...newInstructor,
-        locations: newInstructor.locations.filter(id => id !== locationId),
-      });
-    } else {
-      setNewInstructor({
-        ...newInstructor,
-        locations: [...newInstructor.locations, locationId],
-      });
-    }
-  };
-  
-  const handleClassTypeChange = (classTypeId: string) => {
-    if (newInstructor.classTypes.includes(classTypeId)) {
-      setNewInstructor({
-        ...newInstructor,
-        classTypes: newInstructor.classTypes.filter(id => id !== classTypeId),
-      });
-    } else {
-      setNewInstructor({
-        ...newInstructor,
-        classTypes: [...newInstructor.classTypes, classTypeId],
-      });
-    }
-  };
+  // Removed handleLocationChange and handleClassTypeChange as they are no longer needed
   
   if (status === 'loading' || loading) {
     return <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />;
@@ -1596,6 +1667,17 @@ export default function AdminDashboard() {
                 <line x1="8" y1="12" x2="16" y2="12"></line>
               </svg>
               <span>Manage Prices</span>
+            </button>
+            <button
+              className={`px-6 py-4 flex items-center space-x-2 ${
+                activeTab === 'locations'
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
+              onClick={() => setActiveTab('locations')}
+            >
+              <MapPin className={`w-5 h-5 ${activeTab === 'locations' ? 'text-pink-500' : ''}`} />
+              <span>Manage Locations</span>
             </button>
           </div>
           
@@ -1834,40 +1916,6 @@ export default function AdminDashboard() {
                   )}
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Locations</label>
-                  <div className="flex flex-wrap gap-2">
-                    {locations.map((location) => (
-                      <label key={location} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={newInstructor.locations.includes(location)}
-                          onChange={() => handleLocationChange(location)}
-                          className="mr-1"
-                        />
-                        {location}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Class Types</label>
-                  <div className="flex flex-wrap gap-2">
-                    {classTypes.map((classType) => (
-                      <label key={classType} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={newInstructor.classTypes.includes(classType)}
-                          onChange={() => handleClassTypeChange(classType)}
-                          className="mr-1"
-                        />
-                        {classType}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                
                     <div>
                       <button
                         type="submit"
@@ -1922,34 +1970,6 @@ export default function AdminDashboard() {
                                 </h3>
                                 <p className="text-sm text-gray-600">{instructor.user.email}</p>
                                 <p className="text-sm text-gray-600">{instructor.user.phone}</p>
-                                
-                                <div className="mt-3">
-                                  <p className="text-sm font-medium text-purple-600">Locations:</p>
-                                  <div className="flex flex-wrap gap-2 mt-1">
-                                    {instructor.locations.map((location) => (
-                                      <span
-                                        key={location}
-                                        className="text-xs bg-purple-100 text-purple-800 px-3 py-1 rounded-full"
-                                      >
-                                        {location}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                                
-                                <div className="mt-3">
-                                  <p className="text-sm font-medium text-indigo-600">Class Types:</p>
-                                  <div className="flex flex-wrap gap-2 mt-1">
-                                    {instructor.classTypes.map((classType) => (
-                                      <span
-                                        key={classType}
-                                        className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
-                                      >
-                                        {classType}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
                               </div>
                             </div>
                             
@@ -2281,6 +2301,111 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        
+        {activeTab === 'locations' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                
+                <div className="flex items-center space-x-4 mb-2 relative z-10">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <MapPin className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Add New Location</h2>
+                </div>
+                <p className="text-white/80 relative z-10">
+                  Add a new location where driving lessons can take place.
+                </p>
+              </div>
+              
+              <form onSubmit={handleAddLocation} className="space-y-4 bg-white p-6 rounded-2xl shadow-lg">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Location Name</label>
+                  <input
+                    type="text"
+                    value={newLocation.name}
+                    onChange={(e) => setNewLocation({ name: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    placeholder="e.g., Vancouver, 999 Kingsway"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                  >
+                    Add Location
+                  </button>
+                </div>
+              </form>
+            </div>
+            
+            <div>
+              <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                
+                <div className="flex items-center space-x-4 mb-2 relative z-10">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <MapPin className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Current Locations</h2>
+                </div>
+                <p className="text-white/80 relative z-10">
+                  View and manage all locations in the system.
+                </p>
+              </div>
+              
+              {locations.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-lg">
+                  <p className="text-slate-500">No locations found. Add your first location using the form.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {locations.map((location) => (
+                    <div key={location._id} className="border border-pink-100 p-6 rounded-2xl shadow-md bg-white hover:shadow-lg transition-all">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${location.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <h3 className="text-xl font-bold text-pink-600">
+                            {location.name}
+                          </h3>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingLocation(location);
+                              setIsLocationModalOpen(true);
+                            }}
+                            className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleToggleLocationStatus(location._id, location.isActive)}
+                            className={`px-3 py-1 ${
+                              location.isActive 
+                                ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' 
+                                : 'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
+                            } text-white rounded-full shadow-sm transition-all`}
+                          >
+                            {location.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
     
@@ -2322,6 +2447,76 @@ export default function AdminDashboard() {
   classTypes={classTypes}
   locationMapping={locationMapping}
     />
+    
+    {/* Location Edit Modal */}
+    {isLocationModalOpen && editingLocation && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-pink-600">Edit Location</h3>
+            <button 
+              onClick={() => {
+                setIsLocationModalOpen(false);
+                setEditingLocation(null);
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleUpdateLocation} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Location Name</label>
+              <input
+                type="text"
+                value={editingLocation.name}
+                onChange={(e) => handleLocationChange('name', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                required
+              />
+            </div>
+            
+            <div className="flex items-center">
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={editingLocation.isActive}
+                    onChange={(e) => handleLocationChange('isActive', e.target.checked)}
+                  />
+                  <div className={`block w-14 h-8 rounded-full ${editingLocation.isActive ? 'bg-green-500' : 'bg-red-500'} transition-colors`}></div>
+                  <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition transform ${editingLocation.isActive ? 'translate-x-6' : ''}`}></div>
+                </div>
+                <div className="ml-3 text-gray-700 font-medium">
+                  {editingLocation.isActive ? 'Active' : 'Inactive'}
+                </div>
+              </label>
+            </div>
+            
+            <div className="mt-6 flex space-x-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLocationModalOpen(false);
+                  setEditingLocation(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+              >
+                Update Location
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
     
     {/* Reschedule Modal */}
     {isRescheduleModalOpen && originalBooking && (

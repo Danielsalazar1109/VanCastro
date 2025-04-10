@@ -273,6 +273,8 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [prices, setPrices] = useState<any[]>([]);
   const [userExistingBookings, setUserExistingBookings] = useState<any[]>([]);
+  const [locationOptions, setLocationOptions] = useState<{ value: string, alt: string }[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState<boolean>(false);
   
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
@@ -332,29 +334,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     localStorage.removeItem(`booking_form_${userId}`);
   };
   
-  const locationOptions = [
-    { 
-      value: "Vancouver, 999 Kingsway",  
-      alt: "Vancouver - Kingsway Location" 
-    },
-    { 
-      value: "Vancouver, 4126 McDonald St",  
-      alt: "Vancouver - McDonald St Location" 
-    },
-    { 
-      value: "Burnaby, 3880 Lougheed Hwy",  
-      alt: "Burnaby - Lougheed Hwy Location" 
-    },
-    { 
-      value: "Burnaby, 4399 Wayburne Dr",  
-      alt: "Burnaby - Wayburne Dr Location" 
-    },
-    { 
-      value: "North Vancouver, 1331 Marine Drive",  
-      alt: "North Vancouver - Marine Drive Location" 
-    }
-  ];
-
   const classTypeOptions = [
     { 
       value: "class 4", 
@@ -415,9 +394,60 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     setShowKnowledgeTestModal(false);
   };
   
-  // Fetch all prices on component mount
+  // Fetch locations from the API
+  const fetchLocations = async () => {
+    try {
+      setLoadingLocations(true);
+      const response = await fetch('/api/locations?activeOnly=true');
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch locations");
+      }
+      
+      const data = await response.json();
+      
+      if (data.locations && data.locations.length > 0) {
+        // Transform locations to match the expected format
+        const formattedLocations = data.locations.map((loc: any) => ({
+          value: loc.name,
+          alt: loc.name.includes(',') 
+            ? `${loc.name.split(',')[0]} - ${loc.name.split(',')[1].trim()} Location`
+            : `${loc.name} Location`
+        }));
+        
+        setLocationOptions(formattedLocations);
+      } else {
+        // Fallback to hardcoded locations if none are found in the database
+        setLocationOptions([
+          { value: "Vancouver, 999 Kingsway", alt: "Vancouver - Kingsway Location" },
+          { value: "Vancouver, 4126 McDonald St", alt: "Vancouver - McDonald St Location" },
+          { value: "Burnaby, 3880 Lougheed Hwy", alt: "Burnaby - Lougheed Hwy Location" },
+          { value: "Burnaby, 4399 Wayburne Dr", alt: "Burnaby - Wayburne Dr Location" },
+          { value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" }
+        ]);
+      }
+      
+      setLoadingLocations(false);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      
+      // Fallback to hardcoded locations if there's an error
+      setLocationOptions([
+        { value: "Vancouver, 999 Kingsway", alt: "Vancouver - Kingsway Location" },
+        { value: "Vancouver, 4126 McDonald St", alt: "Vancouver - McDonald St Location" },
+        { value: "Burnaby, 3880 Lougheed Hwy", alt: "Burnaby - Lougheed Hwy Location" },
+        { value: "Burnaby, 4399 Wayburne Dr", alt: "Burnaby - Wayburne Dr Location" },
+        { value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" }
+      ]);
+      
+      setLoadingLocations(false);
+    }
+  };
+
+  // Fetch all prices and locations on component mount
   useEffect(() => {
     fetchPrices();
+    fetchLocations();
   }, []);
   
   // Update price when class type, duration, and package are selected
@@ -873,23 +903,33 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
               <label className="block text-gray-700 text-sm font-bold mb-3">
                 Select Location
               </label>
-              <div className="space-y-2">
-                {locationOptions.map((option) => (
-                  <label key={option.value} className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      name="location"
-                      value={option.value}
-                      checked={location === option.value}
-                      onChange={() => setLocation(option.value)}
-                      className="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-500"
-                    />
-                    <span className="ml-2 text-gray-700">
-                      {option.value}
-                    </span>
-                  </label>
-                ))}
-              </div>
+              {loadingLocations ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+                </div>
+              ) : locationOptions.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-md text-yellow-800 text-center">
+                  No locations available. Please try again later.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {locationOptions.map((option) => (
+                    <label key={option.value} className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="location"
+                        value={option.value}
+                        checked={location === option.value}
+                        onChange={() => setLocation(option.value)}
+                        className="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-500"
+                      />
+                      <span className="ml-2 text-gray-700">
+                        {option.value}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
             
             {/* Class Type - Keep CircularSelector */}
