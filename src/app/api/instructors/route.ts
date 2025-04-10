@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import connectToDatabase from '@/lib/db/mongodb';
 import User from '@/models/User';
-import Instructor from '@/models/Instructor';
+import Instructor, { IInstructor } from '@/models/Instructor';
 import Schedule from '@/models/Schedule';
 import Booking from '@/models/Booking';
+import Location from '@/models/Location';
+import { Document } from 'mongoose';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,51 +28,11 @@ export async function POST(request: NextRequest) {
     } = body;
     
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !password || !locations || !classTypes) {
+    if (!firstName || !lastName || !email || !phone || !password) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
-    }
-    
-    // Validate locations
-    if (locations && locations.length > 0) {
-      // Validate that all locations are from our predefined list
-      const validLocations = [
-        'Surrey', 'Burnaby', 'North Vancouver', // Legacy values
-        'Vancouver, 999 Kingsway', 'Vancouver, 4126 McDonald St', 
-        'Burnaby, 3880 Lougheed Hwy', 'Burnaby, 4399 Wayburne Dr', 
-        'North Vancouver, 1331 Marine Drive'
-      ];
-      
-      // More lenient validation - check if the location contains one of our valid location prefixes
-      const invalidLocations = locations.filter((loc: string) => {
-        // Check if the location matches any of our valid locations
-        return !validLocations.some(validLoc => 
-          loc === validLoc || // Exact match
-          (validLoc.includes(',') && loc.includes(validLoc.split(',')[0])) // Match prefix before comma
-        );
-      });
-      
-      if (invalidLocations.length > 0) {
-        return NextResponse.json(
-          { error: 'One or more selected locations are invalid' },
-          { status: 400 }
-        );
-      }
-    }
-    
-    // Validate class types
-    if (classTypes && classTypes.length > 0) {
-      const validClassTypes = ['class 4', 'class 5', 'class 7'];
-      const invalidClassTypes = classTypes.filter((type: string) => !validClassTypes.includes(type));
-      
-      if (invalidClassTypes.length > 0) {
-        return NextResponse.json(
-          { error: 'One or more selected class types are invalid' },
-          { status: 400 }
-        );
-      }
     }
     
     // Check if user already exists
@@ -105,16 +67,17 @@ export async function POST(request: NextRequest) {
     }
     
     // Create instructor
-    const instructor = await Instructor.create({
+    const instructorData = await Instructor.create({
       user: user._id,
-      locations: locations,
-      classTypes,
       availability: availability || [],
       image
     });
     
+    // Cast to the correct type
+    const instructor = instructorData as unknown as IInstructor & Document;
+    
     // Populate user data
-    await instructor.populate('user');
+    await instructor.populate({ path: 'user' });
     
     return NextResponse.json({ instructor });
   } catch (error) {
@@ -132,9 +95,8 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     
     const { searchParams } = new URL(request.url);
-    const location = searchParams.get('location');
-    const classType = searchParams.get('classType');
     const instructorId = searchParams.get('instructorId');
+    const location = searchParams.get('location');
     
     // Build query based on parameters
     const query: any = {};
@@ -143,18 +105,33 @@ export async function GET(request: NextRequest) {
       query._id = instructorId;
     }
     
-    if (location) {
-      query.locations = location;
-    }
-    
-    if (classType) {
-      query.classTypes = classType;
-    }
-    
     // Get instructors based on query
-    const instructors = await Instructor.find(query)
+    let instructors = await Instructor.find(query)
       .populate('user', 'firstName lastName email phone')
       .sort({ 'user.firstName': 1, 'user.lastName': 1 });
+    
+    // If location is specified, filter instructors by location
+    if (location) {
+      // We need to filter after fetching because locations is a virtual property
+      const filteredInstructors = [];
+      
+      for (const instructor of instructors) {
+        // Cast instructor to a type that includes the virtual property
+        const instructorDoc = instructor as unknown as { 
+          locations: Promise<string[]>;
+        };
+        
+        // Get the instructor's locations
+        const instructorLocations = await instructorDoc.locations;
+        
+        // Check if the instructor is available at the specified location
+        if (instructorLocations.includes(location)) {
+          filteredInstructors.push(instructor);
+        }
+      }
+      
+      instructors = filteredInstructors;
+    }
     
     return NextResponse.json({ instructors });
   } catch (error) {
@@ -194,7 +171,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Check if instructor exists
-    const instructor = await Instructor.findById(instructorId);
+    const instructor = await Instructor.findById(instructorId) as IInstructor & Document;
     if (!instructor) {
       return NextResponse.json(
         { error: 'Instructor not found' },
@@ -202,59 +179,6 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    // Replace locations if provided (don't accumulate)
-    if (locations) {
-      // Store the full location names as they are
-      // This prevents the accumulation issue by not mapping to general locations
-      
-      // Validate that all locations are from our predefined list
-      const validLocations = [
-        'Surrey', 'Burnaby', 'North Vancouver', // Legacy values
-        'Vancouver, 999 Kingsway', 'Vancouver, 4126 McDonald St', 
-        'Burnaby, 3880 Lougheed Hwy', 'Burnaby, 4399 Wayburne Dr', 
-        'North Vancouver, 1331 Marine Drive'
-      ];
-      
-      // More lenient validation - check if the location contains one of our valid location prefixes
-      const invalidLocations = locations.filter((loc: string) => {
-        // Check if the location matches any of our valid locations
-        return !validLocations.some(validLoc => 
-          loc === validLoc || // Exact match
-          (validLoc.includes(',') && loc.includes(validLoc.split(',')[0])) // Match prefix before comma
-        );
-      });
-      
-      if (invalidLocations.length > 0) {
-        return NextResponse.json(
-          { error: 'One or more selected locations are invalid' },
-          { status: 400 }
-        );
-      }
-      
-      // Store the full location names directly without mapping to general locations
-      // Just remove duplicates to prevent accumulation
-      const uniqueLocations = locations.filter((loc: string, index: number, self: string[]) => 
-        self.indexOf(loc) === index
-      );
-      
-      // Replace the entire locations array
-      instructor.locations = uniqueLocations;
-    }
-    
-    // Validate class types if provided
-    if (classTypes && classTypes.length > 0) {
-      const validClassTypes = ['class 4', 'class 5', 'class 7'];
-      const invalidClassTypes = classTypes.filter((type: string) => !validClassTypes.includes(type));
-      
-      if (invalidClassTypes.length > 0) {
-        return NextResponse.json(
-          { error: 'One or more selected class types are invalid' },
-          { status: 400 }
-        );
-      }
-      
-      instructor.classTypes = classTypes;
-    }
     
     // Update availability if provided
     if (availability) instructor.availability = availability;
@@ -324,7 +248,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Check if instructor exists
-    const instructor = await Instructor.findById(instructorId);
+    const instructor = await Instructor.findById(instructorId) as unknown as IInstructor & Document;
     if (!instructor) {
       return NextResponse.json(
         { error: 'Instructor not found' },

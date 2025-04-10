@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db/mongodb';
 import Location from '@/models/Location';
+import Instructor from '@/models/Instructor';
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,6 +71,8 @@ export async function POST(request: NextRequest) {
       isActive: true
     });
     
+    // No need to invalidate cache - instructors now fetch locations directly from the database
+    
     return NextResponse.json({ location });
   } catch (error) {
     console.error('Error creating location:', error);
@@ -113,6 +116,8 @@ export async function PUT(request: NextRequest) {
     
     await location.save();
     
+    // No need to invalidate cache - instructors now fetch locations directly from the database
+    
     return NextResponse.json({ location });
   } catch (error) {
     console.error('Error updating location:', error);
@@ -151,6 +156,8 @@ export async function DELETE(request: NextRequest) {
     // Soft delete by setting isActive to false
     location.isActive = false;
     await location.save();
+    
+    // No need to invalidate cache - instructors now fetch locations directly from the database
     
     return NextResponse.json({ message: 'Location deactivated successfully' });
   } catch (error) {

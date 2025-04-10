@@ -67,8 +67,20 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Cast instructor to IInstructor type to access virtual properties
+    const instructorDoc = instructor as unknown as { 
+      classTypes: string[]; 
+      locations: Promise<string[]>;
+      availability: Array<{ 
+        day: string; 
+        startTime: string; 
+        endTime: string; 
+        isAvailable: boolean; 
+      }>;
+    };
+    
     // Check if instructor teaches this class type
-    if (!instructor.classTypes.includes(classType)) {
+    if (!instructorDoc.classTypes.includes(classType)) {
       return NextResponse.json(
         { error: 'Instructor does not teach this class type' },
         { status: 400 }
@@ -76,7 +88,11 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if instructor is available at this location
-    if (!instructor.locations.includes(location)) {
+    // Since locations is an async virtual property, we need to await it
+    const instructorLocations = await instructorDoc.locations;
+    
+    // Check if instructorLocations is an array and includes the requested location
+    if (!instructorLocations || !Array.isArray(instructorLocations) || !instructorLocations.includes(location)) {
       return NextResponse.json(
         { error: 'Instructor is not available at this location' },
         { status: 400 }
@@ -91,7 +107,7 @@ export async function POST(request: NextRequest) {
     
     // Check if instructor is generally available on this day of week
     const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][bookingDate.getDay()];
-    const instructorAvailability = instructor.availability.find((a: any) => a.day === dayOfWeek);
+    const instructorAvailability = instructorDoc.availability.find((a: any) => a.day === dayOfWeek);
     
     if (!instructorAvailability || !instructorAvailability.isAvailable) {
       return NextResponse.json(
@@ -327,7 +343,16 @@ export async function POST(request: NextRequest) {
     
     // Get user and instructor details for email
     const userDetails = await User.findById(userId);
-    const instructorDetails = await Instructor.findById(instructorId).populate('user');
+    const instructorDetailsRaw = await Instructor.findById(instructorId).populate('user');
+    
+    // Cast instructorDetails to include the populated user field
+    const instructorDetails = instructorDetailsRaw as unknown as {
+      user?: {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      };
+    };
     
     // Send email notification to student
     if (userDetails?.email) {
@@ -341,7 +366,7 @@ export async function POST(request: NextRequest) {
           {
             ...booking.toObject(),
             user: userDetails,
-            instructor: instructorDetails
+            instructor: instructorDetailsRaw
           },
           instructorName
         );
