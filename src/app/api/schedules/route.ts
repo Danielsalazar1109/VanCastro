@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db/mongodb';
 import Schedule from '@/models/Schedule';
-import Instructor from '@/models/Instructor';
+import Instructor, { IInstructor } from '@/models/Instructor';
 import Booking from '@/models/Booking';
 import { hasTimeConflict, addBufferTime, calculateBufferTime } from '@/lib/utils/bufferTime';
 
@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
     const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
     
     // Find instructor's availability for this day
-    const dayAvailability = instructor.availability.find((a: { day: string; startTime: string; endTime: string; isAvailable: boolean }) => a.day === dayOfWeek);
+    const dayAvailability = (instructor as unknown as IInstructor).availability.find((a: { day: string; startTime: string; endTime: string; isAvailable: boolean }) => a.day === dayOfWeek);
     
     if (!dayAvailability || !dayAvailability.isAvailable) {
       return NextResponse.json(
