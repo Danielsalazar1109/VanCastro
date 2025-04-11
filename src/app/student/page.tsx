@@ -1,28 +1,44 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function StudentDashboard() {
 	const { data: session, status } = useSession();
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [loading, setLoading] = useState(true);
+	const [retryCount, setRetryCount] = useState(0);
+	const fromSessionRedirect = searchParams.get("from") === "session-redirect";
 
 	useEffect(() => {
+		// If coming from session-redirect, give the session some time to establish
+		if (fromSessionRedirect && status === "unauthenticated" && retryCount < 3) {
+			console.log(`Session not ready yet, retry attempt ${retryCount + 1}/3`);
+			// Wait a bit and increment retry count
+			const timer = setTimeout(() => {
+				setRetryCount(prev => prev + 1);
+			}, 1000); // Wait 1 second before retrying
+			
+			return () => clearTimeout(timer);
+		}
+		
 		// Redirect if not logged in or not a student
-		if (status === "unauthenticated") {
+		if (status === "unauthenticated" && (!fromSessionRedirect || retryCount >= 3)) {
+			console.log("Redirecting to login: unauthenticated");
 			router.push("/login");
 		} else if (status === "authenticated") {
 			// Use string comparison for role check
 			const userRole = session?.user?.role as string;
 			if (userRole !== "user") {
+				console.log("Redirecting to home: not a student");
 				router.push("/");
 			}
 			setLoading(false);
 		}
-	}, [status, session, router]);
+	}, [status, session, router, fromSessionRedirect, retryCount]);
 
 	if (loading) {
 		return (

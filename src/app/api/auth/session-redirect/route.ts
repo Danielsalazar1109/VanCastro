@@ -144,7 +144,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/instructor', baseUrl));
     } else if (userRole === 'user') {
       console.log('User is regular user, redirecting to student page');
-      return NextResponse.redirect(new URL('/student', baseUrl));
+      // Add a query parameter to indicate this is a redirect from the session-redirect endpoint
+      // This can help the student page know that the session should be valid
+      const studentUrl = new URL('/student', baseUrl);
+      studentUrl.searchParams.set('from', 'session-redirect');
+      console.log('Student redirect URL:', studentUrl.toString());
+      return NextResponse.redirect(studentUrl);
     }
 
     // Default fallback
@@ -162,6 +167,6 @@ export async function GET(request: NextRequest) {
       ? "https://vancastro.vercel.app" 
       : request.nextUrl.origin;
     
-    return NextResponse.redirect(new URL('/', errorBaseUrl));
+    return NextResponse.redirect(new URL('/login', errorBaseUrl));
   }
 }
