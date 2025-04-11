@@ -3,8 +3,8 @@
  * 
  * Buffer time rules:
  * - 15 minutes if next class is in the same location
- * - 30 minutes between Burnaby and Surrey
- * - 45 minutes between North Vancouver and either Burnaby or Surrey
+ * - 30 minutes between Burnaby and Vancouver
+ * - 45 minutes between North Vancouver and either Burnaby or Vancouver
  * 
  * When both previous and next locations are provided, the function will:
  * - Consider the buffer time needed for both transitions
@@ -15,32 +15,55 @@
  * @param previousLocation The location of the previous lesson (optional)
  * @returns Buffer time in minutes
  */
+/**
+ * Helper function to determine the city type from a location address
+ * 
+ * @param location The location address
+ * @returns The city type ('Vancouver', 'Burnaby', or 'North Vancouver')
+ */
+function getCityFromLocation(location: string): string {
+  if (location.includes('North Vancouver')) {
+    return 'North Vancouver';
+  } else if (location.includes('Burnaby')) {
+    return 'Burnaby';
+  } else if (location.includes('Vancouver')) {
+    return 'Vancouver';
+  }
+  
+  // Default to the original location if no match
+  return location;
+}
+
 export function calculateBufferTime(
   currentLocation: string,
   nextLocation: string,
   previousLocation?: string
 ): number {
+  // Get city types from location addresses
+  const currentCity = getCityFromLocation(currentLocation);
+  const nextCity = getCityFromLocation(nextLocation);
+  
   // If no previous location is provided, calculate buffer based only on current and next
   if (!previousLocation) {
     // If locations are the same, buffer time is 15 minutes
-    if (currentLocation === nextLocation) {
+    if (currentCity === nextCity) {
       return 15;
     }
 
-    // Between Burnaby and Surrey
+    // Between Burnaby and Vancouver
     if (
-      (currentLocation === 'Burnaby' && nextLocation === 'Surrey') ||
-      (currentLocation === 'Surrey' && nextLocation === 'Burnaby')
+      (currentCity === 'Burnaby' && nextCity === 'Vancouver') ||
+      (currentCity === 'Vancouver' && nextCity === 'Burnaby')
     ) {
       return 30;
     }
 
-    // Between North Vancouver and Burnaby or Surrey
+    // Between North Vancouver and Burnaby or Vancouver
     if (
-      (currentLocation === 'North Vancouver' && 
-       (nextLocation === 'Burnaby' || nextLocation === 'Surrey')) ||
-      ((currentLocation === 'Burnaby' || currentLocation === 'Surrey') && 
-       nextLocation === 'North Vancouver')
+      (currentCity === 'North Vancouver' && 
+       (nextCity === 'Burnaby' || nextCity === 'Vancouver')) ||
+      ((currentCity === 'Burnaby' || currentCity === 'Vancouver') && 
+       nextCity === 'North Vancouver')
     ) {
       return 45;
     }
@@ -72,25 +95,29 @@ function calculateBufferTimeForLocations(
   fromLocation: string,
   toLocation: string
 ): number {
+  // Get city types from location addresses
+  const fromCity = getCityFromLocation(fromLocation);
+  const toCity = getCityFromLocation(toLocation);
+  
   // If locations are the same, buffer time is 15 minutes
-  if (fromLocation === toLocation) {
+  if (fromCity === toCity) {
     return 15;
   }
 
-  // Between Burnaby and Surrey
+  // Between Burnaby and Vancouver
   if (
-    (fromLocation === 'Burnaby' && toLocation === 'Surrey') ||
-    (fromLocation === 'Surrey' && toLocation === 'Burnaby')
+    (fromCity === 'Burnaby' && toCity === 'Vancouver') ||
+    (fromCity === 'Vancouver' && toCity === 'Burnaby')
   ) {
     return 30;
   }
 
-  // Between North Vancouver and Burnaby or Surrey
+  // Between North Vancouver and Burnaby or Vancouver
   if (
-    (fromLocation === 'North Vancouver' && 
-     (toLocation === 'Burnaby' || toLocation === 'Surrey')) ||
-    ((fromLocation === 'Burnaby' || fromLocation === 'Surrey') && 
-     toLocation === 'North Vancouver')
+    (fromCity === 'North Vancouver' && 
+     (toCity === 'Burnaby' || toCity === 'Vancouver')) ||
+    ((fromCity === 'Burnaby' || fromCity === 'Vancouver') && 
+     toCity === 'North Vancouver')
   ) {
     return 45;
   }

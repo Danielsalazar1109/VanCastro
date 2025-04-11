@@ -5,6 +5,8 @@ import User from '@/models/User';
 import Instructor from '@/models/Instructor';
 import Schedule from '@/models/Schedule';
 import Price from '@/models/Price';
+import GlobalAvailability from '@/models/GlobalAvailability';
+import SpecialAvailability from '@/models/SpecialAvailability';
 import { hasTimeConflict, addBufferTime } from '@/lib/utils/bufferTime';
 import { sendBookingConfirmationEmail } from '@/lib/utils/emailService';
 
@@ -67,8 +69,20 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Cast instructor to IInstructor type to access virtual properties
+    const instructorDoc = instructor as unknown as { 
+      classTypes: string[]; 
+      locations: Promise<string[]>;
+      availability: Array<{ 
+        day: string; 
+        startTime: string; 
+        endTime: string; 
+        isAvailable: boolean; 
+      }>;
+    };
+    
     // Check if instructor teaches this class type
-    if (!instructor.classTypes.includes(classType)) {
+    if (!instructorDoc.classTypes.includes(classType)) {
       return NextResponse.json(
         { error: 'Instructor does not teach this class type' },
         { status: 400 }
@@ -76,7 +90,11 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if instructor is available at this location
-    if (!instructor.locations.includes(location)) {
+    // Since locations is an async virtual property, we need to await it
+    const instructorLocations = await instructorDoc.locations;
+    
+    // Check if instructorLocations is an array and includes the requested location
+    if (!instructorLocations || !Array.isArray(instructorLocations) || !instructorLocations.includes(location)) {
       return NextResponse.json(
         { error: 'Instructor is not available at this location' },
         { status: 400 }
@@ -86,35 +104,89 @@ export async function POST(request: NextRequest) {
     // Calculate end time based on duration
     const endTime = addBufferTime(startTime, duration);
     
-    // Get the booking date
-    const bookingDate = new Date(date);
+    // Get the booking date - set time to noon to ensure consistent day interpretation
+    const bookingDate = new Date(date + 'T12:00:00');
     
-    // Check if instructor is generally available on this day of week
-    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][bookingDate.getDay()];
-    const instructorAvailability = instructor.availability.find((a: any) => a.day === dayOfWeek);
+    // Get day of week for the booking date
+    // Use local timezone to match what the date picker returns
+    const dayIndex = bookingDate.getDay();
+    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIndex];
     
-    if (!instructorAvailability || !instructorAvailability.isAvailable) {
-      return NextResponse.json(
-        { error: `Instructor is not available on ${dayOfWeek}` },
-        { status: 400 }
-      );
+    console.log(`Booking date: ${date}`);
+    console.log(`Booking date with noon time: ${bookingDate.toISOString()}`);
+    console.log(`Day index from getDay(): ${dayIndex}`);
+    console.log(`Day of week: ${dayOfWeek}`);
+    
+    // Check if there are any special availability settings for this date
+    const specialAvailability = await SpecialAvailability.find({
+      startDate: { $lte: bookingDate },
+      endDate: { $gte: bookingDate },
+      day: dayOfWeek
+    });
+    
+    console.log(`Special availability for ${date} (${dayOfWeek}):`, specialAvailability);
+    
+    // If there are special availability settings, they override global settings
+    if (specialAvailability.length > 0) {
+      // Check if any of the special availability settings for this day are available
+      const isAvailable = specialAvailability.some(setting => setting.isAvailable);
+      
+      if (!isAvailable) {
+        return NextResponse.json({
+          error: `This date (${new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}) has special availability settings and is marked as unavailable.`
+        }, { status: 400 });
+      }
+      
+      console.log(`Special availability found for ${date} (${dayOfWeek}). isAvailable: ${isAvailable}`);
+    } else {
+      // If no special availability settings, check global availability
+      console.log(`No special availability found for ${date} (${dayOfWeek}). Checking global availability.`);
+      
+      // Check global availability settings
+      const globalAvailability = await GlobalAvailability.findOne({ day: dayOfWeek });
+      
+      // If global availability exists for this day, check if it's available
+      if (globalAvailability) {
+        console.log(`Global availability for ${dayOfWeek}: isAvailable=${globalAvailability.isAvailable}`);
+        
+        if (!globalAvailability.isAvailable) {
+          return NextResponse.json(
+            { error: `Bookings are not allowed on ${dayOfWeek} as per admin settings` },
+            { status: 400 }
+          );
+        }
+        
+        // Check if the requested time is within global availability hours
+        const [startHour, startMinute] = startTime.split(':').map(Number);
+        const [endHour, endMinute] = endTime.split(':').map(Number);
+        const [globalStartHour, globalStartMinute] = globalAvailability.startTime.split(':').map(Number);
+        const [globalEndHour, globalEndMinute] = globalAvailability.endTime.split(':').map(Number);
+        
+        const requestedStartInMinutes = startHour * 60 + startMinute;
+        const requestedEndInMinutes = endHour * 60 + endMinute;
+        const globalStartInMinutes = globalStartHour * 60 + globalStartMinute;
+        const globalEndInMinutes = globalEndHour * 60 + globalEndMinute;
+        
+        if (requestedStartInMinutes < globalStartInMinutes || requestedEndInMinutes > globalEndInMinutes) {
+          return NextResponse.json(
+            { error: 'Requested time is outside allowed booking hours as per admin settings' },
+            { status: 400 }
+          );
+        }
+      } else {
+        // If no global availability record exists for this day, log a warning
+        console.warn(`No global availability settings found for ${dayOfWeek}. Creating default settings.`);
+      
+        // If this is Sunday and we're creating a default record as unavailable, reject the booking
+        if (dayOfWeek === 'Sunday') {
+          return NextResponse.json(
+            { error: `Bookings are not allowed on ${dayOfWeek} as per default admin settings` },
+            { status: 400 }
+          );
+        }
+      }
     }
     
-    // Check if the requested time is within instructor's availability hours
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const [availStartHour, availStartMinute] = instructorAvailability.startTime.split(':').map(Number);
-    const [availEndHour, availEndMinute] = instructorAvailability.endTime.split(':').map(Number);
-    
-    const requestedTimeInMinutes = startHour * 60 + startMinute;
-    const availStartInMinutes = availStartHour * 60 + availStartMinute;
-    const availEndInMinutes = availEndHour * 60 + availEndMinute;
-    
-    if (requestedTimeInMinutes < availStartInMinutes || requestedTimeInMinutes + parseInt(duration) > availEndInMinutes) {
-      return NextResponse.json(
-        { error: 'Requested time is outside instructor\'s availability hours' },
-        { status: 400 }
-      );
-    }
     
     // Check for time conflicts with the instructor's schedule
     const existingInstructorBookings = await Booking.find({
@@ -221,6 +293,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    
     // Create a new booking with pending status
     const bookingData: Partial<IBooking> = {
       user: userId,
@@ -326,7 +399,16 @@ export async function POST(request: NextRequest) {
     
     // Get user and instructor details for email
     const userDetails = await User.findById(userId);
-    const instructorDetails = await Instructor.findById(instructorId).populate('user');
+    const instructorDetailsRaw = await Instructor.findById(instructorId).populate('user');
+    
+    // Cast instructorDetails to include the populated user field
+    const instructorDetails = instructorDetailsRaw as unknown as {
+      user?: {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      };
+    };
     
     // Send email notification to student
     if (userDetails?.email) {
@@ -340,7 +422,7 @@ export async function POST(request: NextRequest) {
           {
             ...booking.toObject(),
             user: userDetails,
-            instructor: instructorDetails
+            instructor: instructorDetailsRaw
           },
           instructorName
         );

@@ -54,8 +54,12 @@ export async function PUT(request: NextRequest) {
     // Calculate new end time based on duration
     const newEndTime = addBufferTime(newStartTime, booking.duration);
     
-    // Get the new booking date
-    const newBookingDate = new Date(newDate);
+    // Get the new booking date - set time to noon to ensure consistent day interpretation
+    const newBookingDate = new Date(newDate + 'T12:00:00');
+    
+    console.log(`Reschedule date: ${newDate}`);
+    console.log(`Reschedule date with noon time: ${newBookingDate.toISOString()}`);
+    console.log(`Day of week: ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][newBookingDate.getDay()]}`);
     
     // Determine which instructor to use
     const instructorId = newInstructorId || booking.instructor._id;
