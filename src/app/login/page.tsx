@@ -28,19 +28,19 @@ function LoginPageContent() {
       // Redirect based on user role
       if (session.user.role === "user") {
         console.log("User is a student, redirecting to student page");
-        window.location.href = "/student";
+        router.push("/student");
       } else if (session.user.role === "instructor") {
         console.log("User is an instructor, redirecting to instructor page");
-        window.location.href = "/instructor";
+        router.push("/instructor");
       } else if (session.user.role === "admin") {
         console.log("User is an admin, redirecting to admin page");
-        window.location.href = "/admin";
+        router.push("/admin");
       } else {
         console.log("User role not recognized, redirecting to home page");
-        window.location.href = "/";
+        router.push("/");
       }
     }
-  }, [session, status]);
+  }, [session, status, router]);
   
   // Handle error parameter from URL
   useEffect(() => {
@@ -156,8 +156,6 @@ function LoginPageContent() {
         // Fallback to the callback URL or home page
         router.push(callbackUrl);
       }
-      
-      router.refresh();
     } catch (error) {
       console.error("Login error:", error);
       setError("An unexpected error occurred. Please try again.");
