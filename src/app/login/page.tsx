@@ -105,20 +105,32 @@ function LoginPageContent() {
           console.log("Session from API:", session);
           
           if (session?.user) {
-            console.log("Session found, redirecting to session-redirect");
-            // If we have a session, redirect to session-redirect
-            // Use window.location.href for API routes instead of router.push
-            window.location.href = "/api/auth/session-redirect";
+            console.log("Session found, redirecting based on role");
+            
+            // Redirect directly based on user role instead of going through session-redirect
+            if (session.user.role === "user") {
+              console.log("User is a student, redirecting to student page");
+              router.push("/student");
+            } else if (session.user.role === "instructor") {
+              console.log("User is an instructor, redirecting to instructor page");
+              router.push("/instructor");
+            } else if (session.user.role === "admin") {
+              console.log("User is an admin, redirecting to admin page");
+              router.push("/admin");
+            } else {
+              console.log("User role not recognized, redirecting to home page");
+              router.push("/");
+            }
           } else {
             console.log("No session found, redirecting to Google auth");
             // If no session, redirect to Google auth
-            signIn("google", { callbackUrl: "/api/auth/session-redirect" });
+            signIn("google", { callbackUrl: "/" });
           }
         })
         .catch(err => {
           console.error("Error checking session:", err);
           // If error, redirect to Google auth
-          signIn("google", { callbackUrl: "/api/auth/session-redirect" });
+          signIn("google", { callbackUrl: "/" });
         });
     }
   }, [autoSubmitted, router, searchParams]);
@@ -239,11 +251,8 @@ function LoginPageContent() {
             onClick={() => {
               setLoading(true);
               // Let NextAuth handle the redirect flow for Google authentication
-              // Use absolute URL for production to avoid URL mismatches
-              const callbackUrl = process.env.NODE_ENV === "production"
-                ? "https://vancastro.vercel.app/api/auth/session-redirect"
-                : "/api/auth/session-redirect";
-              signIn("google", { callbackUrl });
+              // Use root as callback to let the session check handle the redirection
+              signIn("google", { callbackUrl: "/" });
             }}
             className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-yellow"
           >
