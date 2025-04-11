@@ -1,7 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 :root {
   --foreground-rgb: 0, 0, 0;
@@ -16,16 +16,24 @@ body {
 }
 
 @layer components {
+  /* Primary button - yellow with dark text */
   .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors;
+    @apply bg-brand-yellow text-brand-dark px-4 py-2 rounded-md hover:bg-brand-yellow-hover transition-colors font-medium;
   }
   
+  /* Secondary button - dark background with white text */
   .btn-secondary {
-    @apply bg-secondary-200 text-secondary-800 px-4 py-2 rounded-md hover:bg-secondary-300 transition-colors;
+    @apply bg-brand-dark text-white px-4 py-2 rounded-md hover:bg-stone-800 transition-colors font-medium;
   }
   
+  /* Outline button - transparent with yellow border */
+  .btn-outline {
+    @apply bg-transparent border-2 border-brand-yellow text-brand-yellow px-4 py-2 rounded-md hover:bg-brand-yellow hover:text-brand-dark transition-colors font-medium;
+  }
+  
+  /* Form elements */
   .form-input {
-    @apply w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500;
+    @apply w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-yellow;
   }
   
   .form-label {
@@ -35,4 +43,55 @@ body {
   .form-error {
     @apply text-red-500 text-sm mt-1;
   }
+  
+  /* Section styling */
+  .section-title {
+    @apply text-3xl font-bold mb-6 text-brand-dark;
+  }
+  
+  .section-subtitle {
+    @apply text-xl font-semibold mb-4 text-brand-dark;
+  }
+  
+  /* Card styling */
+  .card {
+    @apply bg-white rounded-lg shadow-md overflow-hidden border border-gray-200;
+  }
+  
+  .card-highlight {
+    @apply bg-white rounded-lg shadow-md overflow-hidden border-2 border-brand-yellow;
+  }
 }
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-marquee {
+  display: flex;
+  animation: marquee 25s linear infinite;
+}
+
+.animate-marquee-reverse {
+  display: flex;
+  animation: marquee-reverse 25s linear infinite;
+}
+
+.hover\:animation-pause:hover {
+  animation-play-state: paused;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

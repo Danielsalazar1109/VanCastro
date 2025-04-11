@@ -4,42 +4,101 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
+// Countdown component to handle real-time updates
+const CountdownTimer = ({ createdAt }: { createdAt: string }) => {
+  const [timeRemaining, setTimeRemaining] = useState<string>("00:00:00");
+
+  useEffect(() => {
+    // Function to calculate and update remaining time
+    const updateRemainingTime = () => {
+      const createdDate = new Date(createdAt);
+      const expirationDate = new Date(createdDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours later
+      const now = new Date();
+      
+      const difference = expirationDate.getTime() - now.getTime();
+      
+      if (difference <= 0) {
+        setTimeRemaining("Expired");
+        return;
+      }
+      
+      const hours = Math.floor(difference / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+      
+      setTimeRemaining(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    // Initial update
+    updateRemainingTime();
+
+    // Set up interval to update every second
+    const timer = setInterval(updateRemainingTime, 1000);
+
+    // Clean up interval on component unmount
+    return () => clearInterval(timer);
+  }, [createdAt]);
+
+  return (
+    <span className="text-4xl text-red-500 font-bold">
+      Time Remaining: {timeRemaining}
+    </span>
+  );
+};
+
 export default function ConfirmationPage() {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
   const [loading, setLoading] = useState(true);
   const [bookingDetails, setBookingDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId) {
-      setError('No session ID provided');
+    const bookingId = searchParams.get('bookingId');
+    
+    if (!bookingId) {
+      setError('Booking ID is missing. Please try again.');
       setLoading(false);
       return;
     }
 
-    // In a real implementation, you would fetch the booking details from your API
-    // using the session ID from Stripe
     const fetchBookingDetails = async () => {
       try {
-        // This is a mock implementation
-        // In reality, you would call your API to get the booking details
-        // const response = await fetch(`/api/booking/confirmation?sessionId=${sessionId}`);
-        // const data = await response.json();
+        // Since the API doesn't support direct bookingId queries, we'll fetch and filter
+        const response = await fetch('/api/booking');
         
-        // For demo purposes, we'll just simulate a successful response
-        setTimeout(() => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch booking details');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.bookings || data.bookings.length === 0) {
+          throw new Error('No bookings found');
+        }
+        
+        // Find the booking with the matching ID
+        const booking = data.bookings.find((b: any) => b._id === bookingId);
+        
+        if (!booking) {
+          throw new Error('Booking not found');
+        }
+        
+        // Format the booking details
           setBookingDetails({
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john.doe@example.com',
-            date: '2023-09-15',
-            timeSlot: '10:00 AM',
-            service: 'Beginner Lessons',
-            confirmationNumber: 'DRV-' + Math.floor(100000 + Math.random() * 900000),
+            firstName: booking.user.firstName,
+            lastName: booking.user.lastName,
+            email: booking.user.email,
+            date: new Date(booking.date).toLocaleDateString(),
+            timeSlot: booking.startTime,
+            service: booking.classType,
+            confirmationNumber: 'DRV-' + booking._id.substring(0, 6).toUpperCase(),
+            price: booking.price,
+            package: booking.package,
+            duration: booking.duration,
+            createdAt: booking.createdAt
           });
-          setLoading(false);
-        }, 1500);
+        
+        setLoading(false);
       } catch (err) {
         setError('Failed to fetch booking details');
         setLoading(false);
@@ -47,7 +106,7 @@ export default function ConfirmationPage() {
     };
 
     fetchBookingDetails();
-  }, [sessionId]);
+  }, [searchParams]);
 
   if (loading) {
     return (
@@ -97,9 +156,14 @@ export default function ConfirmationPage() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-green-600 mb-2">Booking Confirmed!</h1>
+          <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Submitted!</h1>
+          <CountdownTimer createdAt={bookingDetails.createdAt} />
+          <p className="text-xl font-semibold text-yellow-600 mt-4 mb-2">
+            You have 24 hours to complete the payment. Please <Link href="/contact" className="text-primary-600 hover:underline">contact us</Link> to process your payment.
+          </p>
           <p className="text-gray-600">
-            Your driving lesson has been successfully booked and payment has been processed.
+            Your driving lesson has been successfully booked and is now pending approval.
+            You can track the status of your booking in the tracking page.
           </p>
         </div>
 
@@ -132,6 +196,18 @@ export default function ConfirmationPage() {
               <p className="text-gray-500 text-sm">Confirmation Number</p>
               <p className="font-medium">{bookingDetails.confirmationNumber}</p>
             </div>
+            <div>
+              <p className="text-gray-500 text-sm">Package</p>
+              <p className="font-medium">{bookingDetails.package}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Duration</p>
+              <p className="font-medium">{bookingDetails.duration} minutes</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Price</p>
+              <p className="font-medium text-green-600">${bookingDetails.price?.toFixed(2)}</p>
+            </div>
           </div>
         </div>
 
@@ -139,8 +215,14 @@ export default function ConfirmationPage() {
           <p className="text-gray-600 mb-6">
             A confirmation email has been sent to {bookingDetails.email} with all the details.
           </p>
-          <Link href="/" className="btn-primary">
+          <Link href="/tracking" className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-6 rounded-lg transition-all duration-300">
+            Track Your Booking
+          </Link>
+          <Link href="/" className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg ml-4 transition-all duration-300">
             Return to Home
+          </Link>
+          <Link href="/booking" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg ml-4 transition-all duration-300">
+            Book Another Lesson
           </Link>
         </div>
       </div>

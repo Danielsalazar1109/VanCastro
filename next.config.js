@@ -6,7 +6,7 @@ const nextConfig = {
     appDir: true,
   },
   images: {
-    domains: ['framerusercontent.com'],
+    domains: ['framerusercontent.com','cdn.shapo.io','lh3.googleusercontent.com','media.istockphoto.com','www.valleydrivingschool.com','www.drivesmartbc.ca','media2.giphy.com'],
   },
 }
 
