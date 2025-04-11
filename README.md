@@ -44,15 +44,6 @@ npm install
 # MongoDB
 MONGODB_URI=your_mongodb_atlas_connection_string
 
-# Stripe
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
-
-# Calendly
-CALENDLY_API_KEY=your_calendly_api_key
-CALENDLY_USER=your_calendly_user
-
 # Next.js
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 
