@@ -1,5 +1,16 @@
 import mongoose from 'mongoose';
 
+// Define a custom interface for the global object with mongoose property
+interface CustomGlobal {
+  mongoose?: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+  };
+}
+
+// Use type assertion to tell TypeScript that global has the mongoose property
+const globalWithMongoose = global as unknown as CustomGlobal;
+
 if (!process.env.MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
@@ -11,18 +22,18 @@ const MONGODB_URI = process.env.MONGODB_URI;
  * in development. This prevents connections growing exponentially
  * during API Route usage.
  */
-let cached = global.mongoose;
+let cached = globalWithMongoose.mongoose;
 
 if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+  cached = globalWithMongoose.mongoose = { conn: null, promise: null };
 }
 
 async function connectToDatabase() {
-  if (cached.conn) {
+  if (cached && cached.conn) {
     return cached.conn;
   }
 
-  if (!cached.promise) {
+  if (cached && !cached.promise) {
     const opts = {
       bufferCommands: false,
     };
@@ -33,13 +44,17 @@ async function connectToDatabase() {
   }
 
   try {
-    cached.conn = await cached.promise;
+    if (cached && cached.promise) {
+      cached.conn = await cached.promise;
+    }
   } catch (e) {
-    cached.promise = null;
+    if (cached) {
+      cached.promise = null;
+    }
     throw e;
   }
 
-  return cached.conn;
+  return cached?.conn || null;
 }
 
 export default connectToDatabase;
