@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+// Client component that uses useSearchParams
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
@@ -217,5 +218,32 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoginLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 text-center">
+        <div className="animate-pulse">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Loading...
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Please wait while we prepare the login page
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoadingFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

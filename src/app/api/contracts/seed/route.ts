@@ -3,6 +3,9 @@ import connectToDatabase from "@/lib/db/mongodb";
 import Contract from "@/models/Contract";
 import { getServerSession } from "next-auth";
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
 	try {
 		// Check if user is authenticated and is an admin

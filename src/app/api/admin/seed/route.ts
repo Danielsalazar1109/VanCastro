@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth/next';
 import { seedDatabase } from '@/lib/db/seed';
 import User from '@/models/User';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 /**
  * API route to seed the database with initial data.
  * This route is protected and can only be called by administrators.

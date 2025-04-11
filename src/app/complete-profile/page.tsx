@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 
-export default function CompleteProfilePage() {
+// Client component that uses useSearchParams
+function CompleteProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
@@ -169,5 +170,23 @@ export default function CompleteProfilePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function ProfileLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-xl">Loading profile information...</div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function CompleteProfilePage() {
+  return (
+    <Suspense fallback={<ProfileLoadingFallback />}>
+      <CompleteProfileContent />
+    </Suspense>
   );
 }

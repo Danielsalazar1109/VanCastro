@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -46,7 +46,8 @@ const CountdownTimer = ({ createdAt }: { createdAt: string }) => {
   );
 };
 
-export default function ConfirmationPage() {
+// Client component that uses useSearchParams
+function BookingConfirmationContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [bookingDetails, setBookingDetails] = useState<any>(null);
@@ -227,5 +228,29 @@ export default function ConfirmationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="container mx-auto px-4 py-12 max-w-3xl text-center">
+      <div className="bg-white p-8 rounded-lg shadow-md">
+        <h1 className="text-3xl font-bold mb-4">Loading Booking Details</h1>
+        <p className="text-gray-600 mb-8">Please wait while we load your booking information...</p>
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function ConfirmationPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <BookingConfirmationContent />
+    </Suspense>
   );
 }

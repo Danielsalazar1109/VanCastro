@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -9,7 +9,8 @@ import NewBookingForm from "@/components/forms/NewBookingForm";
 import PhoneNumberForm from "@/components/forms/PhoneNumberForm";
 import LoadingComponent from "@/components/layout/Loading";
 
-export default function BookingPage() {
+// Client component that uses useSearchParams
+function BookingPageContent() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
@@ -171,4 +172,22 @@ export default function BookingPage() {
       <NewBookingForm userId={userId || ''} />
     </div>
   )
+}
+
+// Loading fallback component
+function BookingPageFallback() {
+  return (
+    <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
+      <LoadingComponent showText={true} />
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function BookingPage() {
+  return (
+    <Suspense fallback={<BookingPageFallback />}>
+      <BookingPageContent />
+    </Suspense>
+  );
 }

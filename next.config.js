@@ -3,7 +3,6 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   experimental: {
-    appDir: true,
   },
   images: {
     domains: ['framerusercontent.com','cdn.shapo.io','lh3.googleusercontent.com','media.istockphoto.com','www.valleydrivingschool.com','www.drivesmartbc.ca','media2.giphy.com'],

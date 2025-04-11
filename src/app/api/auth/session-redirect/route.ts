@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import connectToDatabase from '@/lib/db/mongodb';
 import User from '@/models/User';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 /**
  * This API route handles redirection after authentication based on user role.
  * It's used specifically for Google authentication where the redirect callback
