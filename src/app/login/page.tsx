@@ -43,6 +43,9 @@ function LoginPageContent() {
     
     if (isGoogleAuth && !autoSubmitted) {
       console.log("Detected Google auth redirect, checking session...");
+      console.log("Environment:", process.env.NODE_ENV);
+      console.log("URL:", window.location.href);
+      console.log("Referrer:", document.referrer);
       setAutoSubmitted(true);
       
       // Redirect to session-redirect endpoint which will handle the proper redirection

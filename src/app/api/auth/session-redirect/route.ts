@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     
     // Get the session from the server
     const session = await getServerSession();
+    console.log('NODE_ENV:', process.env.NODE_ENV);
     console.log('Session:', JSON.stringify(session, null, 2));
 
     // Get the callback URL from the query string (if any)
@@ -62,7 +63,11 @@ export async function GET(request: NextRequest) {
       
       // Check if this is a Google auth by looking for specific query parameters
       const isGoogleAuth = request.url.includes('callback/google') || 
-                          searchParams.get('provider') === 'google';
+                          searchParams.get('provider') === 'google' ||
+                          request.headers.get('referer')?.includes('accounts.google.com');
+      
+      console.log('Is Google auth:', isGoogleAuth);
+      console.log('Referer:', request.headers.get('referer'));
       
       if (isGoogleAuth && userEmail) {
         console.log('Google auth detected, creating new user');
@@ -101,6 +106,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on user role
+    // Ensure we're using the correct base URL for redirects in production
+    // Use NEXTAUTH_URL from environment variables to avoid hardcoding
+    const baseUrl = process.env.NODE_ENV === "production" 
+      ? (process.env.NEXTAUTH_URL || request.nextUrl.origin)
+      : request.nextUrl.origin;
+    
+    console.log('Using base URL for redirects:', baseUrl);
+    console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
+    
     if (userRole === 'admin') {
       console.log('User is admin, redirecting to admin page');
       const redirectUrl = new URL('/admin', request.url);

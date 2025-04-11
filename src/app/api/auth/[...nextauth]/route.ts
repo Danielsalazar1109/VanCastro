@@ -131,22 +131,38 @@ const handler = NextAuth({
     },
     async redirect({ url, baseUrl }) {
       console.log('Redirect URL:', url);
-  console.log('Base URL:', baseUrl);
+      console.log('Base URL:', baseUrl);
+      
+      // Ensure baseUrl is correctly set for production
+      // Use NEXTAUTH_URL from environment variables to avoid hardcoding
+      const effectiveBaseUrl = process.env.NODE_ENV === "production" 
+        ? (process.env.NEXTAUTH_URL || baseUrl)
+        : baseUrl;
+      
+      console.log('Effective Base URL:', effectiveBaseUrl);
+      console.log('NODE_ENV:', process.env.NODE_ENV);
+      console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
+      
       try {
         // Check if this is a Google authentication callback
         if (url.includes('callback') && url.includes('google')) {
           console.log('Google auth callback detected, redirecting to session-redirect');
-          return `${baseUrl}/api/auth/session-redirect`;
+          return `${effectiveBaseUrl}/api/auth/session-redirect`;
         }
         
         // If the URL is the default callback URL, redirect based on path
-        if (url.startsWith(baseUrl)) {
-          const path = url.substring(baseUrl.length);
+        if (url.startsWith(baseUrl) || (process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL && url.startsWith(process.env.NEXTAUTH_URL))) {
+          // Extract path by removing the base URL
+          const path = url.startsWith(baseUrl) 
+            ? url.substring(baseUrl.length)
+            : url.substring(process.env.NEXTAUTH_URL?.length || 0);
+          
+          console.log('Extracted path:', path);
           
           // If coming from Google auth or redirected to root
           if (path === '/' || path.startsWith('/api/auth/callback/google')) {
             console.log('Root or Google callback path detected, redirecting to session-redirect');
-            return `${baseUrl}/api/auth/session-redirect`;
+            return `${effectiveBaseUrl}/api/auth/session-redirect`;
           }
         }
         
@@ -155,8 +171,7 @@ const handler = NextAuth({
       } catch (error) {
         console.error('Error in redirect callback:', error);
         // In case of error, redirect to the session-redirect endpoint
-        // which will handle the error appropriately
-        return `${baseUrl}/api/auth/session-redirect`;
+        return `${effectiveBaseUrl}/api/auth/session-redirect`;
       }
     },
   },
