@@ -133,15 +133,14 @@ const handler = NextAuth({
       console.log('Redirect URL:', url);
       console.log('Base URL:', baseUrl);
       
-      // Ensure baseUrl is correctly set for production
-      // Use NEXTAUTH_URL from environment variables to avoid hardcoding
+      // Hardcode the production URL as requested
+      const productionUrl = "https://vancastro.vercel.app";
       const effectiveBaseUrl = process.env.NODE_ENV === "production" 
-        ? (process.env.NEXTAUTH_URL || baseUrl)
+        ? productionUrl 
         : baseUrl;
       
       console.log('Effective Base URL:', effectiveBaseUrl);
       console.log('NODE_ENV:', process.env.NODE_ENV);
-      console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
       
       try {
         // Check if this is a Google authentication callback
@@ -151,11 +150,11 @@ const handler = NextAuth({
         }
         
         // If the URL is the default callback URL, redirect based on path
-        if (url.startsWith(baseUrl) || (process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL && url.startsWith(process.env.NEXTAUTH_URL))) {
+        if (url.startsWith(baseUrl) || (process.env.NODE_ENV === "production" && url.startsWith(productionUrl))) {
           // Extract path by removing the base URL
           const path = url.startsWith(baseUrl) 
             ? url.substring(baseUrl.length)
-            : url.substring(process.env.NEXTAUTH_URL?.length || 0);
+            : url.substring(productionUrl.length);
           
           console.log('Extracted path:', path);
           

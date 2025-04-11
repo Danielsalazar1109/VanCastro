@@ -106,14 +106,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on user role
-    // Ensure we're using the correct base URL for redirects in production
-    // Use NEXTAUTH_URL from environment variables to avoid hardcoding
+    // Hardcode the production URL as requested
     const baseUrl = process.env.NODE_ENV === "production" 
-      ? (process.env.NEXTAUTH_URL || request.nextUrl.origin)
+      ? "https://vancastro.vercel.app" 
       : request.nextUrl.origin;
     
     console.log('Using base URL for redirects:', baseUrl);
-    console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
     
     if (userRole === 'admin') {
       console.log('User is admin, redirecting to admin page');
