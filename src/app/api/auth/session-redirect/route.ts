@@ -25,6 +25,14 @@ export async function GET(request: NextRequest) {
     console.log('Is Google auth (from URL/headers):', isGoogleAuth);
     console.log('Referer:', request.headers.get('referer'));
     
+    // If this is a Google auth, always redirect to login page as requested
+    if (isGoogleAuth) {
+      console.log('Google auth detected, redirecting to login page as requested');
+      const loginUrl = new URL('/login', request.nextUrl.origin);
+      loginUrl.searchParams.set('from', 'google-auth');
+      return NextResponse.redirect(loginUrl);
+    }
+    
     // Get the session from the server
     const session = await getServerSession();
     console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -43,18 +51,10 @@ export async function GET(request: NextRequest) {
     console.log('Using base URL for redirects:', baseUrl);
     console.log('NODE_ENV:', process.env.NODE_ENV);
 
-    // If no session is found and this is not a Google auth, redirect to the login page
+    // If no session is found, redirect to the login page
     if (!session || !session.user) {
-      console.log('No session found');
-      
-      if (isGoogleAuth) {
-        console.log('No session but Google auth detected, redirecting to Google auth');
-        // If this is a Google auth but no session, redirect back to Google auth
-        return NextResponse.redirect(new URL('/api/auth/signin/google', baseUrl));
-      } else {
-        console.log('No session and not Google auth, redirecting to login page');
-        return NextResponse.redirect(new URL('/login', baseUrl));
-      }
+      console.log('No session found, redirecting to login page');
+      return NextResponse.redirect(new URL('/login', baseUrl));
     }
 
     // Connect to the database and get user details
