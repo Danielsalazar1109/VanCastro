@@ -21,14 +21,8 @@ function LoginPageContent() {
   
   // Check if user is already authenticated and redirect accordingly
   useEffect(() => {
-    // Check if this is coming from Google Auth
-    const isFromGoogleAuth = searchParams.get("from") === "google-auth" || 
-                            searchParams.get("callbackUrl")?.includes("google") || 
-                            document.referrer.includes("accounts.google.com") ||
-                            window.location.href.includes("google");
-    
-    if (status === "authenticated" && session?.user && !isFromGoogleAuth) {
-      console.log("User already authenticated and not from Google Auth, redirecting based on role");
+    if (status === "authenticated" && session?.user) {
+      console.log("User already authenticated, redirecting based on role");
       console.log("Session:", session);
       
       // Redirect based on user role
@@ -45,10 +39,8 @@ function LoginPageContent() {
         console.log("User role not recognized, redirecting to home page");
         router.push("/login");
       }
-    } else if (status === "authenticated" && session?.user && isFromGoogleAuth) {
-      console.log("User authenticated via Google Auth, staying on login page as requested");
     }
-  }, [session, status, router, searchParams]);
+  }, [session, status, router]);
   
   // Handle error parameter from URL
   useEffect(() => {
@@ -106,13 +98,36 @@ function LoginPageContent() {
       console.log("Referrer:", document.referrer);
       setAutoSubmitted(true);
       
-      // For Google auth, we want to stay on the login page as requested
-      console.log("Google auth detected, staying on login page as requested");
-      
-      // We don't need to do anything else - just stay on the login page
-      // This is a change from the previous behavior where we would redirect based on role
+      // Try to get the session directly
+      fetch("/api/auth/session")
+        .then(res => res.json())
+        .then(session => {
+          console.log("Session from API:", session);
+          
+          if (session?.user) {
+            console.log("Session found, redirecting based on role");
+            
+            // Redirect directly based on user role
+            if (session.user.role === "user") {
+              console.log("User is a student, redirecting to student page");
+              router.push("/student");
+            } else if (session.user.role === "instructor") {
+              console.log("User is an instructor, redirecting to instructor page");
+              router.push("/instructor");
+            } else if (session.user.role === "admin") {
+              console.log("User is an admin, redirecting to admin page");
+              router.push("/admin");
+            } else {
+              console.log("User role not recognized, redirecting to home page");
+              router.push("/login");
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Error checking session:", err);
+        });
     }
-  }, [autoSubmitted, searchParams]);
+  }, [autoSubmitted, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
