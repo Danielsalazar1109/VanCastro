@@ -37,7 +37,7 @@ function LoginPageContent() {
         router.push("/admin");
       } else {
         console.log("User role not recognized, redirecting to home page");
-        router.push("/");
+        router.push("/login");
       }
     }
   }, [session, status, router]);
