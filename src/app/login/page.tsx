@@ -39,7 +39,8 @@ function LoginPageContent() {
     // Check for Google auth indicators in URL or referrer
     const isGoogleAuth = searchParams.get("callbackUrl")?.includes("google") || 
                         searchParams.get("error")?.includes("OAuthCallback") ||
-                        document.referrer.includes("accounts.google.com");
+                        document.referrer.includes("accounts.google.com") ||
+                        window.location.href.includes("google");
     
     if (isGoogleAuth && !autoSubmitted) {
       console.log("Detected Google auth redirect, checking session...");
@@ -48,8 +49,27 @@ function LoginPageContent() {
       console.log("Referrer:", document.referrer);
       setAutoSubmitted(true);
       
-      // Redirect to session-redirect endpoint which will handle the proper redirection
-      router.push("/api/auth/session-redirect");
+      // Try to get the session directly
+      fetch("/api/auth/session")
+        .then(res => res.json())
+        .then(session => {
+          console.log("Session from API:", session);
+          
+          if (session?.user) {
+            console.log("Session found, redirecting to session-redirect");
+            // If we have a session, redirect to session-redirect
+            router.push("/api/auth/session-redirect");
+          } else {
+            console.log("No session found, redirecting to Google auth");
+            // If no session, redirect to Google auth
+            signIn("google", { callbackUrl: "/api/auth/session-redirect" });
+          }
+        })
+        .catch(err => {
+          console.error("Error checking session:", err);
+          // If error, redirect to Google auth
+          signIn("google", { callbackUrl: "/api/auth/session-redirect" });
+        });
     }
   }, [autoSubmitted, router, searchParams]);
 

@@ -17,6 +17,14 @@ export async function GET(request: NextRequest) {
     console.log('Request URL:', request.url);
     console.log('Base URL:', request.nextUrl.origin);
     
+    // Check if this is a Google auth by looking at the URL and headers
+    const isGoogleAuth = request.url.includes('callback/google') || 
+                        request.url.includes('google') ||
+                        request.headers.get('referer')?.includes('accounts.google.com');
+    
+    console.log('Is Google auth (from URL/headers):', isGoogleAuth);
+    console.log('Referer:', request.headers.get('referer'));
+    
     // Get the session from the server
     const session = await getServerSession();
     console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -27,10 +35,18 @@ export async function GET(request: NextRequest) {
     const callbackUrl = searchParams.get('callbackUrl') || '/';
     console.log('Callback URL:', callbackUrl);
 
-    // If no session is found, redirect to the login page
+    // If no session is found and this is not a Google auth, redirect to the login page
     if (!session || !session.user) {
-      console.log('No session found, redirecting to login page');
-      return NextResponse.redirect(new URL('/login', request.url));
+      console.log('No session found');
+      
+      if (isGoogleAuth) {
+        console.log('No session but Google auth detected, redirecting to Google auth');
+        // If this is a Google auth but no session, redirect back to Google auth
+        return NextResponse.redirect(new URL('/api/auth/signin/google', request.url));
+      } else {
+        console.log('No session and not Google auth, redirecting to login page');
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
     }
 
     // Connect to the database and get user details
@@ -62,12 +78,7 @@ export async function GET(request: NextRequest) {
       console.log('User not found in database, checking if this is a Google auth');
       
       // Check if this is a Google auth by looking for specific query parameters
-      const isGoogleAuth = request.url.includes('callback/google') || 
-                          searchParams.get('provider') === 'google' ||
-                          request.headers.get('referer')?.includes('accounts.google.com');
-      
-      console.log('Is Google auth:', isGoogleAuth);
-      console.log('Referer:', request.headers.get('referer'));
+      // We already checked for Google auth at the beginning, so we can use that value
       
       if (isGoogleAuth && userEmail) {
         console.log('Google auth detected, creating new user');
@@ -85,8 +96,16 @@ export async function GET(request: NextRequest) {
         await dbUser.save();
         console.log('New user created:', dbUser._id.toString());
       } else {
-        console.log('Not a Google auth or no email, redirecting to login page');
-        return NextResponse.redirect(new URL('/login', request.url));
+        console.log('Not a Google auth or no email');
+        
+        if (isGoogleAuth) {
+          console.log('Google auth detected but no email, redirecting to Google auth');
+          // If this is a Google auth but no email, redirect back to Google auth
+          return NextResponse.redirect(new URL('/api/auth/signin/google', request.url));
+        } else {
+          console.log('Not a Google auth, redirecting to login page');
+          return NextResponse.redirect(new URL('/login', request.url));
+        }
       }
     }
 
