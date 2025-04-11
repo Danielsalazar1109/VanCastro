@@ -304,7 +304,7 @@ const AbsenceModal = ({
           <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
             <h4 className="font-medium text-lg mb-3 text-pink-600">Add New Absence Period</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+              <div>F
                 <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
                 <input
                   type="date"
@@ -2006,7 +2006,7 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('global-availability')}
             >
               <Calendar className={`w-5 h-5 ${activeTab === 'global-availability' ? 'text-pink-500' : ''}`} />
-              <span>Global Availability</span>
+              <span>Availability</span>
             </button>
           </div>
           
