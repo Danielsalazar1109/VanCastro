@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db/mongodb';
 import Location from '@/models/Location';
+import Instructor from '@/models/Instructor';
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,6 +71,8 @@ export async function POST(request: NextRequest) {
       isActive: true
     });
     
+    // No need to invalidate cache - instructors now fetch locations directly from the database
+    
     return NextResponse.json({ location });
   } catch (error) {
     console.error('Error creating location:', error);
@@ -113,6 +116,8 @@ export async function PUT(request: NextRequest) {
     
     await location.save();
     
+    // No need to invalidate cache - instructors now fetch locations directly from the database
+    
     return NextResponse.json({ location });
   } catch (error) {
     console.error('Error updating location:', error);
@@ -130,6 +135,7 @@ export async function DELETE(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const locationId = searchParams.get('locationId');
+    const hardDelete = searchParams.get('hardDelete') === 'true';
     
     if (!locationId) {
       return NextResponse.json(
@@ -148,11 +154,39 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Soft delete by setting isActive to false
-    location.isActive = false;
-    await location.save();
-    
-    return NextResponse.json({ message: 'Location deactivated successfully' });
+    // Check if any instructors are using this location
+    if (hardDelete) {
+      // Check if any instructors are using this location before hard delete
+      const instructors = await Instructor.find();
+      
+      // We need to check each instructor's locations which is a virtual property
+      for (const instructor of instructors) {
+        // Cast instructor to a type that includes the virtual property
+        const instructorDoc = instructor as unknown as { 
+          locations: Promise<string[]>;
+        };
+        
+        // Get the instructor's locations
+        const instructorLocations = await instructorDoc.locations;
+        
+        // Check if the instructor is available at the specified location
+        if (instructorLocations.includes(location.name)) {
+          return NextResponse.json(
+            { error: 'Cannot delete location that is being used by instructors' },
+            { status: 400 }
+          );
+        }
+      }
+      
+      // Perform hard delete - actually remove from database
+      await Location.findByIdAndDelete(locationId);
+      return NextResponse.json({ message: 'Location deleted successfully' });
+    } else {
+      // Soft delete by setting isActive to false
+      location.isActive = false;
+      await location.save();
+      return NextResponse.json({ message: 'Location deactivated successfully' });
+    }
   } catch (error) {
     console.error('Error deactivating location:', error);
     return NextResponse.json(
