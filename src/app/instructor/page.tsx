@@ -150,8 +150,7 @@ export default function InstructorDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showTodayBookings, setShowTodayBookings] = useState(false);
-  
-  const locations = ["Surrey", "Burnaby", "North Vancouver"];
+  const [locations, setLocations] = useState<string[]>([]);
   
   // Check if device is mobile
   useEffect(() => {
@@ -169,11 +168,26 @@ export default function InstructorDashboard() {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
   
+  // Function to fetch locations from the database
+  const fetchLocations = async () => {
+    try {
+      const response = await fetch('/api/locations?activeOnly=true');
+      const data = await response.json();
+      
+      if (data.locations) {
+        setLocations(data.locations.map((loc: any) => loc.name));
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+    }
+  };
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
     } else if (status === 'authenticated' && session?.user?.email) {
       fetchInstructorId(session.user.email);
+      fetchLocations(); // Fetch locations when component mounts
     }
   }, [status, session, router]);
   
@@ -213,15 +227,19 @@ export default function InstructorDashboard() {
   }, [bookings]);
   
   const getColorForLocation = (location: string) => {
-    switch(location) {
-      case 'Surrey':
-        return '#4285F4'; // Blue
-      case 'Burnaby':
-        return '#EA4335'; // Red
-      case 'North Vancouver':
-        return '#FBBC05'; // Yellow
-      default:
-        return '#34A853'; // Green
+    // Extract city name from location (assuming format is "City, Address")
+    const cityMatch = location.match(/^([^,]+)/);
+    const city = cityMatch ? cityMatch[1].trim() : '';
+    
+    // Assign colors based on city name
+    if (city === 'Vancouver') {
+      return '#4285F4'; // Blue for Vancouver
+    } else if (city === 'Burnaby') {
+      return '#EA4335'; // Red for Burnaby
+    } else if (city === 'North Vancouver') {
+      return '#FBBC05'; // Yellow for North Vancouver
+    } else {
+      return '#34A853'; // Green (default) for other cities
     }
   };
   
@@ -287,8 +305,8 @@ export default function InstructorDashboard() {
           const existingDay = instructorAvailability.find((a: any) => a.day === day);
           return existingDay || {
             day,
-            startTime: '09:00',
-            endTime: '17:00',
+            startTime: '00:00',
+            endTime: '23:59',
             isAvailable: false
           };
         });
@@ -579,8 +597,7 @@ export default function InstructorDashboard() {
             
             {[
               { id: 'bookings', icon: Clock, label: 'Bookings' },
-              { id: 'calendar', icon: Calendar, label: 'Calendar' },
-              { id: 'availability', icon: User, label: 'Availability' }
+              { id: 'calendar', icon: Calendar, label: 'Calendar' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -624,11 +641,10 @@ export default function InstructorDashboard() {
       <div className="flex flex-col md:flex-row max-w-9xl mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden border-t-0">
         {/* Desktop Navigation */}
         <div className="hidden md:flex flex-col border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white">
-          {[
-            { id: 'bookings', icon: Clock, label: 'Bookings' },
-            { id: 'calendar', icon: Calendar, label: 'Calendar' },
-            { id: 'availability', icon: User, label: 'Availability' }
-          ].map((tab) => (
+            {[
+              { id: 'bookings', icon: Clock, label: 'Bookings' },
+              { id: 'calendar', icon: Calendar, label: 'Calendar' }
+            ].map((tab) => (
               <button
                 key={tab.id}
                 className={`
@@ -692,12 +708,20 @@ export default function InstructorDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-fadeIn">
                   {bookings.map((booking) => {
                     const getLocationColor = (location: string) => {
-                      const locationColors = {
-                        'Surrey': 'bg-blue-100 border-blue-500 text-blue-800',
-                        'Burnaby': 'bg-red-100 border-red-500 text-red-800',
-                        'North Vancouver': 'bg-yellow-100 border-yellow-500 text-yellow-800'
-                      };
-                      return locationColors[location as keyof typeof locationColors] || 'bg-green-100 border-green-500 text-green-800';
+                      // Extract city name from location (assuming format is "City, Address")
+                      const cityMatch = location.match(/^([^,]+)/);
+                      const city = cityMatch ? cityMatch[1].trim() : '';
+                      
+                      // Assign colors based on city name
+                      if (city === 'Vancouver') {
+                        return 'bg-blue-100 border-blue-500 text-blue-800';
+                      } else if (city === 'Burnaby') {
+                        return 'bg-red-100 border-red-500 text-red-800';
+                      } else if (city === 'North Vancouver') {
+                        return 'bg-yellow-100 border-yellow-500 text-yellow-800';
+                      } else {
+                        return 'bg-green-100 border-green-500 text-green-800'; // Default
+                      }
                     };
 
                     const formatDate = (dateString: string) => {
@@ -775,18 +799,43 @@ export default function InstructorDashboard() {
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
               <div className="bg-gradient-to-r from-white to-yellow-300 p-4 flex justify-between items-center">
                 <div className="flex space-x-2">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-xl text-black">Surrey</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <span className="text-xl text-black">Burnaby</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <span className="text-xl text-black">North Vancouver</span>
-                  </div>
+                  {/* Extract unique cities from locations and generate legend dynamically */}
+                  {Array.from(new Set(locations.map(loc => {
+                    const cityMatch = loc.match(/^([^,]+)/);
+                    return cityMatch ? cityMatch[1].trim() : '';
+                  }))).filter(Boolean).map((city, index) => {
+                    // Assign colors based on city name
+                    let color = '';
+                    if (city === 'Vancouver') color = 'bg-blue-500';
+                    else if (city === 'Burnaby') color = 'bg-red-500';
+                    else if (city === 'North Vancouver') color = 'bg-yellow-500';
+                    else color = 'bg-green-500'; // Default
+                    
+                    return (
+                      <div key={index} className="flex items-center space-x-1">
+                        <div className={`w-3 h-3 rounded-full ${color}`}></div>
+                        <span className="text-xl text-black">{city}</span>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Fallback if no locations are available */}
+                  {locations.length === 0 && (
+                    <>
+                      <div className="flex items-center space-x-1">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span className="text-xl text-black">Vancouver</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span className="text-xl text-black">Burnaby</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <span className="text-xl text-black">North Vancouver</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -811,15 +860,14 @@ export default function InstructorDashboard() {
                       hour12: false
                     }}
                     eventClassNames={(arg) => {
-                      const locationColors = {
-                        'Surrey': 'bg-blue-500 border-blue-600 text-white',
-                        'Burnaby': 'bg-red-500 border-red-600 text-white',
-                        'North Vancouver': 'bg-yellow-500 border-yellow-600 text-black'
-                      };
-                      
                       const location = arg.event.extendedProps.location;
-                      return [
-                        locationColors[location as keyof typeof locationColors] || 'bg-green-500 border-green-600',
+                      
+                      // Extract city name from location (assuming format is "City, Address")
+                      const cityMatch = location.match(/^([^,]+)/);
+                      const city = cityMatch ? cityMatch[1].trim() : '';
+                      
+                      // Assign colors based on city name
+                      let baseClasses = [
                         'rounded-lg',
                         'shadow-md',
                         'p-1',
@@ -827,6 +875,16 @@ export default function InstructorDashboard() {
                         'text-xs',
                         'font-medium'
                       ];
+                      
+                      if (city === 'Vancouver') {
+                        return [...baseClasses, 'bg-blue-500', 'border-blue-600', 'text-white'];
+                      } else if (city === 'Burnaby') {
+                        return [...baseClasses, 'bg-red-500', 'border-red-600', 'text-white'];
+                      } else if (city === 'North Vancouver') {
+                        return [...baseClasses, 'bg-yellow-500', 'border-yellow-600', 'text-black'];
+                      } else {
+                        return [...baseClasses, 'bg-green-500', 'border-green-600', 'text-white'];
+                      }
                     }}
                     eventContent={(eventInfo) => (
                       <div className="p-1">
@@ -854,176 +912,6 @@ export default function InstructorDashboard() {
             </div>
           )}
 
-          {activeTab === 'availability' && (
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
-                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
-                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
-                
-                <div className="flex items-center space-x-4 mb-4 relative z-10">
-                  <div className="bg-white/20 p-3 rounded-full">
-                    <User className="w-10 h-10" />
-                  </div>
-                  <h2 className="text-3xl font-bold tracking-tight">Manage Your Availability</h2>
-                </div>
-                <p className="text-white/80 max-w-2xl relative z-10">
-                  Configure your weekly schedule with precision. Toggle availability for each day and set specific working hours. 
-                  This helps students book lessons that fit perfectly into your calendar.
-                </p>
-                
-                <div className="absolute right-8 bottom-8 flex space-x-2">
-                  <Heart className="w-6 h-6 text-pink-200" />
-                  <Star className="w-6 h-6 text-yellow-200" />
-                </div>
-              </div>
-
-              <div className="grid gap-6">
-  {/* Availability Grid */}
-  <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
-    <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-      <h3 className="text-xl font-semibold text-pink-700">Weekly Availability</h3>
-    </div>
-    
-    {/* Added overflow-x-auto for horizontal scroll */}
-    <div className="p-4 overflow-x-auto">
-      {/* Added min-width to ensure it scrolls on small screens */}
-      <div className="flex flex-row min-w-max">
-        {availability.map((day, index) => (
-          <div
-            key={day.day}
-            className={`
-              flex items-center justify-between p-3 mx-1
-              ${day.isAvailable
-                ? 'bg-green-50 hover:bg-green-100'
-                : 'bg-slate-50 hover:bg-slate-100'}
-              rounded-lg mb-2 transition-all duration-300
-            `}
-          >
-            <div className="flex items-center space-x-16 ml-10">
-              <span className={`
-                w-10 h-10 rounded-full flex items-center justify-center
-                ${day.isAvailable
-                  ? 'bg-green-500 text-white'
-                  : 'bg-slate-300 text-slate-500'}
-              `}>
-                {day.day.charAt(0)}
-              </span>
-            </div>
-            
-            {/* Increased margin between text and toggle using mr-6 */}
-            <div className="flex items-center space-x-3 ml-16 mr-6">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={day.isAvailable}
-                  onChange={(e) => handleAvailabilityChange(index, 'isAvailable', e.target.checked)}
-                  className="hidden peer"
-                />
-                <div className={`
-                  w-14 h-7 rounded-full relative transition-all duration-300
-                  ${day.isAvailable
-                    ? 'bg-green-500'
-                    : 'bg-slate-300'}
-                  after:content-[''] after:absolute after:top-1 
-                  after:left-1 after:bg-white after:rounded-full
-                  after:h-5 after:w-5
-                  ${day.isAvailable
-                    ? 'after:translate-x-full'
-                    : 'after:translate-x-0'}
-                  after:transition-all after:duration-300
-                `}
-                ></div>
-              </label>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-
-                {/* Time Configuration */}
-                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-pink-100">
-                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-                    <h3 className="text-xl font-semibold text-pink-700">Working Hours</h3>
-                  </div>
-                  <div className="p-4 space-y-4 grid grid-cols-3 gap-4">
-                    {availability.filter(day => day.isAvailable).map((day, index) => (
-                      <div 
-                        key={day.day} 
-                        className="bg-slate-50 p-4 rounded-lg border border-slate-200"
-                      >
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="font-semibold text-slate-700">{day.day}</span>
-                          <div className="flex items-center space-x-2">
-                            <Clock className="w-5 h-5 text-indigo-500" />
-                            <span className="text-sm text-slate-600">
-                              {day.startTime} - {day.endTime}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">Start Time</label>
-                            <input
-                              type="time"
-                              value={day.startTime}
-                              onChange={(e) => handleAvailabilityChange(
-                                availability.findIndex(a => a.day === day.day), 
-                                'startTime', 
-                                e.target.value
-                              )}
-                              disabled={!day.isAvailable}
-                              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 transition-all
-                                disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">End Time</label>
-                            <input
-                              type="time"
-                              value={day.endTime}
-                              onChange={(e) => handleAvailabilityChange(
-                                availability.findIndex(a => a.day === day.day), 
-                                'endTime', 
-                                e.target.value
-                              )}
-                              disabled={!day.isAvailable}
-                              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 transition-all
-                                disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {availability.filter(day => !day.isAvailable).length > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-center">
-                        <Info className="w-6 h-6 mx-auto mb-2 text-blue-500" />
-                        <p className="text-blue-800 text-sm">
-                          Days marked as unavailable will not show up for bookings.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Save Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={saveAvailability}
-                  disabled={loading}
-                  className={`
-                    px-8 py-3 rounded-full font-bold transition-all duration-300
-                    ${loading 
-                      ? 'bg-slate-300 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white hover:shadow-lg'}
-                  `}
-                >
-                  {loading ? "Saving..." : "Save Availability"}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

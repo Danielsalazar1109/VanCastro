@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db/mongodb';
 import Schedule from '@/models/Schedule';
-import Instructor from '@/models/Instructor';
+import Instructor, { IInstructor } from '@/models/Instructor';
 import Booking from '@/models/Booking';
+import GlobalAvailability from '@/models/GlobalAvailability';
+import SpecialAvailability from '@/models/SpecialAvailability';
 import { hasTimeConflict, addBufferTime, calculateBufferTime } from '@/lib/utils/bufferTime';
 
 /**
@@ -15,7 +17,7 @@ import { hasTimeConflict, addBufferTime, calculateBufferTime } from '@/lib/utils
  * @returns Array of time slots with startTime and endTime
  */
 function generateTimeSlots(
-  availability: { startTime: string; endTime: string; isAvailable: boolean },
+  availability: { startTime: string; endTime: string; isAvailable: boolean; day?: string },
   duration: number = 60,
   location: string = 'Surrey',
   existingBookings: Array<{
@@ -24,7 +26,11 @@ function generateTimeSlots(
     location: string;
   }> = []
 ) {
+  console.log(`\n==== GENERATE TIME SLOTS ====`);
+  console.log(`Availability object:`, JSON.stringify(availability));
+  
   if (!availability || !availability.isAvailable) {
+    console.log(`Availability is null or not available, returning empty slots`);
     return [];
   }
 
@@ -38,6 +44,9 @@ function generateTimeSlots(
   const startTimeInMinutes = startHours * 60 + startMinutes;
   const endTimeInMinutes = endHours * 60 + endMinutes;
   
+  console.log(`Raw start time: ${availability.startTime} (${startTimeInMinutes} minutes)`);
+  console.log(`Raw end time: ${availability.endTime} (${endTimeInMinutes} minutes)`);
+  
   // Sort existing bookings by start time
   const sortedBookings = [...existingBookings].sort((a, b) => {
     const [aHours, aMinutes] = a.startTime.split(':').map(Number);
@@ -49,12 +58,11 @@ function generateTimeSlots(
     return aTotalMinutes - bTotalMinutes;
   });
   
-  // Generate slots at fixed 30-minute intervals by default
-  // Round up to the nearest 30-minute interval if needed
+  // Use exact start time from availability settings
   let currentTimeInMinutes = startTimeInMinutes;
-  if (currentTimeInMinutes % 30 !== 0) {
-    currentTimeInMinutes = Math.ceil(currentTimeInMinutes / 30) * 30;
-  }
+  
+  console.log(`Generating time slots with availability: ${availability.startTime} - ${availability.endTime}`);
+  console.log(`Start time in minutes: ${startTimeInMinutes}, End time in minutes: ${endTimeInMinutes}`);
   
   // Create blocked time ranges based on existing bookings including buffer times
   const blockedTimeRanges = [];
@@ -102,16 +110,26 @@ function generateTimeSlots(
     mergedBlockedRanges.push(currentRange);
   }
   
-  // First, generate all possible valid slots (checking every 15 minutes)
+  // First, generate all possible valid slots (checking every 30 minutes)
   const allPossibleSlots = [];
   
-  // Start from the earliest possible time (rounded to 15 minutes)
+  // Start from the exact start time from availability settings
   let slotTimeInMinutes = startTimeInMinutes;
-  if (slotTimeInMinutes % 15 !== 0) {
-    slotTimeInMinutes = Math.ceil(slotTimeInMinutes / 15) * 15;
-  }
+  
+  // Disable rounding to ensure we use the exact start time from availability settings
+  // Round up to the nearest 30-minute interval for better UX
+  // But only if it doesn't push us past the start time by more than 15 minutes
+  // if (slotTimeInMinutes % 30 !== 0) {
+  //   const roundedTime = Math.ceil(slotTimeInMinutes / 30) * 30;
+  //   if (roundedTime - slotTimeInMinutes <= 15) {
+  //     slotTimeInMinutes = roundedTime;
+  //   }
+  // }
+  
+  console.log(`Starting slot generation at: ${Math.floor(slotTimeInMinutes / 60)}:${(slotTimeInMinutes % 60).toString().padStart(2, '0')}`);
   
   // Generate all possible slots that don't overlap with blocked time ranges
+  // Make sure we don't exceed the end time from availability settings
   while (slotTimeInMinutes + duration <= endTimeInMinutes) {
     // Calculate slot end time
     const slotEndTimeInMinutes = slotTimeInMinutes + duration;
@@ -273,18 +291,72 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get day of week from date
-    const dateObj = new Date(date);
+    // Get day of week from date - set time to noon to ensure consistent day interpretation
+    const dateObj = new Date(date + 'T12:00:00');
     const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
     
-    // Find instructor's availability for this day
-    const dayAvailability = instructor.availability.find((a: { day: string; startTime: string; endTime: string; isAvailable: boolean }) => a.day === dayOfWeek);
+    console.log(`Schedule date: ${date}`);
+    console.log(`Schedule date with noon time: ${dateObj.toISOString()}`);
+    console.log(`Day index from getDay(): ${dateObj.getDay()}`);
+    console.log(`Day of week: ${dayOfWeek}`);
     
-    if (!dayAvailability || !dayAvailability.isAvailable) {
-      return NextResponse.json(
-        { error: `Instructor is not available on ${dayOfWeek}` },
-        { status: 400 }
-      );
+    // Check special availability settings first for this specific date
+    const specialAvailability = await SpecialAvailability.findOne({
+      day: dayOfWeek,
+      startDate: { $lte: dateObj },
+      endDate: { $gte: dateObj }
+    });
+    
+    console.log(`Checking for special availability for ${dayOfWeek} on ${dateObj.toISOString()}`);
+    
+    let dayAvailability;
+    
+    if (specialAvailability) {
+      console.log(`Found special availability for ${dayOfWeek} on ${dateObj.toISOString()}:`, specialAvailability);
+      
+      // Use special availability settings
+      dayAvailability = {
+        day: dayOfWeek,
+        startTime: specialAvailability.startTime,
+        endTime: specialAvailability.endTime,
+        isAvailable: specialAvailability.isAvailable
+      };
+      
+      console.log(`Using special availability: ${dayAvailability.startTime} - ${dayAvailability.endTime}, isAvailable: ${dayAvailability.isAvailable}`);
+      
+      // If special availability says this day is not available, return error
+      if (!dayAvailability.isAvailable) {
+        console.log(`Special availability for ${dayOfWeek} on ${date} is not available, rejecting booking`);
+        return NextResponse.json(
+          { error: `Bookings are not allowed on ${dayOfWeek}, ${date} as per special schedule settings` },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Fall back to global availability settings
+      const globalAvailability = await GlobalAvailability.findOne({ day: dayOfWeek });
+      console.log(`No special availability found, retrieved global availability for ${dayOfWeek}:`, globalAvailability);
+      
+      // If global availability doesn't exist or is not available for this day, return error
+      if (!globalAvailability || !globalAvailability.isAvailable) {
+        console.log(`Global availability for ${dayOfWeek} is not available, rejecting booking`);
+        return NextResponse.json(
+          { error: `Bookings are not allowed on ${dayOfWeek} as per admin settings` },
+          { status: 400 }
+        );
+      }
+      
+      console.log(`Global availability for ${dayOfWeek}: ${globalAvailability.startTime} - ${globalAvailability.endTime}, isAvailable: ${globalAvailability.isAvailable}`);
+      
+      // Use global availability
+      dayAvailability = {
+        day: dayOfWeek,
+        startTime: globalAvailability.startTime,
+        endTime: globalAvailability.endTime,
+        isAvailable: true
+      };
+      
+      console.log(`Using global availability: ${dayAvailability.startTime} - ${dayAvailability.endTime}`);
     }
     
     // Format the date to start of day for querying
