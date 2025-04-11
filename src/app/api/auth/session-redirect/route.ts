@@ -162,6 +162,6 @@ export async function GET(request: NextRequest) {
       ? "https://vancastro.vercel.app" 
       : request.nextUrl.origin;
     
-    return NextResponse.redirect(new URL('/login', errorBaseUrl));
+    return NextResponse.redirect(new URL('/', errorBaseUrl));
   }
 }
