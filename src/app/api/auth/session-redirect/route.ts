@@ -35,6 +35,14 @@ export async function GET(request: NextRequest) {
     const callbackUrl = searchParams.get('callbackUrl') || '/';
     console.log('Callback URL:', callbackUrl);
 
+    // Determine the base URL based on environment
+    const baseUrl = process.env.NODE_ENV === "production" 
+      ? "https://vancastro.vercel.app" 
+      : request.nextUrl.origin;
+    
+    console.log('Using base URL for redirects:', baseUrl);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+
     // If no session is found and this is not a Google auth, redirect to the login page
     if (!session || !session.user) {
       console.log('No session found');
@@ -42,10 +50,10 @@ export async function GET(request: NextRequest) {
       if (isGoogleAuth) {
         console.log('No session but Google auth detected, redirecting to Google auth');
         // If this is a Google auth but no session, redirect back to Google auth
-        return NextResponse.redirect(new URL('/api/auth/signin/google', request.url));
+        return NextResponse.redirect(new URL('/api/auth/signin/google', baseUrl));
       } else {
         console.log('No session and not Google auth, redirecting to login page');
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.redirect(new URL('/login', baseUrl));
       }
     }
 
@@ -101,10 +109,10 @@ export async function GET(request: NextRequest) {
         if (isGoogleAuth) {
           console.log('Google auth detected but no email, redirecting to Google auth');
           // If this is a Google auth but no email, redirect back to Google auth
-          return NextResponse.redirect(new URL('/api/auth/signin/google', request.url));
+          return NextResponse.redirect(new URL('/api/auth/signin/google', baseUrl));
         } else {
           console.log('Not a Google auth, redirecting to login page');
-          return NextResponse.redirect(new URL('/login', request.url));
+          return NextResponse.redirect(new URL('/login', baseUrl));
         }
       }
     }
@@ -120,41 +128,40 @@ export async function GET(request: NextRequest) {
     if (!userPhone || userPhone === '') {
       console.log('User has no phone number, redirecting to complete-profile page');
       return NextResponse.redirect(
-        new URL(`/complete-profile?callbackUrl=${encodeURIComponent(callbackUrl)}`, request.url)
+        new URL(`/complete-profile?callbackUrl=${encodeURIComponent(callbackUrl)}`, baseUrl)
       );
     }
 
     // Redirect based on user role
-    // Determine the base URL based on environment
-    const baseUrl = process.env.NODE_ENV === "production" 
-      ? "https://vancastro.vercel.app" 
-      : request.nextUrl.origin;
-    
-    console.log('Using base URL for redirects:', baseUrl);
-    console.log('NODE_ENV:', process.env.NODE_ENV);
     
     if (userRole === 'admin') {
       console.log('User is admin, redirecting to admin page');
-      const redirectUrl = new URL('/admin', request.url);
+      const redirectUrl = new URL('/admin', baseUrl);
       console.log('Admin redirect URL:', redirectUrl.toString());
       return NextResponse.redirect(redirectUrl);
     } else if (userRole === 'instructor') {
       console.log('User is instructor, redirecting to instructor page');
-      return NextResponse.redirect(new URL('/instructor', request.url));
+      return NextResponse.redirect(new URL('/instructor', baseUrl));
     } else if (userRole === 'user') {
       console.log('User is regular user, redirecting to student page');
-      return NextResponse.redirect(new URL('/student', request.url));
+      return NextResponse.redirect(new URL('/student', baseUrl));
     }
 
     // Default fallback
     console.log('No specific role found, redirecting to callback URL:', callbackUrl);
-    console.log('Redirect URL:', new URL(callbackUrl, request.url).toString());
-    return NextResponse.redirect(new URL(callbackUrl, request.url));
+    console.log('Redirect URL:', new URL(callbackUrl, baseUrl).toString());
+    return NextResponse.redirect(new URL(callbackUrl, baseUrl));
   } catch (error) {
     console.error('Error in session-redirect:', error);
     console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    // In case of error, redirect to the login page
-    return NextResponse.redirect(new URL('/login', request.url));
+    
+    // In case of error, redirect to the login page using the baseUrl defined earlier
+    // If we're in the catch block, we need to redefine baseUrl as it might not be in scope
+    const errorBaseUrl = process.env.NODE_ENV === "production" 
+      ? "https://vancastro.vercel.app" 
+      : request.nextUrl.origin;
+    
+    return NextResponse.redirect(new URL('/login', errorBaseUrl));
   }
 }
