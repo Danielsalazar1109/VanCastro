@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // Client component that uses useSearchParams
 function LoginPageContent() {
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
@@ -17,6 +18,29 @@ function LoginPageContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
+  
+  // Check if user is already authenticated and redirect accordingly
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      console.log("User already authenticated, redirecting based on role");
+      console.log("Session:", session);
+      
+      // Redirect based on user role
+      if (session.user.role === "user") {
+        console.log("User is a student, redirecting to student page");
+        window.location.href = "/student";
+      } else if (session.user.role === "instructor") {
+        console.log("User is an instructor, redirecting to instructor page");
+        window.location.href = "/instructor";
+      } else if (session.user.role === "admin") {
+        console.log("User is an admin, redirecting to admin page");
+        window.location.href = "/admin";
+      } else {
+        console.log("User role not recognized, redirecting to home page");
+        window.location.href = "/";
+      }
+    }
+  }, [session, status]);
   
   // Handle error parameter from URL
   useEffect(() => {
@@ -41,7 +65,7 @@ function LoginPageContent() {
               if (session?.user) {
                 // If we have a session despite the error, redirect to the appropriate page
                 console.log("Session found despite error, redirecting");
-                router.push("/api/auth/session-redirect");
+                window.location.href = "/api/auth/session-redirect";
               } else {
                 // Show error but don't auto-retry to avoid potential loops
                 setError("Google sign-in failed. Please try again using the button below.");
