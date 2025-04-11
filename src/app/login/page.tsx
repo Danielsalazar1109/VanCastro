@@ -25,6 +25,13 @@ function LoginPageContent() {
       console.log("User already authenticated, redirecting based on role");
       console.log("Session:", session);
       
+      // Check if user has a phone number
+      if (!session.user.phone || session.user.phone === '') {
+        console.log("User doesn't have a phone number, redirecting to complete profile page");
+        router.push("/complete-profile");
+        return;
+      }
+      
       // Redirect based on user role
       if (session.user.role === "user") {
         console.log("User is a student, redirecting to student page");
@@ -107,6 +114,13 @@ function LoginPageContent() {
           if (session?.user) {
             console.log("Session found, redirecting based on role");
             
+            // Check if user has a phone number
+            if (!session.user.phone || session.user.phone === '') {
+              console.log("User doesn't have a phone number, redirecting to complete profile page");
+              router.push("/complete-profile");
+              return;
+            }
+            
             // Redirect directly based on user role
             if (session.user.role === "user") {
               console.log("User is a student, redirecting to student page");
@@ -150,6 +164,13 @@ function LoginPageContent() {
       // Get the session to check the user role
       const response = await fetch("/api/auth/session");
       const session = await response.json();
+      
+      // Check if user has a phone number
+      if (!session?.user?.phone || session.user.phone === '') {
+        console.log("User doesn't have a phone number, redirecting to complete profile page");
+        router.push("/complete-profile");
+        return;
+      }
       
       // Redirect based on user role
       if (session?.user?.role === "user") {
