@@ -2,10 +2,11 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 
-export default function StudentDashboard() {
+// Student dashboard content component that uses useSearchParams
+function StudentDashboardContent() {
 	const { data: session, status } = useSession();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -113,5 +114,26 @@ export default function StudentDashboard() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+// Loading fallback component
+function StudentLoadingFallback() {
+	return (
+		<div className="min-h-screen flex items-center justify-center">
+			<div className="text-center">
+				<h2 className="text-xl font-semibold">Loading...</h2>
+				<p className="text-gray-500">Please wait while we load your dashboard</p>
+			</div>
+		</div>
+	);
+}
+
+// Main page component with Suspense boundary
+export default function StudentDashboard() {
+	return (
+		<Suspense fallback={<StudentLoadingFallback />}>
+			<StudentDashboardContent />
+		</Suspense>
 	);
 }
