@@ -13,6 +13,7 @@ interface Instructor {
   };
   locations: string[];
   classTypes: string[];
+  image?: string;
 }
 
 interface TimeSlot {
@@ -73,7 +74,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
                   : 'text-gray-600 group-hover:text-yellow-600'
                 }
                 ${index + 1 < currentStep 
-                  ? 'text-white' 
+                  ? 'text-green-600' 
                   : ''
                 }
               `}
@@ -94,7 +95,6 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
               }
             `}
           >
-            {step}
           </span>
         </div>
       ))}
@@ -171,16 +171,17 @@ const InstructorCard = ({
       `}
     >
       <div className="w-24 h-24 bg-gray-200 rounded-full mb-4 flex items-center justify-center">
-        <span className="text-3xl font-bold text-gray-600">
-          {instructor.user.firstName[0]}{instructor.user.lastName[0]}
-        </span>
+        <Image
+          src={instructor.image || ''} 
+          alt={instructor.user.firstName} 
+          width={400} 
+          height={400}
+          className="w-full h-full object-cover rounded-full"
+        />
       </div>
       <h3 className="font-bold text-lg">
         {instructor.user.firstName} {instructor.user.lastName}
       </h3>
-      <p className="text-sm text-gray-600">
-        {instructor.locations.join(', ')}
-      </p>
       {selected && (
         <div className="mt-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs">
           Selected
@@ -232,20 +233,39 @@ const EnhancedDatePicker = ({
 export default function NewBookingForm({ userId }: NewBookingFormProps) {
   const router = useRouter();
   
+  // Load saved form state from localStorage on component mount
+  const loadSavedState = () => {
+    if (typeof window === 'undefined') return null;
+    
+    const savedState = localStorage.getItem(`booking_form_${userId}`);
+    if (savedState) {
+      try {
+        return JSON.parse(savedState);
+      } catch (e) {
+        console.error("Error parsing saved form state:", e);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // Form state with localStorage persistence
+  const savedState = loadSavedState();
+  
   // Form state
-  const [location, setLocation] = useState<string>("");
-  const [classType, setClassType] = useState<string>("");
-  const [packageType, setPackageType] = useState<string>("");
-  const [duration, setDuration] = useState<number>(0);
-  const [date, setDate] = useState<string>("");
-  const [instructorId, setInstructorId] = useState<string>("");
-  const [timeSlot, setTimeSlot] = useState<string>("");
-  const [price, setPrice] = useState<number | null>(null);
-  const [isPackageComplete, setIsPackageComplete] = useState<boolean>(false);
-  const [packageSize, setPackageSize] = useState<number>(1);
-  const [discountedPrice, setDiscountedPrice] = useState<number | null>(null);
-  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
-  const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(null);
+  const [location, setLocation] = useState<string>(savedState?.location || "");
+  const [classType, setClassType] = useState<string>(savedState?.classType || "");
+  const [packageType, setPackageType] = useState<string>(savedState?.packageType || "");
+  const [duration, setDuration] = useState<number>(savedState?.duration || 0);
+  const [date, setDate] = useState<string>(savedState?.date || "");
+  const [instructorId, setInstructorId] = useState<string>(savedState?.instructorId || "");
+  const [timeSlot, setTimeSlot] = useState<string>(savedState?.timeSlot || "");
+  const [price, setPrice] = useState<number | null>(savedState?.price || null);
+  const [isPackageComplete, setIsPackageComplete] = useState<boolean>(savedState?.isPackageComplete || false);
+  const [packageSize, setPackageSize] = useState<number>(savedState?.packageSize || 1);
+  const [discountedPrice, setDiscountedPrice] = useState<number | null>(savedState?.discountedPrice || null);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(savedState?.termsAccepted || false);
+  const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(savedState?.termsAcceptedAt || null);
   
   // Data state
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -253,32 +273,67 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [prices, setPrices] = useState<any[]>([]);
   const [userExistingBookings, setUserExistingBookings] = useState<any[]>([]);
+  const [locationOptions, setLocationOptions] = useState<{ value: string, alt: string }[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState<boolean>(false);
   
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const [step, setStep] = useState<number>(1);
+  const [step, setStep] = useState<number>(savedState?.step || 1);
   const [checkingPackage, setCheckingPackage] = useState<boolean>(false);
   
   // Knowledge test modal state
   const [showKnowledgeTestModal, setShowKnowledgeTestModal] = useState<boolean>(false);
-  const [hasPassedKnowledgeTest, setHasPassedKnowledgeTest] = useState<boolean | null>(null);
+  const [hasPassedKnowledgeTest, setHasPassedKnowledgeTest] = useState<boolean | null>(savedState?.hasPassedKnowledgeTest || null);
   
-  const locationOptions = [
-    { 
-      value: "Surrey",  
-      alt: "Surrey Location" 
-    },
-    { 
-      value: "Burnaby", 
-      alt: "Burnaby Location" 
-    },
-    { 
-      value: "North Vancouver",  
-      alt: "North Vancouver Location" 
-    }
-  ];
-
+  // Save form state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const stateToSave = {
+      location,
+      classType,
+      packageType,
+      duration,
+      date,
+      instructorId,
+      timeSlot,
+      price,
+      isPackageComplete,
+      packageSize,
+      discountedPrice,
+      termsAccepted,
+      termsAcceptedAt,
+      step,
+      hasPassedKnowledgeTest
+    };
+    
+    localStorage.setItem(`booking_form_${userId}`, JSON.stringify(stateToSave));
+  }, [
+    location, 
+    classType, 
+    packageType, 
+    duration, 
+    date, 
+    instructorId, 
+    timeSlot, 
+    price, 
+    isPackageComplete, 
+    packageSize, 
+    discountedPrice, 
+    termsAccepted, 
+    termsAcceptedAt, 
+    step, 
+    hasPassedKnowledgeTest,
+    userId
+  ]);
+  
+  // Clear saved form state
+  const clearSavedState = () => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(`booking_form_${userId}`);
+  };
+  
   const classTypeOptions = [
     { 
       value: "class 4", 
@@ -339,9 +394,60 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     setShowKnowledgeTestModal(false);
   };
   
-  // Fetch all prices on component mount
+  // Fetch locations from the API
+  const fetchLocations = async () => {
+    try {
+      setLoadingLocations(true);
+      const response = await fetch('/api/locations?activeOnly=true');
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch locations");
+      }
+      
+      const data = await response.json();
+      
+      if (data.locations && data.locations.length > 0) {
+        // Transform locations to match the expected format
+        const formattedLocations = data.locations.map((loc: any) => ({
+          value: loc.name,
+          alt: loc.name.includes(',') 
+            ? `${loc.name.split(',')[0]} - ${loc.name.split(',')[1].trim()} Location`
+            : `${loc.name} Location`
+        }));
+        
+        setLocationOptions(formattedLocations);
+      } else {
+        // Fallback to hardcoded locations if none are found in the database
+        setLocationOptions([
+          { value: "Vancouver, 999 Kingsway", alt: "Vancouver - Kingsway Location" },
+          { value: "Vancouver, 4126 McDonald St", alt: "Vancouver - McDonald St Location" },
+          { value: "Burnaby, 3880 Lougheed Hwy", alt: "Burnaby - Lougheed Hwy Location" },
+          { value: "Burnaby, 4399 Wayburne Dr", alt: "Burnaby - Wayburne Dr Location" },
+          { value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" }
+        ]);
+      }
+      
+      setLoadingLocations(false);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      
+      // Fallback to hardcoded locations if there's an error
+      setLocationOptions([
+        { value: "Vancouver, 999 Kingsway", alt: "Vancouver - Kingsway Location" },
+        { value: "Vancouver, 4126 McDonald St", alt: "Vancouver - McDonald St Location" },
+        { value: "Burnaby, 3880 Lougheed Hwy", alt: "Burnaby - Lougheed Hwy Location" },
+        { value: "Burnaby, 4399 Wayburne Dr", alt: "Burnaby - Wayburne Dr Location" },
+        { value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" }
+      ]);
+      
+      setLoadingLocations(false);
+    }
+  };
+
+  // Fetch all prices and locations on component mount
   useEffect(() => {
     fetchPrices();
+    fetchLocations();
   }, []);
   
   // Update price when class type, duration, and package are selected
@@ -366,19 +472,186 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     }
   }, [step]);
   
-  // Load instructors based on selected location and class type
+  // Load instructors based on selected location, class type, and date
   useEffect(() => {
-    if (location && classType) {
+    if (location && classType && date) {
       fetchInstructors();
     }
-  }, [location, classType]);
+  }, [location, classType, date]);
   
+  // State for availability
+  const [globalAvailability, setGlobalAvailability] = useState<{day: string; isAvailable: boolean}[]>([]);
+  const [specialAvailability, setSpecialAvailability] = useState<any[]>([]);
+  const [loadingGlobalAvailability, setLoadingGlobalAvailability] = useState<boolean>(false);
+  const [loadingSpecialAvailability, setLoadingSpecialAvailability] = useState<boolean>(false);
+  const [dateIsAvailable, setDateIsAvailable] = useState<boolean>(true);
+  const [showDateUnavailableModal, setShowDateUnavailableModal] = useState<boolean>(false);
+  const [unavailableDayOfWeek, setUnavailableDayOfWeek] = useState<string>("");
+  const [unavailableReason, setUnavailableReason] = useState<string>("");
+
+  // Fetch global availability settings
+  const fetchGlobalAvailability = async () => {
+    try {
+      setLoadingGlobalAvailability(true);
+      const response = await fetch('/api/global-availability');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch global availability settings');
+      }
+      
+      const data = await response.json();
+      
+      if (data.globalAvailability && data.globalAvailability.length > 0) {
+        setGlobalAvailability(data.globalAvailability.map((item: any) => ({
+          day: item.day,
+          isAvailable: item.isAvailable
+        })));
+      }
+      
+      setLoadingGlobalAvailability(false);
+    } catch (error) {
+      console.error('Error fetching global availability:', error);
+      setLoadingGlobalAvailability(false);
+    }
+  };
+
+  // Fetch special availability for a specific date
+  const fetchSpecialAvailability = async (dateStr: string) => {
+    if (!dateStr) return;
+    
+    try {
+      setLoadingSpecialAvailability(true);
+      const response = await fetch(`/api/special-availability?checkDate=${dateStr}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch special availability settings');
+      }
+      
+      const data = await response.json();
+      
+      if (data.specialAvailability && data.specialAvailability.length > 0) {
+        setSpecialAvailability(data.specialAvailability);
+      } else {
+        setSpecialAvailability([]);
+      }
+      
+      setLoadingSpecialAvailability(false);
+    } catch (error) {
+      console.error('Error fetching special availability:', error);
+      setLoadingSpecialAvailability(false);
+    }
+  };
+
+  // Fetch global availability on component mount
+  useEffect(() => {
+    fetchGlobalAvailability();
+  }, []);
+
   // Calculate minimum booking date (2 days from now)
   const getMinBookingDate = () => {
     const today = new Date();
     const minDate = new Date(today);
     minDate.setDate(today.getDate() + 2);
     return minDate.toISOString().split("T")[0];
+  };
+
+  // Check if a date is available based on global and special availability settings
+  const isDateAvailable = async (dateStr: string) => {
+    if (!dateStr) return true;
+    
+    // Set time to noon to ensure consistent day interpretation in local timezone
+    const date = new Date(dateStr + 'T12:00:00');
+    // Use local timezone to match what the date picker returns
+    const dayIndex = date.getDay();
+    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIndex];
+    
+    console.log(`Checking availability for date: ${dateStr}`);
+    console.log(`Date with noon time: ${date.toISOString()}`);
+    console.log(`Day index from getDay(): ${dayIndex}`);
+    console.log(`Day of week: ${dayOfWeek}`);
+    
+    // First check special availability for this specific date
+    await fetchSpecialAvailability(dateStr);
+    
+    // If we have special availability settings for this date, they override global settings
+    if (specialAvailability.length > 0) {
+      console.log(`Found special availability settings for ${dateStr}:`, specialAvailability);
+      
+      // Find the special availability setting for this day of week
+      const specialDayAvailability = specialAvailability.find(item => item.day === dayOfWeek);
+      
+      if (specialDayAvailability) {
+        console.log(`Special availability for ${dayOfWeek} on ${dateStr}: isAvailable=${specialDayAvailability.isAvailable}`);
+        
+        if (!specialDayAvailability.isAvailable) {
+          setUnavailableReason(`This date (${new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}) has special availability settings and is marked as unavailable.`);
+          return false;
+        }
+      }
+    }
+    
+    // If no special availability or the special availability doesn't make it unavailable,
+    // check global availability
+    if (globalAvailability.length === 0) {
+      // If no global availability settings are loaded, use default (Sunday is unavailable)
+      console.log(`No global availability settings loaded. Using default (Sunday is unavailable).`);
+      if (dayOfWeek === 'Sunday') {
+        setUnavailableReason(`Bookings are not allowed on Sundays as per default settings.`);
+        return false;
+      }
+      return true;
+    }
+    
+    console.log(`Global availability settings:`, globalAvailability);
+    const dayAvailability = globalAvailability.find(item => item.day === dayOfWeek);
+    console.log(`Day availability for ${dayOfWeek}:`, dayAvailability);
+    
+    // If no availability setting found for this day, use default (Sunday is unavailable)
+    if (!dayAvailability) {
+      console.log(`No availability setting found for ${dayOfWeek}. Using default (Sunday is unavailable).`);
+      if (dayOfWeek === 'Sunday') {
+        setUnavailableReason(`Bookings are not allowed on Sundays as per default settings.`);
+        return false;
+      }
+      return true;
+    }
+    
+    console.log(`${dayOfWeek} is ${dayAvailability.isAvailable ? 'available' : 'unavailable'}`);
+    if (!dayAvailability.isAvailable) {
+      setUnavailableReason(`Bookings are not allowed on ${dayOfWeek}s as per admin settings.`);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Function to handle date changes and check availability
+  const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    
+    // First check if the date is available
+    const available = await isDateAvailable(newDate);
+    
+    if (!available) {
+      // Use the same local timezone-based day of week determination as in isDateAvailable
+      const date = new Date(newDate + 'T12:00:00');
+      const dayIndex = date.getDay();
+      const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIndex];
+      
+      // Set state to show the modal and disable the Next button
+      setDateIsAvailable(false);
+      setUnavailableDayOfWeek(dayOfWeek);
+      setShowDateUnavailableModal(true);
+      
+      // Still set the date so the input shows the selected date
+      setDate(newDate);
+      return;
+    }
+    
+    // Date is available
+    setDateIsAvailable(true);
+    setError("");
+    setDate(newDate);
   };
 
   // Load schedules based on selected instructor, date, and duration
@@ -577,7 +850,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/instructors?location=${location}&classType=${classType}`
+        `/api/instructors?location=${location}&classType=${classType}${date ? `&checkDate=${date}` : ''}`
       );
       
       if (!response.ok) {
@@ -651,8 +924,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
       if (error.message.includes("Instructor is not available") || 
           error.message.includes("No available time slots")) {
         setError(error.message);
-      } else {
-        setError("Failed to load schedule. Please try again.");
       }
       
       setLoading(false);
@@ -706,6 +977,9 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
         throw new Error(data.error || "Failed to create booking");
       }
       
+      // Clear saved form state after successful submission
+      clearSavedState();
+      
       // Redirect to confirmation page
       router.push(`/booking/confirmation?bookingId=${data.bookingId}`);
     } catch (error: any) {
@@ -720,7 +994,8 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
       case 1:
         return location !== "" && classType !== "" && packageType !== "" && duration !== 0;
       case 2:
-        return instructorId !== "" && date !== "";
+        // Also check if the selected date is available
+        return instructorId !== "" && date !== "" && dateIsAvailable;
       case 3:
         return timeSlot !== "";
       default:
@@ -757,6 +1032,30 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
     );
   };
   
+  // Date Unavailable Modal Component
+  const DateUnavailableModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <h3 className="text-xl font-bold mb-4 text-red-600">Date Not Available</h3>
+          <p className="mb-6">
+            {unavailableReason || `Bookings are not allowed on ${unavailableDayOfWeek}s as per admin settings.`}
+            <br /><br />
+            Please select a different date to continue.
+          </p>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowDateUnavailableModal(false)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="w-full max-w-2xl mx-auto bg-gradient-to-b from-white to-yellow-50 p-10 rounded-xl shadow-lg border border-yellow-200">
       <h2 className="text-3xl font-bold mb-8 text-center text-yellow-800">Book Your Driving Lesson</h2>
@@ -781,43 +1080,52 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
             setStep(newStep);
           }
         }}
-        steps={['Select Package', 'Select Instructor', 'Select Time']}
+        steps={['', '', '']}
       />
       
       {showKnowledgeTestModal && <KnowledgeTestModal />}
+      {showDateUnavailableModal && <DateUnavailableModal />}
       
       <form onSubmit={handleSubmit}>
         {step === 1 && (
           <div className="space-y-8">
-            {/* Location Selection - Styled Select Dropdown */}
+            {/* Location Selection - Traditional Radio Buttons */}
             <div className="mb-6">
               <label className="block text-gray-700 text-sm font-bold mb-3">
                 Select Location
               </label>
-              <div className="relative">
-                <select
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="block appearance-none w-full bg-white border-2 border-yellow-300 hover:border-yellow-400 px-4 py-3 pr-8 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all duration-300 text-gray-700 font-medium"
-                >
-                  <option value="">Select a location</option>
-                  {locationOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.value}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-yellow-600">
-                  <svg className="fill-current h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                  </svg>
+              {loadingLocations ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
                 </div>
-              </div>
+              ) : locationOptions.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-md text-yellow-800 text-center">
+                  No locations available. Please try again later.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {locationOptions.map((option) => (
+                    <label key={option.value} className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="location"
+                        value={option.value}
+                        checked={location === option.value}
+                        onChange={() => setLocation(option.value)}
+                        className="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-500"
+                      />
+                      <span className="ml-2 text-gray-700">
+                        {option.value}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
             
             {/* Class Type - Keep CircularSelector */}
             <CircularSelector
-              label="Class Type"
+              label="Select Class Type"
               options={classTypeOptions}
               selectedValue={classType}
               onChange={handleClassTypeChange}
@@ -851,7 +1159,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
             
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2">
-                Duration
+                Select Duration
               </label>
               <div className="flex gap-4 justify-center">
                 {durations.map((dur) => (
@@ -940,13 +1248,24 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                 Select Your Lesson Date
               </label>
               <div className="bg-white rounded-lg shadow-md p-6 border-2 border-yellow-300 hover:border-yellow-400 transition-all duration-300">
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  min={getMinBookingDate()}
-                  className="w-full bg-transparent text-center text-xl font-bold text-yellow-700 focus:outline-none"
-                />
+                {loadingGlobalAvailability ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={handleDateChange}
+                      min={getMinBookingDate()}
+                      className="w-full bg-transparent text-center text-xl font-bold text-yellow-700 focus:outline-none"
+                    />
+                    <div className="mt-3 text-xs text-gray-600">
+                      <p>Note: Some days may be unavailable due to admin settings.</p>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between mt-4 text-sm text-gray-600">
                   <span>Earliest Date: {new Date(getMinBookingDate()).toLocaleDateString()}</span>
                   <span>Selected: {date ? new Date(date + 'T00:00:00').toLocaleDateString() : 'None'}</span>
@@ -986,7 +1305,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                   Available Time Slots
                 </label>
                 <p className="text-sm text-gray-600 mb-4">
-                  These time slots are automatically generated based on the instructor's availability for {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}.
+                  These time slots are automatically generated based on global availability settings for {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}.
                 </p>
                 {loading ? (
                   <div className="flex justify-center py-8">
@@ -1094,7 +1413,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
                   />
                 </div>
                 <label htmlFor="terms" className="ml-2 text-sm font-medium text-gray-700">
-                  I agree to the <a href="#" className="text-blue-600 hover:underline">Terms and Conditions</a> and acknowledge the <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+                  I agree to the <a href={classType ? `/contracts/${classType.replace(/\s+/g, '')}` : "#"} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Terms and Conditions</a> 
                 </label>
               </div>
               {step === 3 && timeSlot !== "" && !termsAccepted && (

@@ -7,9 +7,10 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield } from "lucide-react";
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield, Image, Edit } from "lucide-react";
 import LoadingComponent from "@/components/layout/Loading";
 import Booking from "@/models/Booking";
+import GlobalAvailabilityManager from "@/components/admin/GlobalAvailabilityManager";
 
 interface User {
   _id: string;
@@ -30,9 +31,15 @@ interface Availability {
 interface Instructor {
   _id: string;
   user: User;
-  locations: string[];
+  locations: string[] | Promise<string[]>;
   classTypes: string[];
   availability?: Availability[];
+  absences?: {
+    startDate: Date | string;
+    endDate: Date | string;
+    reason?: string;
+  }[];
+  image?: string;
 }
 
 interface Booking {
@@ -79,6 +86,516 @@ interface PriceUpdateModalProps {
   onUpdate: (e: React.FormEvent) => void;
   onPriceChange: (field: string, value: any) => void;
 }
+
+interface InstructorModalProps {
+  instructor: Instructor | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdate: (e: React.FormEvent) => void;
+  onInstructorChange: (field: string, value: any) => void;
+  onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onLocationChange?: (location: string) => void;
+  onClassTypeChange?: (classType: string) => void;
+  locations?: string[];
+  classTypes?: string[];
+  locationMapping?: { [key: string]: string[] };
+}
+
+// Interface for absence modal
+interface AbsenceModalProps {
+  instructor: Instructor | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: () => void;
+}
+
+const AbsenceModal = ({ 
+  instructor, 
+  isOpen, 
+  onClose, 
+  onSave 
+}: AbsenceModalProps) => {
+  const [absences, setAbsences] = useState<{startDate: string; endDate: string; reason: string}[]>([]);
+  const [newStartDate, setNewStartDate] = useState<string>('');
+  const [newEndDate, setNewEndDate] = useState<string>('');
+  const [newReason, setNewReason] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+  const [loadingSpecialAvailability, setLoadingSpecialAvailability] = useState<boolean>(false);
+  const [specialAvailabilityDates, setSpecialAvailabilityDates] = useState<{startDate: string; endDate: string; days: string[]}[]>([]);
+  const [editingAbsenceIndex, setEditingAbsenceIndex] = useState<number | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [editStartDate, setEditStartDate] = useState<string>('');
+  const [editEndDate, setEditEndDate] = useState<string>('');
+  const [editReason, setEditReason] = useState<string>('');
+
+  useEffect(() => {
+    if (instructor && instructor.absences) {
+      // Format dates for input fields
+      const formattedAbsences = instructor.absences.map((absence) => ({
+        startDate: new Date(absence.startDate).toISOString().split('T')[0],
+        endDate: new Date(absence.endDate).toISOString().split('T')[0],
+        reason: absence.reason || ''
+      }));
+      setAbsences(formattedAbsences);
+    } else {
+      setAbsences([]);
+    }
+
+    // Set default dates for new absence
+    const today = new Date();
+    setNewStartDate(today.toISOString().split('T')[0]);
+    
+    const nextWeek = new Date();
+    nextWeek.setDate(today.getDate() + 7);
+    setNewEndDate(nextWeek.toISOString().split('T')[0]);
+    
+    // Fetch special availability date ranges with absences
+    fetchSpecialAvailabilityWithAbsences();
+  }, [instructor]);
+  
+  // Fetch special availability date ranges that contain absences
+  const fetchSpecialAvailabilityWithAbsences = async () => {
+    try {
+      setLoadingSpecialAvailability(true);
+      const response = await fetch('/api/special-availability');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch special availability settings');
+      }
+      
+      const data = await response.json();
+      
+      if (data.specialAvailability) {
+        // Group by date range and filter for those with absences
+        const dateRangesWithAbsences = data.specialAvailability.reduce((acc: any, setting: any) => {
+          if (!setting.isAvailable) { // This is an absence
+            const key = `${setting.startDate}-${setting.endDate}`;
+            if (!acc[key]) {
+              acc[key] = {
+                startDate: setting.startDate,
+                endDate: setting.endDate,
+                days: []
+              };
+            }
+            acc[key].days.push(setting.day);
+          }
+          return acc;
+        }, {});
+        
+        // Convert to array format
+        const dateRanges = Object.values(dateRangesWithAbsences).map((range: any) => ({
+          startDate: range.startDate,
+          endDate: range.endDate,
+          days: range.days
+        }));
+        
+        setSpecialAvailabilityDates(dateRanges);
+      }
+      
+      setLoadingSpecialAvailability(false);
+    } catch (error) {
+      console.error('Error fetching special availability with absences:', error);
+      setLoadingSpecialAvailability(false);
+    }
+  };
+
+  const handleAddAbsence = () => {
+    if (!newStartDate || !newEndDate) return;
+    
+    setAbsences([...absences, {
+      startDate: newStartDate,
+      endDate: newEndDate,
+      reason: newReason
+    }]);
+    
+    // Reset form
+    setNewReason('');
+  };
+
+  const handleEditAbsence = (index: number) => {
+    const absence = absences[index];
+    setEditStartDate(absence.startDate);
+    setEditEndDate(absence.endDate);
+    setEditReason(absence.reason || '');
+    setEditingAbsenceIndex(index);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingAbsenceIndex === null) return;
+    
+    const updatedAbsences = [...absences];
+    updatedAbsences[editingAbsenceIndex] = {
+      startDate: editStartDate,
+      endDate: editEndDate,
+      reason: editReason
+    };
+    
+    setAbsences(updatedAbsences);
+    setIsEditModalOpen(false);
+    setEditingAbsenceIndex(null);
+  };
+
+  const handleRemoveAbsence = (index: number) => {
+    const updatedAbsences = [...absences];
+    updatedAbsences.splice(index, 1);
+    setAbsences(updatedAbsences);
+  };
+
+  const handleSaveAbsences = async () => {
+    if (!instructor) return;
+    
+    try {
+      setSaving(true);
+      
+      const response = await fetch('/api/instructors', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          instructorId: instructor._id,
+          absences: absences.map(absence => ({
+            startDate: absence.startDate,
+            endDate: absence.endDate,
+            reason: absence.reason
+          }))
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update instructor absences');
+      }
+      
+      onSave();
+      onClose();
+    } catch (error) {
+      console.error('Error saving instructor absences:', error);
+      alert('Failed to save absences. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen || !instructor) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-pink-600">
+            Manage Absences for {instructor.user.firstName} {instructor.user.lastName}
+          </h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <div className="mb-6">
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg mb-4">
+            <p className="text-sm text-gray-700">
+              Set periods when this instructor will be unavailable. During these periods, the instructor will not appear in booking options.
+            </p>
+          </div>
+          
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+            <h4 className="font-medium text-lg mb-3 text-pink-600">Add New Absence Period</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>F
+                <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
+                <input
+                  type="date"
+                  value={newStartDate}
+                  onChange={(e) => setNewStartDate(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">End Date</label>
+                <input
+                  type="date"
+                  value={newEndDate}
+                  min = {newStartDate}
+                  onChange={(e) => setNewEndDate(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Reason (Optional)</label>
+                <input
+                  type="text"
+                  value={newReason}
+                  onChange={(e) => setNewReason(e.target.value)}
+                  placeholder="Vacation, Training, etc."
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={handleAddAbsence}
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+              >
+                Add Absence
+              </button>
+            </div>
+          </div>
+          
+          <h4 className="font-medium text-lg mb-3 text-pink-600">Current Absence Periods</h4>
+          {absences.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No absences scheduled</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {absences.map((absence, index) => (
+                <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                  <div>
+                    <div className="font-medium">
+                      {/* Fix for date display - ensure correct date is shown regardless of timezone */}
+                      {(() => {
+                        const startDate = new Date(absence.startDate);
+                        const endDate = new Date(absence.endDate);
+                        // Format dates using ISO string and extract just the date part
+                        const formattedStartDate = startDate.toISOString().split('T')[0];
+                        const formattedEndDate = endDate.toISOString().split('T')[0];
+                        // Convert to display format (MM/DD/YYYY)
+                        const displayStartDate = new Date(formattedStartDate + 'T00:00:00').toLocaleDateString();
+                        const displayEndDate = new Date(formattedEndDate + 'T00:00:00').toLocaleDateString();
+                        return `${displayStartDate} - ${displayEndDate}`;
+                      })()}
+                    </div>
+                    {absence.reason && (
+                      <div className="text-sm text-gray-600">
+                        Reason: {absence.reason}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => handleEditAbsence(index)}
+                      className="text-blue-500 hover:text-blue-700"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleRemoveAbsence(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Edit Absence Modal */}
+        {isEditModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-pink-600">Edit Absence</h3>
+                <button 
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
+                  <input
+                    type="date"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">End Date</label>
+                  <input
+                    type="date"
+                    value={editEndDate}
+                    min = {editStartDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Reason (Optional)</label>
+                  <input
+                    type="text"
+                    value={editReason}
+                    onChange={(e) => setEditReason(e.target.value)}
+                    placeholder="Vacation, Training, etc."
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  />
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveAbsences}
+            disabled={saving}
+            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save Absences"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InstructorModal = ({ 
+  instructor, 
+  isOpen, 
+  onClose, 
+  onUpdate, 
+  onInstructorChange, 
+  onImageUpload,
+  onLocationChange,
+  onClassTypeChange,
+  locations,
+  classTypes,
+  locationMapping
+}: InstructorModalProps) => {
+  if (!isOpen || !instructor) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-pink-600">Edit Instructor</h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <form onSubmit={onUpdate} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">First Name</label>
+            <input
+              type="text"
+              value={instructor.user.firstName}
+              onChange={(e) => onInstructorChange('firstName', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Last Name</label>
+            <input
+              type="text"
+              value={instructor.user.lastName}
+              onChange={(e) => onInstructorChange('lastName', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+            <input
+              type="email"
+              value={instructor.user.email}
+              onChange={(e) => onInstructorChange('email', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Phone</label>
+            <input
+              type="tel"
+              value={instructor.user.phone}
+              onChange={(e) => onInstructorChange('phone', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Profile Image</label>
+            <div className="flex items-center space-x-4">
+              {instructor.image && (
+                <img 
+                  src={instructor.image} 
+                  alt={`${instructor.user.firstName} ${instructor.user.lastName}`} 
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={onImageUpload}
+                className="w-full p-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+          </div>
+          
+          <div className="mt-6 flex space-x-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+            >
+              Update Instructor
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const PriceUpdateModal = ({ price, isOpen, onClose, onUpdate, onPriceChange }: PriceUpdateModalProps) => {
   if (!isOpen || !price) return null;
@@ -347,8 +864,26 @@ export default function AdminDashboard() {
   const [editingPrice, setEditingPrice] = useState<any>(null);
   const [isPriceModalOpen, setIsPriceModalOpen] = useState<boolean>(false);
   
-  // Hardcoded locations and class types
-  const locations = ["Surrey", "Burnaby", "North Vancouver"];
+  
+  // Map general locations to full location names
+  const locationMapping: { [key: string]: string[] } = {
+    'Surrey': ["Vancouver, 999 Kingsway", "Vancouver, 4126 McDonald St"],
+    'Burnaby': ["Burnaby, 3880 Lougheed Hwy", "Burnaby, 4399 Wayburne Dr"],
+    'North Vancouver': ["North Vancouver, 1331 Marine Drive"]
+  };
+  
+  // Function to get full location names from general locations
+  const getFullLocationNames = (generalLocations: string[]): string[] => {
+    let fullLocations: string[] = [];
+    generalLocations.forEach(loc => {
+      if (locationMapping[loc]) {
+        fullLocations = [...fullLocations, ...locationMapping[loc]];
+      } else {
+        fullLocations.push(loc);
+      }
+    });
+    return fullLocations;
+  };
   const classTypes = ["class 4", "class 5", "class 7"];
   
   const [newInstructor, setNewInstructor] = useState({
@@ -357,9 +892,53 @@ export default function AdminDashboard() {
     email: "",
     password: "",
     phone: "",
-    locations: [] as string[],
-    classTypes: [] as string[],
+    image: ""
   });
+  
+  // State for instructor edit and absence modals
+  const [isInstructorModalOpen, setIsInstructorModalOpen] = useState(false);
+  const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
+  const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
+  
+  // Function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+  
+  // Handle image upload for new instructor
+  const handleNewInstructorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      try {
+        const base64Image = await fileToBase64(e.target.files[0]);
+        setNewInstructor({
+          ...newInstructor,
+          image: base64Image
+        });
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+      }
+    }
+  };
+  
+  // Handle image upload for editing instructor
+  const handleEditInstructorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && editingInstructor) {
+      try {
+        const base64Image = await fileToBase64(e.target.files[0]);
+        setEditingInstructor({
+          ...editingInstructor,
+          image: base64Image
+        });
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+      }
+    }
+  };
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -379,13 +958,17 @@ export default function AdminDashboard() {
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices';
+  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices' | 'locations' | 'global-availability';
   const [activeTab, setActiveTab] = useState<TabType>('bookings');
+  const [locations, setLocations] = useState<any[]>([]);
+  const [newLocation, setNewLocation] = useState({ name: '' });
+  const [editingLocation, setEditingLocation] = useState<any>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string>("");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
-  const [slotMinTime, setSlotMinTime] = useState<string>("08:00");
-  const [slotMaxTime, setSlotMaxTime] = useState<string>("17:00");
+  const [slotMinTime, setSlotMinTime] = useState<string>("00:00");
+  const [slotMaxTime, setSlotMaxTime] = useState<string>("23:59");
   
   // Check screen size
   useEffect(() => {
@@ -492,9 +1075,115 @@ export default function AdminDashboard() {
         fetchUsers();
       } else if (activeTab === 'prices') {
         fetchPrices();
+      } else if (activeTab === 'locations') {
+        fetchLocations();
       }
     }
   }, [isAdmin, activeTab]);
+  
+  const fetchLocations = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/locations');
+      const data = await response.json();
+      
+      setLocations(data.locations || []);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      setError("Failed to load locations");
+      setLoading(false);
+    }
+  };
+  
+  const handleAddLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/locations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newLocation),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to add location');
+      }
+      
+      // Reset form and refresh locations
+      setNewLocation({ name: '' });
+      fetchLocations();
+    } catch (error) {
+      console.error('Error adding location:', error);
+      setError("Failed to add location");
+    }
+  };
+  
+  const handleUpdateLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingLocation) return;
+    
+    try {
+      const response = await fetch('/api/locations', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          locationId: editingLocation._id,
+          name: editingLocation.name,
+          isActive: editingLocation.isActive
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update location');
+      }
+      
+      // Reset editing state and refresh locations
+      setEditingLocation(null);
+      setIsLocationModalOpen(false);
+      fetchLocations();
+    } catch (error) {
+      console.error('Error updating location:', error);
+      setError("Failed to update location");
+    }
+  };
+  
+  const handleLocationChange = (field: string, value: any) => {
+    setEditingLocation({
+      ...editingLocation,
+      [field]: value
+    });
+  };
+  
+  const handleToggleLocationStatus = async (locationId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch('/api/locations', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          locationId,
+          isActive: !currentStatus
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update location status');
+      }
+      
+      // Refresh locations
+      fetchLocations();
+    } catch (error) {
+      console.error('Error updating location status:', error);
+      setError("Failed to update location status");
+    }
+  };
   
   const fetchPrices = async () => {
     try {
@@ -1042,8 +1731,7 @@ export default function AdminDashboard() {
           email: newInstructor.email,
           password: newInstructor.password,
           phone: newInstructor.phone,
-          locations: newInstructor.locations,
-          classTypes: newInstructor.classTypes,
+          image: newInstructor.image
         }),
       });
       
@@ -1058,14 +1746,69 @@ export default function AdminDashboard() {
         email: "",
         password: "",
         phone: "",
-        locations: [],
-        classTypes: [],
+        image: ""
       });
       
       fetchInstructors();
     } catch (error) {
       console.error('Error creating instructor:', error);
       setError("Failed to create instructor");
+    }
+  };
+  
+  const handleUpdateInstructor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingInstructor) return;
+    
+    try {
+      const response = await fetch('/api/instructors', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          instructorId: editingInstructor._id,
+          firstName: editingInstructor.user.firstName,
+          lastName: editingInstructor.user.lastName,
+          email: editingInstructor.user.email,
+          phone: editingInstructor.user.phone,
+          locations: editingInstructor.locations,
+          classTypes: editingInstructor.classTypes,
+          image: editingInstructor.image
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update instructor');
+      }
+      
+      // Close modal and refresh instructors
+      setIsInstructorModalOpen(false);
+      setEditingInstructor(null);
+      fetchInstructors();
+    } catch (error) {
+      console.error('Error updating instructor:', error);
+      setError("Failed to update instructor");
+    }
+  };
+  
+  const handleInstructorChange = (field: string, value: any) => {
+    if (!editingInstructor) return;
+    
+    if (field === 'firstName' || field === 'lastName' || field === 'email' || field === 'phone') {
+      setEditingInstructor({
+        ...editingInstructor,
+        user: {
+          ...editingInstructor.user,
+          [field]: value
+        }
+      });
+    } else {
+      setEditingInstructor({
+        ...editingInstructor,
+        [field]: value
+      });
     }
   };
   
@@ -1102,33 +1845,7 @@ export default function AdminDashboard() {
     }
   }
   
-  const handleLocationChange = (locationId: string) => {
-    if (newInstructor.locations.includes(locationId)) {
-      setNewInstructor({
-        ...newInstructor,
-        locations: newInstructor.locations.filter(id => id !== locationId),
-      });
-    } else {
-      setNewInstructor({
-        ...newInstructor,
-        locations: [...newInstructor.locations, locationId],
-      });
-    }
-  };
-  
-  const handleClassTypeChange = (classTypeId: string) => {
-    if (newInstructor.classTypes.includes(classTypeId)) {
-      setNewInstructor({
-        ...newInstructor,
-        classTypes: newInstructor.classTypes.filter(id => id !== classTypeId),
-      });
-    } else {
-      setNewInstructor({
-        ...newInstructor,
-        classTypes: [...newInstructor.classTypes, classTypeId],
-      });
-    }
-  };
+  // Removed handleLocationChange and handleClassTypeChange as they are no longer needed
   
   if (status === 'loading' || loading) {
     return <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />;
@@ -1268,6 +1985,28 @@ export default function AdminDashboard() {
                 <line x1="8" y1="12" x2="16" y2="12"></line>
               </svg>
               <span>Manage Prices</span>
+            </button>
+            <button
+              className={`px-6 py-4 flex items-center space-x-2 ${
+                activeTab === 'locations'
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
+              onClick={() => setActiveTab('locations')}
+            >
+              <MapPin className={`w-5 h-5 ${activeTab === 'locations' ? 'text-pink-500' : ''}`} />
+              <span>Manage Locations</span>
+            </button>
+            <button
+              className={`px-6 py-4 flex items-center space-x-2 ${
+                activeTab === 'global-availability'
+                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
+              onClick={() => setActiveTab('global-availability')}
+            >
+              <Calendar className={`w-5 h-5 ${activeTab === 'global-availability' ? 'text-pink-500' : ''}`} />
+              <span>Availability</span>
             </button>
           </div>
           
@@ -1486,39 +2225,24 @@ export default function AdminDashboard() {
                     required
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium mb-1">Locations</label>
-                  <div className="flex flex-wrap gap-2">
-                    {locations.map((location) => (
-                      <label key={location} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={newInstructor.locations.includes(location)}
-                          onChange={() => handleLocationChange(location)}
-                          className="mr-1"
-                        />
-                        {location}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Class Types</label>
-                  <div className="flex flex-wrap gap-2">
-                    {classTypes.map((classType) => (
-                      <label key={classType} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={newInstructor.classTypes.includes(classType)}
-                          onChange={() => handleClassTypeChange(classType)}
-                          className="mr-1"
-                        />
-                        {classType}
-                      </label>
-                    ))}
-                  </div>
+                  <label className="block text-sm font-medium mb-1">Profile Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleNewInstructorImageUpload}
+                    className="w-full p-2 border rounded"
+                  />
+                  {newInstructor.image && (
+                    <div className="mt-2">
+                      <img 
+                        src={newInstructor.image} 
+                        alt="Profile Preview" 
+                        className="w-20 h-20 object-cover rounded-full"
+                      />
+                    </div>
+                  )}
                 </div>
                 
                     <div>
@@ -1557,48 +2281,54 @@ export default function AdminDashboard() {
                       {instructors.map((instructor) => (
                         <div key={instructor._id} className="border border-pink-100 p-6 rounded-2xl shadow-md bg-white hover:shadow-lg transition-all">
                           <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="text-xl font-bold text-pink-600">
-                                {instructor.user.firstName} {instructor.user.lastName}
-                              </h3>
-                              <p className="text-sm text-gray-600">{instructor.user.email}</p>
-                              <p className="text-sm text-gray-600">{instructor.user.phone}</p>
-                              
-                              <div className="mt-3">
-                                <p className="text-sm font-medium text-purple-600">Locations:</p>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                  {instructor.locations.map((location) => (
-                                    <span
-                                      key={location}
-                                      className="text-xs bg-purple-100 text-purple-800 px-3 py-1 rounded-full"
-                                    >
-                                      {location}
-                                    </span>
-                                  ))}
+                            <div className="flex items-start space-x-4">
+                              {instructor.image ? (
+                                <img 
+                                  src={instructor.image} 
+                                  alt={`${instructor.user.firstName} ${instructor.user.lastName}`} 
+                                  className="w-16 h-16 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <User className="w-8 h-8 text-gray-400" />
                                 </div>
-                              </div>
-                              
-                              <div className="mt-3">
-                                <p className="text-sm font-medium text-indigo-600">Class Types:</p>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                  {instructor.classTypes.map((classType) => (
-                                    <span
-                                      key={classType}
-                                      className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
-                                    >
-                                      {classType}
-                                    </span>
-                                  ))}
-                                </div>
+                              )}
+                              <div>
+                                <h3 className="text-xl font-bold text-pink-600">
+                                  {instructor.user.firstName} {instructor.user.lastName}
+                                </h3>
+                                <p className="text-sm text-gray-600">{instructor.user.email}</p>
+                                <p className="text-sm text-gray-600">{instructor.user.phone}</p>
                               </div>
                             </div>
                             
-                            <button
-                              onClick={() => handleDeleteInstructor(instructor._id)}
-                              className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
-                            >
-                              Delete
-                            </button>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingInstructor(instructor);
+                                  setIsInstructorModalOpen(true);
+                                }}
+                                className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingInstructor(instructor);
+                                  setIsAbsenceModalOpen(true);
+                                }}
+                                className="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all"
+                              >
+                                Absences
+                              </button>
+                              <button
+                                onClick={() => handleDeleteInstructor(instructor._id)}
+                                className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1909,6 +2639,141 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        
+        {activeTab === 'global-availability' && (
+          <div>
+            <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+              <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+              <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+              
+              <div className="flex items-center space-x-4 mb-2 relative z-10">
+                <div className="bg-white/20 p-2 rounded-full">
+                  <Calendar className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight">Global Availability Management</h2>
+              </div>
+              <p className="text-white/80 relative z-10">
+                Set the days and hours when bookings are allowed for all instructors in the system.
+              </p>
+            </div>
+            
+            <div className="bg-white p-6 rounded-2xl shadow-lg mb-6">
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-pink-700 mb-4">Global Availability Settings</h3>
+                <p className="text-gray-600 mb-6">
+                  Set the days and hours when bookings are allowed for all instructors. These settings will apply to all instructors in the system.
+                </p>
+                
+                <GlobalAvailabilityManager />
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'locations' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                
+                <div className="flex items-center space-x-4 mb-2 relative z-10">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <MapPin className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Add New Location</h2>
+                </div>
+                <p className="text-white/80 relative z-10">
+                  Add a new location where driving lessons can take place.
+                </p>
+              </div>
+              
+              <form onSubmit={handleAddLocation} className="space-y-4 bg-white p-6 rounded-2xl shadow-lg">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Location Name</label>
+                  <input
+                    type="text"
+                    value={newLocation.name}
+                    onChange={(e) => setNewLocation({ name: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    placeholder="e.g., Vancouver, 999 Kingsway"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                  >
+                    Add Location
+                  </button>
+                </div>
+              </form>
+            </div>
+            
+            <div>
+              <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
+                
+                <div className="flex items-center space-x-4 mb-2 relative z-10">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <MapPin className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Current Locations</h2>
+                </div>
+                <p className="text-white/80 relative z-10">
+                  View and manage all locations in the system.
+                </p>
+              </div>
+              
+              {locations.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-lg">
+                  <p className="text-slate-500">No locations found. Add your first location using the form.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {locations.map((location) => (
+                    <div key={location._id} className="border border-pink-100 p-6 rounded-2xl shadow-md bg-white hover:shadow-lg transition-all">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${location.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <h3 className="text-xl font-bold text-pink-600">
+                            {location.name}
+                          </h3>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingLocation(location);
+                              setIsLocationModalOpen(true);
+                            }}
+                            className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleToggleLocationStatus(location._id, location.isActive)}
+                            className={`px-3 py-1 ${
+                              location.isActive 
+                                ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' 
+                                : 'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
+                            } text-white rounded-full shadow-sm transition-all`}
+                          >
+                            {location.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
     
@@ -1932,6 +2797,105 @@ export default function AdminDashboard() {
       onUpdate={handleUpdatePrice}
       onPriceChange={handlePriceChange}
     />
+    
+    {/* Instructor Edit Modal */}
+    <InstructorModal
+      instructor={editingInstructor}
+      isOpen={isInstructorModalOpen}
+      onClose={() => {
+        setIsInstructorModalOpen(false);
+        setEditingInstructor(null);
+      }}
+      onUpdate={handleUpdateInstructor}
+      onInstructorChange={handleInstructorChange}
+      onImageUpload={handleEditInstructorImageUpload}
+      locationMapping={locationMapping}
+    />
+    
+    {/* Instructor Absence Modal */}
+    <AbsenceModal
+      instructor={editingInstructor}
+      isOpen={isAbsenceModalOpen}
+      onClose={() => {
+        setIsAbsenceModalOpen(false);
+        setEditingInstructor(null);
+      }}
+      onSave={() => {
+        fetchInstructors();
+        setIsAbsenceModalOpen(false);
+        setEditingInstructor(null);
+      }}
+    />
+    
+    {/* Location Edit Modal */}
+    {isLocationModalOpen && editingLocation && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-pink-600">Edit Location</h3>
+            <button 
+              onClick={() => {
+                setIsLocationModalOpen(false);
+                setEditingLocation(null);
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleUpdateLocation} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Location Name</label>
+              <input
+                type="text"
+                value={editingLocation.name}
+                onChange={(e) => handleLocationChange('name', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                required
+              />
+            </div>
+            
+            <div className="flex items-center">
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={editingLocation.isActive}
+                    onChange={(e) => handleLocationChange('isActive', e.target.checked)}
+                  />
+                  <div className={`block w-14 h-8 rounded-full ${editingLocation.isActive ? 'bg-green-500' : 'bg-red-500'} transition-colors`}></div>
+                  <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition transform ${editingLocation.isActive ? 'translate-x-6' : ''}`}></div>
+                </div>
+                <div className="ml-3 text-gray-700 font-medium">
+                  {editingLocation.isActive ? 'Active' : 'Inactive'}
+                </div>
+              </label>
+            </div>
+            
+            <div className="mt-6 flex space-x-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLocationModalOpen(false);
+                  setEditingLocation(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+              >
+                Update Location
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
     
     {/* Reschedule Modal */}
     {isRescheduleModalOpen && originalBooking && (
@@ -2069,4 +3033,4 @@ export default function AdminDashboard() {
   </div>
   </div>
   );
-};
+}

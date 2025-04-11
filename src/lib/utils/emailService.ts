@@ -41,6 +41,7 @@ const emailTemplates = {
           <p><strong>Location:</strong> ${data.location}</p>
           <p><strong>Class Type:</strong> ${data.classType}</p>
         </div>
+        <p>You can <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/contracts/${data.classType.replace(/\s+/g, '')}" style="color: #4f46e5; text-decoration: underline; font-weight: bold;">review the contract here</a> for your selected class type.</p>
         <p>If you need to reschedule or cancel, please contact us at least 24 hours in advance.</p>
         <p>Thank you for choosing our driving school!</p>
       </div>
