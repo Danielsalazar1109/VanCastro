@@ -133,7 +133,7 @@ const handler = NextAuth({
       console.log('Redirect URL:', url);
       console.log('Base URL:', baseUrl);
       
-      // Hardcode the production URL as requested
+      // Hardcode the production URL as requested (with trailing slash to match NEXTAUTH_URL)
       const productionUrl = "https://vancastro.vercel.app";
       const effectiveBaseUrl = process.env.NODE_ENV === "production" 
         ? productionUrl 
