@@ -37,7 +37,19 @@ export async function GET(request: NextRequest) {
     const userEmail = session.user.email;
     console.log('Looking up user with email:', userEmail);
     
-    const dbUser = await User.findOne({ email: userEmail });
+    // Try to find the user by email or by googleId if available
+    let dbUser = null;
+    
+    if (userEmail) {
+      dbUser = await User.findOne({ email: userEmail });
+      console.log('User found by email:', dbUser ? 'Yes' : 'No');
+    }
+    
+    // If user not found and we have a Google ID in the session, try to find by Google ID
+    if (!dbUser && session.user.id) {
+      dbUser = await User.findOne({ googleId: session.user.id });
+      console.log('User found by Google ID:', dbUser ? 'Yes' : 'No');
+    }
     console.log('Database user:', dbUser ? JSON.stringify({
       id: dbUser._id,
       email: dbUser.email,
@@ -46,8 +58,31 @@ export async function GET(request: NextRequest) {
     }, null, 2) : 'User not found');
 
     if (!dbUser) {
-      console.log('User not found in database, redirecting to login page');
-      return NextResponse.redirect(new URL('/login', request.url));
+      console.log('User not found in database, checking if this is a Google auth');
+      
+      // Check if this is a Google auth by looking for specific query parameters
+      const isGoogleAuth = request.url.includes('callback/google') || 
+                          searchParams.get('provider') === 'google';
+      
+      if (isGoogleAuth && userEmail) {
+        console.log('Google auth detected, creating new user');
+        
+        // Create a new user with the Google email
+        dbUser = new User({
+          firstName: session.user.name?.split(' ')[0] || '',
+          lastName: session.user.name?.split(' ').slice(1).join(' ') || '',
+          email: userEmail,
+          phone: '',
+          role: 'user',
+          googleId: session.user.id || '',
+        });
+        
+        await dbUser.save();
+        console.log('New user created:', dbUser._id.toString());
+      } else {
+        console.log('Not a Google auth or no email, redirecting to login page');
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
     }
 
     // Use the role and phone from the database
@@ -88,6 +123,6 @@ export async function GET(request: NextRequest) {
     console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     // In case of error, redirect to the login page
-    return NextResponse.redirect(new URL('/', request.url));
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 }

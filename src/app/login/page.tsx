@@ -34,44 +34,21 @@ function LoginPageContent() {
     }
   }, [errorParam]);
   
-  // Auto-submit form if email is pre-filled (likely from Google auth)
+  // Check if we're coming from a Google auth redirect
   useEffect(() => {
-    // Check if we have an email value but haven't auto-submitted yet
-    if (email && !autoSubmitted) {
-      // Check if this is likely a Google auth redirect
-      const isGoogleAuth = searchParams.get("callbackUrl")?.includes("google") || 
-                          searchParams.get("error")?.includes("OAuthCallback") ||
-                          document.referrer.includes("accounts.google.com");
+    // Check for Google auth indicators in URL or referrer
+    const isGoogleAuth = searchParams.get("callbackUrl")?.includes("google") || 
+                        searchParams.get("error")?.includes("OAuthCallback") ||
+                        document.referrer.includes("accounts.google.com");
+    
+    if (isGoogleAuth && !autoSubmitted) {
+      console.log("Detected Google auth redirect, checking session...");
+      setAutoSubmitted(true);
       
-      if (isGoogleAuth) {
-        console.log("Detected Google auth redirect with pre-filled form, auto-submitting...");
-        setAutoSubmitted(true);
-        
-        // Get the user's role directly from the API
-        fetch("/api/auth/session")
-          .then(res => res.json())
-          .then(session => {
-            if (session?.user?.role === "admin") {
-              router.push("/admin");
-            } else if (session?.user?.role === "instructor") {
-              router.push("/instructor");
-            } else if (session?.user?.role === "user") {
-              router.push("/student");
-            } else {
-              // If we can't determine the role, try a normal form submission
-              const form = document.querySelector("form");
-              if (form) form.submit();
-            }
-          })
-          .catch(err => {
-            console.error("Error checking session:", err);
-            // If we can't get the session, try a normal form submission
-            const form = document.querySelector("form");
-            if (form) form.submit();
-          });
-      }
+      // Redirect to session-redirect endpoint which will handle the proper redirection
+      router.push("/api/auth/session-redirect");
     }
-  }, [email, autoSubmitted, router, searchParams]);
+  }, [autoSubmitted, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
