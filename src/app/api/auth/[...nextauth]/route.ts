@@ -5,6 +5,11 @@ import bcrypt from "bcrypt";
 import connectToDatabase from "@/lib/db/mongodb";
 import User from "@/models/User";
 
+// Determine the base URL based on environment
+const baseUrl = process.env.NODE_ENV === "production" 
+  ? "https://vancastro.vercel.app" 
+  : process.env.NEXTAUTH_URL || "http://localhost:3000";
+
 const handler = NextAuth({
   providers: [
     GoogleProvider({
@@ -129,15 +134,12 @@ const handler = NextAuth({
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
+    async redirect({ url, baseUrl: nextAuthBaseUrl }) {
       console.log('Redirect URL:', url);
-      console.log('Base URL:', baseUrl);
+      console.log('Original Base URL:', nextAuthBaseUrl);
       
-      // Hardcode the production URL as requested (with trailing slash to match NEXTAUTH_URL)
-      const productionUrl = "https://vancastro.vercel.app";
-      const effectiveBaseUrl = process.env.NODE_ENV === "production" 
-        ? productionUrl 
-        : baseUrl;
+      // Use the baseUrl defined at the top of the file for consistency
+      const effectiveBaseUrl = baseUrl;
       
       console.log('Effective Base URL:', effectiveBaseUrl);
       console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -150,11 +152,11 @@ const handler = NextAuth({
         }
         
         // If the URL is the default callback URL, redirect based on path
-        if (url.startsWith(baseUrl) || (process.env.NODE_ENV === "production" && url.startsWith(productionUrl))) {
+        if (url.startsWith(baseUrl) || (process.env.NODE_ENV === "production" && url.startsWith(effectiveBaseUrl))) {
           // Extract path by removing the base URL
           const path = url.startsWith(baseUrl) 
             ? url.substring(baseUrl.length)
-            : url.substring(productionUrl.length);
+            : url.substring(effectiveBaseUrl.length);
           
           console.log('Extracted path:', path);
           

@@ -125,12 +125,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on user role
-    // Hardcode the production URL as requested
+    // Determine the base URL based on environment
     const baseUrl = process.env.NODE_ENV === "production" 
       ? "https://vancastro.vercel.app" 
       : request.nextUrl.origin;
     
     console.log('Using base URL for redirects:', baseUrl);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
     
     if (userRole === 'admin') {
       console.log('User is admin, redirecting to admin page');
