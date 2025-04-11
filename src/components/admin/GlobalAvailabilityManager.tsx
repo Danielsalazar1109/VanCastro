@@ -68,18 +68,18 @@ export default function GlobalAvailabilityManager() {
 
   // Check for overlapping date ranges
   const checkOverlappingDateRanges = (startDate: string, endDate: string): boolean => {
-    // Skip checking against the current editing range
-    if (isEditMode && editingDateRange && 
-        editingDateRange.startDate === startDate && 
-        editingDateRange.endDate === endDate) {
-      return false;
-    }
-
     const start = new Date(startDate);
     const end = new Date(endDate);
     
     // Group special availability by date range
     const dateRanges = specialAvailability.reduce((acc, setting) => {
+      // Skip the current editing range when in edit mode
+      if (isEditMode && editingDateRange && 
+          setting.startDate === editingDateRange.startDate && 
+          setting.endDate === editingDateRange.endDate) {
+        return acc; // Skip this range
+      }
+      
       const key = `${setting.startDate}-${setting.endDate}`;
       if (!acc[key]) {
         acc[key] = {
@@ -404,106 +404,57 @@ export default function GlobalAvailabilityManager() {
           <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
             <h3 className="text-xl font-semibold text-pink-700">Default Availability Settings</h3>
             <p className="text-sm text-gray-600">
-              Set the default days and hours available for bookings. These settings apply when no special date range is active.
+              Set the default business hours for bookings. These settings apply when no special date range is active.
             </p>
           </div>
           
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-            {[...globalAvailability].sort(sortDaysByWeekOrder).map((day, index) => (
-              <div
-                key={day.day}
-                className={`
-                  border rounded-lg p-5 shadow-sm hover:shadow-md transition-all
-                  ${day.isAvailable
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-slate-50 border-slate-200'}
-                `}
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className={`
-                      w-10 h-10 rounded-full flex items-center justify-center text-lg font-semibold
-                      ${day.isAvailable
-                        ? 'bg-green-500 text-white'
-                        : 'bg-slate-300 text-slate-500'}
-                    `}>
-                      {day.day.charAt(0)}
-                    </div>
-                    <span className="font-medium text-lg">{day.day}</span>
-                  </div>
-                  
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={day.isAvailable}
-                      onChange={(e) => {
-                        const updatedAvailability = [...globalAvailability];
-                        updatedAvailability[index] = {
-                          ...updatedAvailability[index],
-                          isAvailable: e.target.checked
-                        };
-                        setGlobalAvailability(updatedAvailability);
-                      }}
-                      className="hidden peer"
-                    />
-                    <div className={`
-                      w-12 h-6 rounded-full relative transition-all duration-300
-                      ${day.isAvailable
-                        ? 'bg-green-500'
-                        : 'bg-slate-300'}
-                      after:content-[''] after:absolute after:top-1 
-                      after:left-1 after:bg-white after:rounded-full
-                      after:h-4 after:w-4
-                      ${day.isAvailable
-                        ? 'after:translate-x-6'
-                        : 'after:translate-x-0'}
-                      after:transition-all after:duration-300
-                    `}></div>
-                  </label>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 mt-5">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-2">Start Time</label>
-                    <input
-                      type="time"
-                      value={day.startTime}
-                      onChange={(e) => {
-                        const updatedAvailability = [...globalAvailability];
-                        updatedAvailability[index] = {
-                          ...updatedAvailability[index],
-                          startTime: e.target.value
-                        };
-                        setGlobalAvailability(updatedAvailability);
-                      }}
-                      min="00:00"
-                      max="23:59"
-                      disabled={!day.isAvailable}
-                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 transition-all
-                        disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-2">End Time</label>
-                    <input
-                      type="time"
-                      value={day.endTime}
-                      onChange={(e) => {
-                        const updatedAvailability = [...globalAvailability];
-                        updatedAvailability[index] = {
-                          ...updatedAvailability[index],
-                          endTime: e.target.value
-                        };
-                        setGlobalAvailability(updatedAvailability);
-                      }}
-                      disabled={!day.isAvailable}
-                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 transition-all
-                        disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
+          <div className="p-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+              <h4 className="text-xl font-semibold text-pink-700 mb-4">Business Hours</h4>
+              <div className="flex items-center justify-center mb-6">
+                <div className="text-center bg-pink-50 p-6 rounded-lg border border-pink-200 shadow-sm w-full max-w-md">
+                  <p className="text-lg font-medium text-gray-800 mb-2">Monday - Saturday</p>
+                  <p className="text-xl font-bold text-pink-700">9:00 AM - 5:00 PM</p>
                 </div>
               </div>
-            ))}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                  <input
+                    type="time"
+                    defaultValue="09:00"
+                    onChange={(e) => {
+                      // Update all weekdays (Monday-Saturday) with the new start time
+                      const updatedAvailability = globalAvailability.map(item => 
+                        (item.day !== 'Sunday') 
+                          ? { ...item, startTime: e.target.value, isAvailable: true }
+                          : item
+                      );
+                      setGlobalAvailability(updatedAvailability);
+                    }}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                  <input
+                    type="time"
+                    defaultValue="17:00"
+                    onChange={(e) => {
+                      // Update all weekdays (Monday-Saturday) with the new end time
+                      const updatedAvailability = globalAvailability.map(item => 
+                        (item.day !== 'Sunday') 
+                          ? { ...item, endTime: e.target.value, isAvailable: true }
+                          : item
+                      );
+                      setGlobalAvailability(updatedAvailability);
+                    }}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="flex justify-end p-4 mt-4 border-t border-gray-100">
@@ -681,6 +632,62 @@ export default function GlobalAvailabilityManager() {
                 </div>
               ) : (
                 <div>
+                  {isEditMode && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
+                        <input
+                          type="date"
+                          value={specialStartDate}
+                          onChange={(e) => {
+                            const newStartDate = e.target.value;
+                            setSpecialStartDate(newStartDate);
+                            
+                            // If end date is before the new start date, update it
+                            if (specialEndDate < newStartDate) {
+                              setSpecialEndDate(newStartDate);
+                              
+                              // Update all settings with the new end date
+                              const updatedSettings = newSpecialSettings.map(item => ({
+                                ...item,
+                                startDate: newStartDate,
+                                endDate: newStartDate
+                              }));
+                              setNewSpecialSettings(updatedSettings);
+                            } else {
+                              // Update all settings with the new start date only
+                              const updatedSettings = newSpecialSettings.map(item => ({
+                                ...item,
+                                startDate: newStartDate
+                              }));
+                              setNewSpecialSettings(updatedSettings);
+                            }
+                          }}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-gray-700">End Date</label>
+                        <input
+                          type="date"
+                          value={specialEndDate}
+                          min={specialStartDate} // Prevent selecting dates before start date
+                          onChange={(e) => {
+                            const newEndDate = e.target.value;
+                            setSpecialEndDate(newEndDate);
+                            
+                            // Update all settings with the new end date
+                            const updatedSettings = newSpecialSettings.map(item => ({
+                              ...item,
+                              endDate: newEndDate
+                            }));
+                            setNewSpecialSettings(updatedSettings);
+                          }}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="mb-4">
                     <h4 className="font-medium text-gray-700 mb-2">
                       {isEditMode ? 'Edit' : 'Create'} Special Schedule for {new Date(specialStartDate).toLocaleDateString()} - {new Date(specialEndDate).toLocaleDateString()}
@@ -714,11 +721,11 @@ export default function GlobalAvailabilityManager() {
                                 type="checkbox"
                                 checked={day.isAvailable}
                                 onChange={(e) => {
-                                  const updatedSettings = [...newSpecialSettings];
-                                  updatedSettings[index] = {
-                                    ...updatedSettings[index],
-                                    isAvailable: e.target.checked
-                                  };
+                                  const updatedSettings = newSpecialSettings.map(item => 
+                                    item.day === day.day 
+                                      ? { ...item, isAvailable: e.target.checked }
+                                      : item
+                                  );
                                   setNewSpecialSettings(updatedSettings);
                                 }}
                                 className="hidden peer"
@@ -746,11 +753,11 @@ export default function GlobalAvailabilityManager() {
                                 type="time"
                                 value={day.startTime}
                                 onChange={(e) => {
-                                  const updatedSettings = [...newSpecialSettings];
-                                  updatedSettings[index] = {
-                                    ...updatedSettings[index],
-                                    startTime: e.target.value
-                                  };
+                                  const updatedSettings = newSpecialSettings.map(item => 
+                                    item.day === day.day 
+                                      ? { ...item, startTime: e.target.value }
+                                      : item
+                                  );
                                   setNewSpecialSettings(updatedSettings);
                                 }}
                                 min="00:00"
@@ -766,11 +773,11 @@ export default function GlobalAvailabilityManager() {
                                 type="time"
                                 value={day.endTime}
                                 onChange={(e) => {
-                                  const updatedSettings = [...newSpecialSettings];
-                                  updatedSettings[index] = {
-                                    ...updatedSettings[index],
-                                    endTime: e.target.value
-                                  };
+                                  const updatedSettings = newSpecialSettings.map(item => 
+                                    item.day === day.day 
+                                      ? { ...item, endTime: e.target.value }
+                                      : item
+                                  );
                                   setNewSpecialSettings(updatedSettings);
                                 }}
                                 disabled={!day.isAvailable}
