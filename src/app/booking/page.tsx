@@ -1,242 +1,174 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-
-// This is a simplified booking page. In a real implementation, you would:
-// 1. Fetch available time slots from Calendly API
-// 2. Implement a multi-step booking process
-// 3. Add form validation
-// 4. Connect to Stripe for payment processing
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import PlansGrid from "@/components/plans/PlansGrid";
+import NewBookingForm from "@/components/forms/NewBookingForm";
+import PhoneNumberForm from "@/components/forms/PhoneNumberForm";
+import LoadingComponent from "@/components/layout/Loading";
 
 export default function BookingPage() {
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    service: 'beginner',
-    date: '',
-    timeSlot: '',
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (step < 3) {
-      setStep(step + 1);
-      return;
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasPendingBooking, setHasPendingBooking] = useState(false);
+  
+  useEffect(() => {
+    const packageParam = searchParams.get('package');
+    if (packageParam) {
+      setSelectedPackage(packageParam);
     }
     
-    // In a real implementation, you would:
-    // 1. Submit the booking data to your API
-    // 2. Redirect to Stripe payment
-    // 3. Handle success/failure
-    
-    alert('Booking submitted! In a real implementation, you would be redirected to payment.');
+    // If user is authenticated, fetch their MongoDB user ID and details
+    if (status === 'authenticated' && session?.user?.email) {
+      fetchUserDetails(session.user.email);
+    } else {
+      setLoading(false);
+    }
+  }, [searchParams, session, status]);
+  
+  const fetchUserDetails = async (email: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
+      const data = await response.json();
+      
+      if (data.users && data.users.length > 0) {
+        const user = data.users[0];
+        setUserId(user._id);
+        setUserDetails(user);
+        
+        // Check if user has pending bookings
+        if (user._id) {
+          checkPendingBookings(user._id);
+        }
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      setLoading(false);
+    }
   };
-
-  const renderStepIndicator = () => (
-    <div className="flex justify-center mb-8">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="flex items-center">
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              step >= i ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
-            }`}
-          >
-            {i}
+  
+  const checkPendingBookings = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/booking?userId=${userId}&status=pending`);
+      const data = await response.json();
+      
+      if (data.bookings && data.bookings.length > 0) {
+        setHasPendingBooking(true);
+      } else {
+        setHasPendingBooking(false);
+      }
+    } catch (error) {
+      console.error('Error checking pending bookings:', error);
+    }
+  };
+  
+  const handlePhoneNumberAdded = () => {
+    // Refresh user details after phone number is added
+    if (session?.user?.email) {
+      fetchUserDetails(session.user.email);
+    }
+  };
+  
+  const handleSelectPackage = (link: string) => {
+    setSelectedPackage(link);
+  };
+  
+  // If still loading
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
+        <LoadingComponent showText={true} />
+      </div>
+    );
+  }
+  
+  // If user is not authenticated, show login prompt
+  if (status === 'unauthenticated') {
+    return (
+      <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
+        <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
+          <h2 className="text-2xl font-bold mb-4 text-center">Login Required</h2>
+          <p className="mb-6 text-center">
+            You need to be logged in to book a driving lesson.
+          </p>
+          <div className="flex flex-col gap-4">
+            <Link 
+              href="/login" 
+              className="w-full py-2 px-4 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg text-center"
+            >
+              Login
+            </Link>
+            <Link 
+              href="/register" 
+              className="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 text-black font-bold rounded-lg text-center"
+            >
+              Register
+            </Link>
           </div>
-          {i < 3 && (
-            <div
-              className={`w-12 h-1 ${
-                step > i ? 'bg-primary-600' : 'bg-gray-200'
-              }`}
-            ></div>
-          )}
         </div>
-      ))}
-    </div>
-  );
-
-  const renderStepContent = () => {
-    switch (step) {
-      case 1:
-        return (
-          <>
-            <h2 className="text-2xl font-semibold mb-6">Select a Service</h2>
-            <div className="mb-4">
-              <label htmlFor="service" className="form-label">
-                Service Type
-              </label>
-              <select
-                id="service"
-                name="service"
-                value={formData.service}
-                onChange={handleChange}
-                className="form-input"
-              >
-                <option value="beginner">Beginner Lessons ($50/hour)</option>
-                <option value="refresher">Refresher Course ($45/hour)</option>
-                <option value="test">Test Preparation ($55/hour)</option>
-              </select>
-            </div>
-          </>
-        );
-      case 2:
-        return (
-          <>
-            <h2 className="text-2xl font-semibold mb-6">Choose Date & Time</h2>
-            <div className="mb-4">
-              <label htmlFor="date" className="form-label">
-                Date
-              </label>
-              <input
-                type="date"
-                id="date"
-                name="date"
-                value={formData.date}
-                onChange={handleChange}
-                className="form-input"
-                min={new Date().toISOString().split('T')[0]}
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="timeSlot" className="form-label">
-                Time Slot
-              </label>
-              <select
-                id="timeSlot"
-                name="timeSlot"
-                value={formData.timeSlot}
-                onChange={handleChange}
-                className="form-input"
-                required
-              >
-                <option value="">Select a time slot</option>
-                <option value="9:00 AM">9:00 AM</option>
-                <option value="10:00 AM">10:00 AM</option>
-                <option value="11:00 AM">11:00 AM</option>
-                <option value="1:00 PM">1:00 PM</option>
-                <option value="2:00 PM">2:00 PM</option>
-                <option value="3:00 PM">3:00 PM</option>
-              </select>
-              <p className="text-sm text-gray-500 mt-1">
-                Note: In a real implementation, these would be dynamically loaded from Calendly
-              </p>
-            </div>
-          </>
-        );
-      case 3:
-        return (
-          <>
-            <h2 className="text-2xl font-semibold mb-6">Your Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="mb-4">
-                <label htmlFor="firstName" className="form-label">
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  id="firstName"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className="form-input"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label htmlFor="lastName" className="form-label">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  id="lastName"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className="form-input"
-                  required
-                />
-              </div>
-            </div>
-            <div className="mb-4">
-              <label htmlFor="email" className="form-label">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="form-input"
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="phone" className="form-label">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="form-input"
-                required
-              />
-            </div>
-          </>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold text-center mb-8">Book Your Driving Lesson</h1>
-      
-      {renderStepIndicator()}
-      
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <form onSubmit={handleSubmit}>
-          {renderStepContent()}
-          
-          <div className="flex justify-between mt-8">
-            {step > 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep(step - 1)}
-                className="btn-secondary"
-              >
-                Back
-              </button>
-            ) : (
-              <Link href="/" className="btn-secondary">
-                Cancel
-              </Link>
-            )}
-            
-            <button type="submit" className="btn-primary">
-              {step < 3 ? 'Continue' : 'Proceed to Payment'}
-            </button>
+      </div>
+    );
+  }
+  
+  // If authenticated but no phone number, show phone number form
+  if (status === 'authenticated' && userId && userDetails && (!userDetails.phone || userDetails.phone === '')) {
+    return (
+      <div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
+        <div className="my-12 w-full flex flex-col items-center">
+          <h2 className="text-3xl font-bold mb-8">Complete Your Profile</h2>
+          <div className="mb-6 max-w-md text-center">
+            <p className="text-gray-700">
+              Before you can book a driving lesson, we need your phone number to contact you about your bookings.
+            </p>
           </div>
-        </form>
+          <PhoneNumberForm userId={userId} onPhoneNumberAdded={handlePhoneNumberAdded} />
+        </div>
+      </div>
+    );
+  }
+  
+  // If user has a pending booking, show error message
+  if (hasPendingBooking) {
+   return (
+  <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white py-10">
+    <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md border-l-4 border-red-500">
+      <h2 className="text-2xl font-bold mb-4 text-center text-red-600">Pending Reservation</h2>
+      <div className="mb-6 p-4 bg-red-50 rounded-lg">
+        <p className="mb-4 text-gray-800">
+          You have a pending reservation that requires payment confirmation.
+        </p>
+        <p className="mb-4 text-gray-800">
+          Please contact administration to confirm your payment before scheduling new classes.
+        </p>
+        <p className="text-sm text-gray-600">
+          You can contact administration by phone or email to resolve this matter.
+        </p>
+      </div>
+      <div className="flex justify-center">
+        <Link 
+          href="/tracking" 
+          className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg text-center"
+        >
+          Track your booking status
+        </Link>
       </div>
     </div>
-  );
+  </div>
+);
+  }
+  
+  // If all checks pass, show the booking form
+  return (
+    <div className="w-full min-h-screen flex flex-col items-center bg-white py-10">
+      <NewBookingForm userId={userId || ''} />
+    </div>
+  )
 }

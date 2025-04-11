@@ -7,7 +7,21 @@ module.exports = {
   ],
   theme: {
     extend: {
+      backgroundImage: {
+        bannerImg: "url('https://s3-alpha-sig.figma.com/img/45e9/423e/2dc38ee404cc635b84707d93aa5a6524?Expires=1742774400&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=VMXMHevcGX0b8QK5iIQ6FuPJaMFS~UGYczd4yPgqp9usd~mFDy1hP4gdxq~lNOV1hJTAfJ6JtO7NVVTcsVV9wqWyMP6b4zVa-gUk4XNy3rdexnHkwjYKDa23D0zMvOlfkw-zWEsODP8wbnNtOGyGelz-frhPYaZDzczPhmJXJC6ybqQK4E3LJ1LMrRVUimZieJI828W2rpbkB~nkKlC7nFwRHuVd4IKJ7EejEbGwcNJPRO5I2UHqFx-uBrIVXmSV4nfpSUqL5wEYCJr4Wr6bDNY2s9emy33YKB2HDoRpvBOTDK~VS2gYS8L5w548Owe1sy14M9aVgXyH~rc-0JDKyw__')",
+        blackOverlay: "linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.5) 100%)"
+      },
       colors: {
+        // Brand colors from header and footer
+        brand: {
+          dark: '#1c1917', // stone-900
+          yellow: {
+            DEFAULT: '#facc15', // yellow-400
+            hover: '#eab308', // yellow-500
+          },
+          gray: '#6b7280', // gray-500
+        },
+        // Original primary and secondary colors kept for backward compatibility
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -36,7 +50,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['var(--font-inter)'],
+        sans: ['Montserrat', 'sans-serif'],
       },
     },
   },
