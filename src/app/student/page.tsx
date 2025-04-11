@@ -35,7 +35,7 @@ function StudentDashboardContent() {
 			const userRole = session?.user?.role as string;
 			if (userRole !== "user") {
 				console.log("Redirecting to home: not a student");
-				router.push("/");
+				router.push("/login");
 			}
 			setLoading(false);
 		}
