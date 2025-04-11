@@ -11,10 +11,18 @@ const baseUrl = process.env.NODE_ENV === "production"
   : process.env.NEXTAUTH_URL || "http://localhost:3000";
 
 const handler = NextAuth({
+  debug: process.env.NODE_ENV !== "production", // Enable debug mode in development
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     CredentialsProvider({
       name: "Credentials",

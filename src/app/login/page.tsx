@@ -21,6 +21,8 @@ function LoginPageContent() {
   // Handle error parameter from URL
   useEffect(() => {
     if (errorParam) {
+      console.log("Error parameter detected:", errorParam);
+      
       switch (errorParam) {
         case "AccessDenied":
           setError("Access denied. You don't have permission to access that page.");
@@ -28,11 +30,34 @@ function LoginPageContent() {
         case "CredentialsSignin":
           setError("Invalid email or password.");
           break;
+        case "google":
+          console.log("Google authentication error detected");
+          // For Google auth errors, we'll try to recover by initiating a new sign-in
+          // But first, let's check if we already have a session
+          fetch("/api/auth/session")
+            .then(res => res.json())
+            .then(session => {
+              console.log("Session check after Google error:", session);
+              if (session?.user) {
+                // If we have a session despite the error, redirect to the appropriate page
+                console.log("Session found despite error, redirecting");
+                router.push("/api/auth/session-redirect");
+              } else {
+                // Show error but don't auto-retry to avoid potential loops
+                setError("Google sign-in failed. Please try again using the button below.");
+              }
+            })
+            .catch(err => {
+              console.error("Error checking session after Google auth error:", err);
+              setError("Google sign-in failed. Please try again using the button below.");
+            });
+          break;
         default:
+          console.log("Unknown error type:", errorParam);
           setError("An error occurred. Please try again.");
       }
     }
-  }, [errorParam]);
+  }, [errorParam, router]);
   
   // Check if we're coming from a Google auth redirect
   useEffect(() => {
