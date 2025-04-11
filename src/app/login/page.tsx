@@ -83,7 +83,8 @@ function LoginPageContent() {
           if (session?.user) {
             console.log("Session found, redirecting to session-redirect");
             // If we have a session, redirect to session-redirect
-            router.push("/api/auth/session-redirect");
+            // Use window.location.href for API routes instead of router.push
+            window.location.href = "/api/auth/session-redirect";
           } else {
             console.log("No session found, redirecting to Google auth");
             // If no session, redirect to Google auth
