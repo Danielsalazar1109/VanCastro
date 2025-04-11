@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from "react";
 
+// Define the correct order of days for sorting
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// Helper function to sort days in correct week order
+const sortDaysByWeekOrder = (a: { day: string }, b: { day: string }): number => {
+  return DAYS_OF_WEEK.indexOf(a.day) - DAYS_OF_WEEK.indexOf(b.day);
+};
+
 interface GlobalAvailability {
   _id?: string;
   day: string;
@@ -190,6 +198,12 @@ export default function GlobalAvailabilityManager() {
 
   // Initialize new special settings form
   const handleInitializeSpecialSettings = () => {
+    // Validate that end date is not before start date
+    if (new Date(specialEndDate) < new Date(specialStartDate)) {
+      setError("End date cannot be before start date.");
+      return;
+    }
+    
     // Create a copy of the current global availability as a starting point
     const initialSpecialSettings = globalAvailability.map(item => ({
       ...item,
@@ -201,6 +215,7 @@ export default function GlobalAvailabilityManager() {
     setShowSpecialForm(true);
     setIsEditMode(false);
     setEditingDateRange(null);
+    setError(""); // Clear any previous errors
   };
 
   // Initialize edit form for existing special settings
@@ -223,6 +238,12 @@ export default function GlobalAvailabilityManager() {
   // Save special availability settings
   const handleSaveSpecialAvailability = async () => {
     try {
+      // Validate that end date is not before start date
+      if (new Date(specialEndDate) < new Date(specialStartDate)) {
+        setError("End date cannot be before start date.");
+        return;
+      }
+      
       // Check for overlapping date ranges
       if (checkOverlappingDateRanges(specialStartDate, specialEndDate)) {
         setError("Cannot save: There is already a special date range that overlaps with these dates.");
@@ -387,28 +408,28 @@ export default function GlobalAvailabilityManager() {
             </p>
           </div>
           
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {globalAvailability.map((day, index) => (
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+            {[...globalAvailability].sort(sortDaysByWeekOrder).map((day, index) => (
               <div
                 key={day.day}
                 className={`
-                  border rounded-lg p-4
+                  border rounded-lg p-5 shadow-sm hover:shadow-md transition-all
                   ${day.isAvailable
                     ? 'bg-green-50 border-green-200'
                     : 'bg-slate-50 border-slate-200'}
                 `}
               >
-                <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center space-x-2">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center space-x-3">
                     <div className={`
-                      w-8 h-8 rounded-full flex items-center justify-center
+                      w-10 h-10 rounded-full flex items-center justify-center text-lg font-semibold
                       ${day.isAvailable
                         ? 'bg-green-500 text-white'
                         : 'bg-slate-300 text-slate-500'}
                     `}>
                       {day.day.charAt(0)}
                     </div>
-                    <span className="font-medium">{day.day}</span>
+                    <span className="font-medium text-lg">{day.day}</span>
                   </div>
                   
                   <label className="flex items-center cursor-pointer">
@@ -441,9 +462,9 @@ export default function GlobalAvailabilityManager() {
                   </label>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 mt-4">
+                <div className="grid grid-cols-2 gap-4 mt-5">
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">Start Time</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">Start Time</label>
                     <input
                       type="time"
                       value={day.startTime}
@@ -463,7 +484,7 @@ export default function GlobalAvailabilityManager() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">End Time</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">End Time</label>
                     <input
                       type="time"
                       value={day.endTime}
@@ -627,7 +648,15 @@ export default function GlobalAvailabilityManager() {
                       <input
                         type="date"
                         value={specialStartDate}
-                        onChange={(e) => setSpecialStartDate(e.target.value)}
+                        onChange={(e) => {
+                          const newStartDate = e.target.value;
+                          setSpecialStartDate(newStartDate);
+                          
+                          // If end date is before the new start date, update it
+                          if (specialEndDate < newStartDate) {
+                            setSpecialEndDate(newStartDate);
+                          }
+                        }}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                       />
                     </div>
@@ -636,6 +665,7 @@ export default function GlobalAvailabilityManager() {
                       <input
                         type="date"
                         value={specialEndDate}
+                        min={specialStartDate} // Prevent selecting dates before start date
                         onChange={(e) => setSpecialEndDate(e.target.value)}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                       />
@@ -655,28 +685,28 @@ export default function GlobalAvailabilityManager() {
                     <h4 className="font-medium text-gray-700 mb-2">
                       {isEditMode ? 'Edit' : 'Create'} Special Schedule for {new Date(specialStartDate).toLocaleDateString()} - {new Date(specialEndDate).toLocaleDateString()}
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {newSpecialSettings.map((day, index) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                      {[...newSpecialSettings].sort(sortDaysByWeekOrder).map((day, index) => (
                         <div
                           key={day.day}
                           className={`
-                            border rounded-lg p-4
+                            border rounded-lg p-5 shadow-sm hover:shadow-md transition-all
                             ${day.isAvailable
                               ? 'bg-green-50 border-green-200'
                               : 'bg-slate-50 border-slate-200'}
                           `}
                         >
-                          <div className="flex justify-between items-center mb-3">
-                            <div className="flex items-center space-x-2">
+                          <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center space-x-3">
                               <div className={`
-                                w-8 h-8 rounded-full flex items-center justify-center
+                                w-10 h-10 rounded-full flex items-center justify-center text-lg font-semibold
                                 ${day.isAvailable
                                   ? 'bg-green-500 text-white'
                                   : 'bg-slate-300 text-slate-500'}
                               `}>
                                 {day.day.charAt(0)}
                               </div>
-                              <span className="font-medium">{day.day}</span>
+                              <span className="font-medium text-lg">{day.day}</span>
                             </div>
                             
                             <label className="flex items-center cursor-pointer">
@@ -709,9 +739,9 @@ export default function GlobalAvailabilityManager() {
                             </label>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-2 mt-4">
+                          <div className="grid grid-cols-2 gap-4 mt-5">
                             <div>
-                              <label className="block text-xs text-slate-500 mb-1">Start Time</label>
+                              <label className="block text-sm font-medium text-slate-600 mb-2">Start Time</label>
                               <input
                                 type="time"
                                 value={day.startTime}
@@ -731,7 +761,7 @@ export default function GlobalAvailabilityManager() {
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-slate-500 mb-1">End Time</label>
+                              <label className="block text-sm font-medium text-slate-600 mb-2">End Time</label>
                               <input
                                 type="time"
                                 value={day.endTime}
