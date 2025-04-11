@@ -68,8 +68,9 @@ export default function Home() {
 			{/* PlansGrid component added here */}
 			<PlansGrid onSelectPackage={handleSelectPackage} />
 
-			<div>
-				<p>algo</p>
+			{/* Spacer div to add padding before footer */}
+			<div className="pb-12">
+				<p className="hidden">Nothing</p>
 			</div>
 		</>
 	);
