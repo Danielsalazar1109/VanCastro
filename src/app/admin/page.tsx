@@ -319,6 +319,7 @@ const AbsenceModal = ({
                 <input
                   type="date"
                   value={newEndDate}
+                  min = {newStartDate}
                   onChange={(e) => setNewEndDate(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                   required
@@ -426,6 +427,7 @@ const AbsenceModal = ({
                   <input
                     type="date"
                     value={editEndDate}
+                    min = {editStartDate}
                     onChange={(e) => setEditEndDate(e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                     required
