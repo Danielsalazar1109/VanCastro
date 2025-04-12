@@ -11,6 +11,11 @@ import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Sta
 import LoadingComponent from "@/components/layout/Loading";
 import Booking from "@/models/Booking";
 import GlobalAvailabilityManager from "@/components/admin/GlobalAvailabilityManager";
+import InstructorModal from "@/components/admin/InstructorModal";
+import PriceUpdateModal from "@/components/admin/PriceUpdateModal";
+import BookingModal from "@/components/admin/BookingModal";
+import TimeRemaining from "@/components/admin/TimeRemaining";
+import AbsenceModal from "@/components/admin/AbsenceModal";
 
 interface User {
   _id: string;
@@ -108,737 +113,6 @@ interface AbsenceModalProps {
   onClose: () => void;
   onSave: () => void;
 }
-
-const AbsenceModal = ({ 
-  instructor, 
-  isOpen, 
-  onClose, 
-  onSave 
-}: AbsenceModalProps) => {
-  const [absences, setAbsences] = useState<{startDate: string; endDate: string; reason: string}[]>([]);
-  const [newStartDate, setNewStartDate] = useState<string>('');
-  const [newEndDate, setNewEndDate] = useState<string>('');
-  const [newReason, setNewReason] = useState<string>('');
-  const [saving, setSaving] = useState<boolean>(false);
-  const [loadingSpecialAvailability, setLoadingSpecialAvailability] = useState<boolean>(false);
-  const [specialAvailabilityDates, setSpecialAvailabilityDates] = useState<{startDate: string; endDate: string; days: string[]}[]>([]);
-  const [editingAbsenceIndex, setEditingAbsenceIndex] = useState<number | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-  const [editStartDate, setEditStartDate] = useState<string>('');
-  const [editEndDate, setEditEndDate] = useState<string>('');
-  const [editReason, setEditReason] = useState<string>('');
-
-  useEffect(() => {
-    if (instructor && instructor.absences) {
-      // Format dates for input fields
-      const formattedAbsences = instructor.absences.map((absence) => ({
-        startDate: new Date(absence.startDate).toISOString().split('T')[0],
-        endDate: new Date(absence.endDate).toISOString().split('T')[0],
-        reason: absence.reason || ''
-      }));
-      setAbsences(formattedAbsences);
-    } else {
-      setAbsences([]);
-    }
-
-    // Set default dates for new absence
-    const today = new Date();
-    setNewStartDate(today.toISOString().split('T')[0]);
-    
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
-    setNewEndDate(nextWeek.toISOString().split('T')[0]);
-    
-    // Fetch special availability date ranges with absences
-    fetchSpecialAvailabilityWithAbsences();
-  }, [instructor]);
-  
-  // Fetch special availability date ranges that contain absences
-  const fetchSpecialAvailabilityWithAbsences = async () => {
-    try {
-      setLoadingSpecialAvailability(true);
-      const response = await fetch('/api/special-availability');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch special availability settings');
-      }
-      
-      const data = await response.json();
-      
-      if (data.specialAvailability) {
-        // Group by date range and filter for those with absences
-        const dateRangesWithAbsences = data.specialAvailability.reduce((acc: any, setting: any) => {
-          if (!setting.isAvailable) { // This is an absence
-            const key = `${setting.startDate}-${setting.endDate}`;
-            if (!acc[key]) {
-              acc[key] = {
-                startDate: setting.startDate,
-                endDate: setting.endDate,
-                days: []
-              };
-            }
-            acc[key].days.push(setting.day);
-          }
-          return acc;
-        }, {});
-        
-        // Convert to array format
-        const dateRanges = Object.values(dateRangesWithAbsences).map((range: any) => ({
-          startDate: range.startDate,
-          endDate: range.endDate,
-          days: range.days
-        }));
-        
-        setSpecialAvailabilityDates(dateRanges);
-      }
-      
-      setLoadingSpecialAvailability(false);
-    } catch (error) {
-      console.error('Error fetching special availability with absences:', error);
-      setLoadingSpecialAvailability(false);
-    }
-  };
-
-  const handleAddAbsence = () => {
-    if (!newStartDate || !newEndDate) return;
-    
-    setAbsences([...absences, {
-      startDate: newStartDate,
-      endDate: newEndDate,
-      reason: newReason
-    }]);
-    
-    // Reset form
-    setNewReason('');
-  };
-
-  const handleEditAbsence = (index: number) => {
-    const absence = absences[index];
-    setEditStartDate(absence.startDate);
-    setEditEndDate(absence.endDate);
-    setEditReason(absence.reason || '');
-    setEditingAbsenceIndex(index);
-    setIsEditModalOpen(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (editingAbsenceIndex === null) return;
-    
-    const updatedAbsences = [...absences];
-    updatedAbsences[editingAbsenceIndex] = {
-      startDate: editStartDate,
-      endDate: editEndDate,
-      reason: editReason
-    };
-    
-    setAbsences(updatedAbsences);
-    setIsEditModalOpen(false);
-    setEditingAbsenceIndex(null);
-  };
-
-  const handleRemoveAbsence = (index: number) => {
-    const updatedAbsences = [...absences];
-    updatedAbsences.splice(index, 1);
-    setAbsences(updatedAbsences);
-  };
-
-  const handleSaveAbsences = async () => {
-    if (!instructor) return;
-    
-    try {
-      setSaving(true);
-      
-      const response = await fetch('/api/instructors', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          instructorId: instructor._id,
-          absences: absences.map(absence => ({
-            startDate: absence.startDate,
-            endDate: absence.endDate,
-            reason: absence.reason
-          }))
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update instructor absences');
-      }
-      
-      onSave();
-      onClose();
-    } catch (error) {
-      console.error('Error saving instructor absences:', error);
-      alert('Failed to save absences. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!isOpen || !instructor) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-pink-600">
-            Manage Absences for {instructor.user.firstName} {instructor.user.lastName}
-          </h3>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg mb-4">
-            <p className="text-sm text-gray-700">
-              Set periods when this instructor will be unavailable. During these periods, the instructor will not appear in booking options.
-            </p>
-          </div>
-          
-          <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
-            <h4 className="font-medium text-lg mb-3 text-pink-600">Add New Absence Period</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>F
-                <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
-                <input
-                  type="date"
-                  value={newStartDate}
-                  onChange={(e) => setNewStartDate(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700">End Date</label>
-                <input
-                  type="date"
-                  value={newEndDate}
-                  min = {newStartDate}
-                  onChange={(e) => setNewEndDate(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700">Reason (Optional)</label>
-                <input
-                  type="text"
-                  value={newReason}
-                  onChange={(e) => setNewReason(e.target.value)}
-                  placeholder="Vacation, Training, etc."
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={handleAddAbsence}
-                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
-              >
-                Add Absence
-              </button>
-            </div>
-          </div>
-          
-          <h4 className="font-medium text-lg mb-3 text-pink-600">Current Absence Periods</h4>
-          {absences.length === 0 ? (
-            <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">No absences scheduled</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {absences.map((absence, index) => (
-                <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                  <div>
-                    <div className="font-medium">
-                      {/* Fix for date display - ensure correct date is shown regardless of timezone */}
-                      {(() => {
-                        const startDate = new Date(absence.startDate);
-                        const endDate = new Date(absence.endDate);
-                        // Format dates using ISO string and extract just the date part
-                        const formattedStartDate = startDate.toISOString().split('T')[0];
-                        const formattedEndDate = endDate.toISOString().split('T')[0];
-                        // Convert to display format (MM/DD/YYYY)
-                        const displayStartDate = new Date(formattedStartDate + 'T00:00:00').toLocaleDateString();
-                        const displayEndDate = new Date(formattedEndDate + 'T00:00:00').toLocaleDateString();
-                        return `${displayStartDate} - ${displayEndDate}`;
-                      })()}
-                    </div>
-                    {absence.reason && (
-                      <div className="text-sm text-gray-600">
-                        Reason: {absence.reason}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleEditAbsence(index)}
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => handleRemoveAbsence(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {/* Edit Absence Modal */}
-        {isEditModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-pink-600">Edit Absence</h3>
-                <button 
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
-                  <input
-                    type="date"
-                    value={editStartDate}
-                    onChange={(e) => setEditStartDate(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">End Date</label>
-                  <input
-                    type="date"
-                    value={editEndDate}
-                    min = {editStartDate}
-                    onChange={(e) => setEditEndDate(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Reason (Optional)</label>
-                  <input
-                    type="text"
-                    value={editReason}
-                    onChange={(e) => setEditReason(e.target.value)}
-                    placeholder="Vacation, Training, etc."
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEdit}
-                  className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <div className="flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveAbsences}
-            disabled={saving}
-            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Absences"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const InstructorModal = ({ 
-  instructor, 
-  isOpen, 
-  onClose, 
-  onUpdate, 
-  onInstructorChange, 
-  onImageUpload,
-  onLocationChange,
-  onClassTypeChange,
-  locations,
-  classTypes,
-  locationMapping
-}: InstructorModalProps) => {
-  if (!isOpen || !instructor) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-pink-600">Edit Instructor</h3>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        
-        <form onSubmit={onUpdate} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">First Name</label>
-            <input
-              type="text"
-              value={instructor.user.firstName}
-              onChange={(e) => onInstructorChange('firstName', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Last Name</label>
-            <input
-              type="text"
-              value={instructor.user.lastName}
-              onChange={(e) => onInstructorChange('lastName', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
-            <input
-              type="email"
-              value={instructor.user.email}
-              onChange={(e) => onInstructorChange('email', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Phone</label>
-            <input
-              type="tel"
-              value={instructor.user.phone}
-              onChange={(e) => onInstructorChange('phone', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Profile Image</label>
-            <div className="flex items-center space-x-4">
-              {instructor.image && (
-                <img 
-                  src={instructor.image} 
-                  alt={`${instructor.user.firstName} ${instructor.user.lastName}`} 
-                  className="w-16 h-16 rounded-full object-cover"
-                />
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={onImageUpload}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
-          
-          <div className="mt-6 flex space-x-3 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
-            >
-              Update Instructor
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const PriceUpdateModal = ({ price, isOpen, onClose, onUpdate, onPriceChange }: PriceUpdateModalProps) => {
-  if (!isOpen || !price) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-pink-600">Update Price</h3>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        
-        <form onSubmit={onUpdate} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Class Type</label>
-            <select
-              value={price.classType}
-              onChange={(e) => onPriceChange('classType', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            >
-              <option value="class 7">Class 7</option>
-              <option value="class 5">Class 5</option>
-              <option value="class 4">Class 4</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Duration (minutes)</label>
-            <select
-              value={price.duration}
-              onChange={(e) => onPriceChange('duration', parseInt(e.target.value))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            >
-              <option value="60">60 minutes</option>
-              <option value="90">90 minutes</option>
-              <option value="120">120 minutes (Road Test)</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Package</label>
-            <select
-              value={price.package}
-              onChange={(e) => onPriceChange('package', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            >
-              <option value="1 lesson">1 Lesson</option>
-              <option value="3 lessons">3 Lessons</option>
-              <option value="10 lessons">10 Lessons</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Price ($)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={price.price}
-              onChange={(e) => onPriceChange('price', parseFloat(e.target.value))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
-              required
-            />
-          </div>
-          
-          <div className="mt-6 flex space-x-3 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
-            >
-              Update Price
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const BookingModal = ({ booking, isOpen, onClose, onDelete, onReschedule }: BookingModalProps) => {
-  if (!isOpen || !booking) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-pink-600">Booking Details</h3>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex items-start space-x-3">
-            <User className="w-5 h-5 text-pink-500 mt-0.5" />
-            <div>
-              <p className="font-medium text-gray-700">Student</p>
-              <p className="text-gray-900">{booking.extendedProps.student}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3">
-            <User className="w-5 h-5 text-indigo-500 mt-0.5" />
-            <div>
-              <p className="font-medium text-gray-700">Instructor</p>
-              <p className="text-gray-900">{booking.extendedProps.instructor}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3">
-            <MapPin className="w-5 h-5 text-purple-500 mt-0.5" />
-            <div>
-              <p className="font-medium text-gray-700">Location</p>
-              <p className="text-gray-900">{booking.extendedProps.location}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-500 mt-0.5" />
-            <div>
-              <p className="font-medium text-gray-700">Class Type</p>
-              <p className="text-gray-900">{booking.extendedProps.classType}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3">
-            <Clock className="w-5 h-5 text-green-500 mt-0.5" />
-            <div>
-              <p className="font-medium text-gray-700">Duration</p>
-              <p className="text-gray-900">{booking.extendedProps.duration} mins</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mt-6 flex space-x-3 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            Close
-          </button>
-          <button
-            onClick={() => {
-              onDelete(booking.id);
-              onClose();
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 transition-colors shadow-md"
-          >
-            Cancel Booking
-          </button>
-          <button
-            onClick={() => {
-              onReschedule(booking.id);
-              onClose();
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-red-500 text-white rounded-full hover:from-pink-600 hover:to-red-600 transition-colors shadow-md"
-          >
-            Reschedule Booking
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// New TimeRemaining component to handle individual countdown timers
-interface TimeRemainingProps {
-  createdAt: string | undefined;
-}
-
-const TimeRemaining = ({ createdAt }: TimeRemainingProps) => {
-  const [timeRemaining, setTimeRemaining] = useState<{ text: string; className: string }>({ 
-    text: "Loading...", 
-    className: "" 
-  });
-  
-  useEffect(() => {
-    // Function to calculate time remaining
-    const calculateTimeRemaining = () => {
-      if (!createdAt) return { text: "Unknown", className: "" };
-      
-      const now = new Date();
-      const created = new Date(createdAt);
-      const expiresAt = new Date(created.getTime() + 24 * 60 * 60 * 1000); // 24 hours after creation
-      const timeLeft = expiresAt.getTime() - now.getTime();
-      
-      // If already expired
-      if (timeLeft <= 0) {
-        return { text: "Expired", className: "text-red-600 font-bold" };
-      }
-      
-      // Calculate hours, minutes and seconds
-      const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-      const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-      const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
-      
-      // Format the time remaining
-      const formattedTime = `${hoursLeft}h ${minutesLeft}m ${secondsLeft}s`;
-      
-      // Determine styling based on time left
-      let className = "";
-      if (hoursLeft < 3) {
-        className = "text-red-600 font-bold"; // Less than 3 hours
-      } else if (hoursLeft < 6) {
-        className = "text-orange-500 font-semibold"; // Less than 6 hours
-      } else if (hoursLeft < 12) {
-        className = "text-yellow-600"; // Less than 12 hours
-      }
-      
-      return { text: formattedTime, className };
-    };
-    
-    // Calculate initial time remaining
-    setTimeRemaining(calculateTimeRemaining());
-    
-    // Set up interval to update the time remaining every second
-    const interval = setInterval(() => {
-      setTimeRemaining(calculateTimeRemaining());
-    }, 1000);
-    
-    // Clean up interval on component unmount
-    return () => clearInterval(interval);
-  }, [createdAt]);
-  
-  return <span className={timeRemaining.className}>{timeRemaining.text}</span>;
-};
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -941,8 +215,17 @@ export default function AdminDashboard() {
   };
   
   // Modal state
+  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  // Invoice modal state
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedInvoiceBookingId, setSelectedInvoiceBookingId] = useState<string | null>(null);
+  const [selectedInvoiceFile, setSelectedInvoiceFile] = useState<File | null>(null);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceNotes, setInvoiceNotes] = useState('');
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
+  const [selectedBookingForInvoice, setSelectedBookingForInvoice] = useState<Booking | null>(null);
   
   // State for reschedule modal
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
@@ -1672,6 +955,143 @@ export default function AdminDashboard() {
     }
   }
   
+  // Handler for sending invoice
+  const handleSendInvoice = async (bookingId: string) => {
+    try {
+      // Find the booking
+      const booking = pendingBookings.find(b => b._id === bookingId);
+      
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+      
+      // Set the selected booking for invoice
+      setSelectedBookingForInvoice(booking);
+      setSelectedInvoiceBookingId(bookingId);
+      
+      // Reset form fields
+      setSelectedInvoiceFile(null);
+      setInvoiceNumber('');
+      setInvoiceNotes('');
+      
+      // Open the invoice modal
+      setIsInvoiceModalOpen(true);
+    } catch (error: any) {
+      console.error('Error preparing to send invoice:', error);
+      setError(error.message || "Failed to prepare invoice");
+    }
+  };
+  
+  // Handler for submitting invoice
+  const handleSubmitInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedInvoiceBookingId || !selectedInvoiceFile) {
+      alert('Please select an invoice file');
+      return;
+    }
+    
+    try {
+      setIsUploadingInvoice(true);
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('bookingId', selectedInvoiceBookingId);
+      formData.append('invoiceFile', selectedInvoiceFile);
+      
+      if (invoiceNumber) {
+        formData.append('invoiceNumber', invoiceNumber);
+      }
+      
+      if (invoiceNotes) {
+        formData.append('notes', invoiceNotes);
+      }
+      
+      // Send the invoice
+      const response = await fetch('/api/booking/invoice', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to send invoice');
+      }
+      
+      // Close modal and refresh bookings
+      setIsInvoiceModalOpen(false);
+      fetchPendingBookings();
+      
+      // Show success message
+      alert('Invoice sent successfully');
+    } catch (error: any) {
+      console.error('Error sending invoice:', error);
+      alert(error.message || "Failed to send invoice");
+    } finally {
+      setIsUploadingInvoice(false);
+    }
+  };
+  
+  // Handler for approving payment
+  const handleApprovePayment = async (bookingId: string) => {
+    try {
+      const response = await fetch('/api/booking/invoice', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId,
+          status: 'approved',
+        }),
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to approve payment');
+      }
+      
+      // Refresh bookings
+      fetchPendingBookings();
+      
+      // Show success message
+      alert('Payment approved successfully');
+    } catch (error: any) {
+      console.error('Error approving payment:', error);
+      alert(error.message || "Failed to approve payment");
+    }
+  };
+  
+  // Handler for rejecting payment
+  const handleRejectPayment = async (bookingId: string) => {
+    try {
+      const response = await fetch('/api/booking/invoice', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId,
+          status: 'rejected',
+        }),
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to reject payment');
+      }
+      
+      // Refresh bookings
+      fetchPendingBookings();
+      
+      // Show success message
+      alert('Payment rejected successfully');
+    } catch (error: any) {
+      console.error('Error rejecting payment:', error);
+      alert(error.message || "Failed to reject payment");
+    }
+  };
+
   const handleCancelBooking = async (bookingId: string) => {
     try {
       // Find the booking details
@@ -2103,9 +1523,11 @@ export default function AdminDashboard() {
                         <td className="py-2 px-4 border-b">
                           <span
                             className={`px-2 py-1 rounded text-xs ${
-                              booking.paymentStatus === 'completed'
+                              booking.paymentStatus === 'approved'
                                 ? 'bg-green-100 text-green-800'
-                                : booking.paymentStatus === 'pending'
+                                : booking.paymentStatus === 'invoice sent'
+                                ? 'bg-blue-100 text-blue-800'
+                                : booking.paymentStatus === 'requested'
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : 'bg-red-100 text-red-800'
                             }`}
@@ -2119,6 +1541,14 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-3 px-4 border-b">
                           <div className="flex space-x-2">
+                            {booking.paymentStatus === 'requested' && (
+                              <button
+                                onClick={() => handleSendInvoice(booking._id)}
+                                className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
+                              >
+                                Send Invoice
+                              </button>
+                            )}
                             <button
                               onClick={() => handleApproveBooking(booking._id)}
                               className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-full hover:from-green-600 hover:to-teal-600 shadow-sm transition-all"
@@ -2890,6 +2320,115 @@ export default function AdminDashboard() {
                 className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
               >
                 Update Location
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    
+    {/* Invoice Modal */}
+    {isInvoiceModalOpen && selectedBookingForInvoice && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold">Send Invoice</h3>
+            <button 
+              onClick={() => setIsInvoiceModalOpen(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <div className="mb-4">
+            <h4 className="text-lg font-semibold mb-2">Booking Details</h4>
+            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600">Student:</p>
+                <p className="font-medium">{selectedBookingForInvoice.user.firstName} {selectedBookingForInvoice.user.lastName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Email:</p>
+                <p className="font-medium">{selectedBookingForInvoice.user.email}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Class Type:</p>
+                <p className="font-medium">{selectedBookingForInvoice.classType}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Duration:</p>
+                <p className="font-medium">{selectedBookingForInvoice.duration} minutes</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Date:</p>
+                <p className="font-medium">{new Date(selectedBookingForInvoice.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Time:</p>
+                <p className="font-medium">{selectedBookingForInvoice.startTime} - {selectedBookingForInvoice.endTime}</p>
+              </div>
+            </div>
+          </div>
+          
+          <form onSubmit={handleSubmitInvoice} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Invoice File (PDF)
+              </label>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setSelectedInvoiceFile(e.target.files[0]);
+                  }
+                }}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Invoice Number (Optional)
+              </label>
+              <input
+                type="text"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                placeholder="e.g., INV-2023-001"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes (Optional)
+              </label>
+              <textarea
+                value={invoiceNotes}
+                onChange={(e) => setInvoiceNotes(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 h-24"
+                placeholder="Any additional information for the student..."
+              />
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              
+              <button
+                type="submit"
+                disabled={isUploadingInvoice || !selectedInvoiceFile}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
+              >
+                {isUploadingInvoice ? "Sending..." : "Send Invoice"}
               </button>
             </div>
           </form>

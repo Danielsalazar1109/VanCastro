@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { Attachment } from 'nodemailer/lib/mailer';
 
 // Create a transporter using environment variables
 const transporter = nodemailer.createTransport({
@@ -17,6 +18,38 @@ const LOGO_ALT = 'VanCastro Driving School';
 
 // Email templates
 const emailTemplates = {
+  invoiceEmail: (data: {
+    studentName: string;
+    bookingId: string;
+    date: string;
+    classType: string;
+    amount: string | number;
+    invoiceNumber?: string;
+    notes?: string;
+  }) => ({
+    subject: 'Invoice for Driving Lesson',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
+        </div>
+        <h2 style="color: #4f46e5; text-align: center;">Invoice</h2>
+        <p>Hello ${data.studentName},</p>
+        <p>Please find attached the invoice for your driving lesson.</p>
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <p><strong>Booking ID:</strong> ${data.bookingId}</p>
+          <p><strong>Date:</strong> ${data.date}</p>
+          <p><strong>Class Type:</strong> ${data.classType}</p>
+          <p><strong>Amount:</strong> $${typeof data.amount === 'number' ? data.amount.toFixed(2) : data.amount}</p>
+          ${data.invoiceNumber ? `<p><strong>Invoice Number:</strong> ${data.invoiceNumber}</p>` : ''}
+        </div>
+        ${data.notes ? `<p><strong>Notes:</strong> ${data.notes}</p>` : ''}
+        <p>Please review the attached document for detailed information.</p>
+        <p>If you have any questions, please don't hesitate to contact us.</p>
+        <p>Thank you for choosing our driving school!</p>
+      </div>
+    `,
+  }),
   bookingConfirmation: (data: {
     studentName: string;
     instructorName: string;
@@ -119,7 +152,8 @@ const emailTemplates = {
 export async function sendEmail(
   to: string,
   templateName: keyof typeof emailTemplates,
-  data: any
+  data: any,
+  attachments?: Attachment[]
 ) {
   try {
     const template = emailTemplates[templateName](data);
@@ -129,6 +163,7 @@ export async function sendEmail(
       to,
       subject: template.subject,
       html: template.html,
+      attachments: attachments || []
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -204,4 +239,35 @@ export async function sendBookingRescheduleEmail(
   }
   
   return sendEmail(booking.user.email, 'bookingReschedule', emailData);
+}
+
+// Function to send invoice email with attachment
+export async function sendInvoiceEmail(
+  booking: any,
+  attachmentBuffer: Buffer,
+  attachmentFilename: string,
+  invoiceNumber?: string,
+  notes?: string
+) {
+  const attachments: Attachment[] = [
+    {
+      filename: attachmentFilename,
+      content: attachmentBuffer
+    }
+  ];
+
+  return sendEmail(
+    booking.user.email, 
+    'invoiceEmail', 
+    {
+      studentName: `${booking.user.firstName} ${booking.user.lastName}`,
+      bookingId: booking._id,
+      date: formatDate(booking.date),
+      classType: booking.classType,
+      amount: booking.price || 'N/A',
+      invoiceNumber,
+      notes
+    },
+    attachments
+  );
 }

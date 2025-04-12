@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
       startTime,
       endTime,
       status: 'pending',
-      paymentStatus: 'completed', // Set as completed since we're not using Stripe
+      paymentStatus: 'requested', // Initial payment status, will be updated by admin
       termsAccepted: termsAccepted,
       termsAcceptedAt: new Date() // Always set to current date to ensure it's saved
     };
