@@ -1541,14 +1541,12 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-3 px-4 border-b">
                           <div className="flex space-x-2">
-                            {booking.paymentStatus === 'requested' && (
-                              <button
-                                onClick={() => handleSendInvoice(booking._id)}
-                                className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
-                              >
-                                Send Invoice
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleSendInvoice(booking._id)}
+                              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
+                            >
+                              Send Invoice
+                            </button>
                             <button
                               onClick={() => handleApproveBooking(booking._id)}
                               className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-full hover:from-green-600 hover:to-teal-600 shadow-sm transition-all"
