@@ -7,9 +7,8 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star } from "lucide-react";
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone} from "lucide-react";
 import LoadingComponent from "@/components/layout/Loading";
-import { I } from "@fullcalendar/core/internal-common";
 import { IBooking } from "@/models/Booking";
 
 // Modal component for viewing booking details
@@ -49,7 +48,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
         
         <div className="space-y-4">
           <div className="flex items-start space-x-3">
-            <User className="w-5 h-5 text-indigo-600 mt-0.5" />
+            <User className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
               <p className="font-medium text-gray-700">Student</p>
               <p className="text-gray-900">{booking.extendedProps.student}</p>
@@ -57,7 +56,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
           </div>
           
           <div className="flex items-start space-x-3">
-            <MapPin className="w-5 h-5 text-indigo-600 mt-0.5" />
+            <MapPin className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
               <p className="font-medium text-gray-700">Location</p>
               <p className="text-gray-900">{booking.extendedProps.location}</p>
@@ -65,7 +64,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
           </div>
           
           <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-indigo-600 mt-0.5" />
+            <Info className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
               <p className="font-medium text-gray-700">Class Type</p>
               <p className="text-gray-900">{booking.extendedProps.classType}</p>
@@ -73,7 +72,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
           </div>
           
           <div className="flex items-start space-x-3">
-            <Clock className="w-5 h-5 text-indigo-600 mt-0.5" />
+            <Clock className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
               <p className="font-medium text-gray-700">Duration</p>
               <p className="text-gray-900">{booking.extendedProps.duration} mins</p>
@@ -81,7 +80,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
           </div>
           
           <div className="flex items-start space-x-3">
-            <Phone className="w-5 h-5 text-indigo-600 mt-0.5" />
+            <Phone className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
               <p className="font-medium text-gray-700">Contact</p>
               <p className="text-gray-900">{booking.extendedProps.contact}</p>
@@ -92,7 +91,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+            className="px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-600"
           >
             Close
           </button>
@@ -112,7 +111,6 @@ interface Booking {
   };
   location: string;
   classType: string;
-  package: string;
   duration: number;
   date: string;
   startTime: string;
@@ -149,8 +147,51 @@ export default function InstructorDashboard() {
   const [isMobile, setIsMobile] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [showTodayBookings, setShowTodayBookings] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]); // Default to today
   const [locations, setLocations] = useState<string[]>([]);
+  const [dateRangeOffset, setDateRangeOffset] = useState<number>(0); // Track pagination offset
+  
+  // Generate dates for the day selector with pagination
+  const generateDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    // Generate 7 days with offset for pagination
+    // When offset is 0, it shows 3 days before today, today, and 3 days after today
+    // When offset is 1, it shows the next 7 days, and so on
+    for (let i = -3 + (dateRangeOffset * 7); i <= 3 + (dateRangeOffset * 7); i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+    
+    return dates;
+  };
+  
+  // Navigate to previous week
+  const goToPreviousWeek = () => {
+    setDateRangeOffset(prev => prev - 1);
+  };
+  
+  // Navigate to next week
+  const goToNextWeek = () => {
+    setDateRangeOffset(prev => prev + 1);
+  };
+  
+  // Reset to current week
+  const resetToCurrentWeek = () => {
+    setDateRangeOffset(0);
+  };
+
+  // Format date for display in day selector
+  const formatDateForSelector = (date: Date) => {
+    return {
+      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      date: date.getDate(),
+      month: date.toLocaleDateString('en-US', { month: 'short' }),
+      fullDate: date.toISOString().split('T')[0]
+    };
+  };
   
   // Check if device is mobile
   useEffect(() => {
@@ -195,6 +236,13 @@ export default function InstructorDashboard() {
     if (instructorId) {
       fetchBookings();
       fetchInstructorAvailability();
+    }
+  }, [instructorId]);
+
+  // Filter bookings by today's date when component mounts
+  useEffect(() => {
+    if (instructorId && selectedDate) {
+      filterBookingsByDate(selectedDate);
     }
   }, [instructorId]);
 
@@ -405,46 +453,38 @@ export default function InstructorDashboard() {
     }
   }
 
-  const toggleTodayBookings = async () => {
+  // Function to filter bookings by selected date
+  const filterBookingsByDate = async (date: string) => {
     try {
       setLoading(true);
+      setSelectedDate(date);
       
-      // Toggle the state
-      const newShowTodayBookings = !showTodayBookings;
-      setShowTodayBookings(newShowTodayBookings);
+      // Fetch all bookings for the instructor
+      const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+      const data = await response.json();
       
-      if (newShowTodayBookings) {
-        // Get today's date in YYYY-MM-DD format
-        const today = new Date();
-        const todayFormatted = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        console.log ('Today\'s date:', todayFormatted);
-        
-        // Fetch bookings for the instructor
-        const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
-        const data = await response.json();
-        
-        // Filter bookings to only include those for today
-        const todayBookings = data.bookings.filter((booking: IBooking) => {
+      if (date === 'all') {
+        // Show all bookings
+        setBookings(data.bookings || []);
+      } else {
+        // Filter bookings to only include those for the selected date
+        const filteredBookings = data.bookings.filter((booking: IBooking) => {
           // Handle dates like "2025-03-24T00:00:00.000+00:00"
           const bookingDate = new Date(booking.date).toISOString().split('T')[0]; // Extract just the YYYY-MM-DD part
-          console.log ('Booking date:', bookingDate);
-          return bookingDate === todayFormatted;
+          return bookingDate === date;
         });
         
         // Update state with filtered bookings
-        setBookings(todayBookings || []);
-      } else {
-        // Fetch all approved bookings
-        await fetchBookings();
+        setBookings(filteredBookings || []);
       }
       
       setLoading(false);
     } catch (error) {
-      console.error('Error toggling today\'s bookings:', error);
+      console.error('Error filtering bookings by date:', error);
       setError("Failed to load bookings");
       setLoading(false);
     }
-  }
+  };
 
   // State for reschedule modal
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
@@ -554,7 +594,8 @@ export default function InstructorDashboard() {
     }
   };
   
-  if (status === 'loading' || loading) {
+  // Only show full-page loading for initial authentication check
+  if (status === 'loading') {
     return <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />;
   }
   
@@ -566,7 +607,7 @@ export default function InstructorDashboard() {
           <p className="mb-6 text-slate-600">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-full transition-colors"
+            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-full transition-colors"
           >
             Go Home
           </button>
@@ -583,7 +624,7 @@ export default function InstructorDashboard() {
         <h1 className="text-2xl font-bold">Welcome {session?.user?.name} 👋</h1>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="text-indigo-600"
+          className="text-yellow-600"
         >
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
@@ -604,7 +645,7 @@ export default function InstructorDashboard() {
                 className={`
                   w-full flex items-center justify-center space-x-2 px-4 py-3 
                   ${activeTab === tab.id 
-                    ? 'bg-indigo-100 text-indigo-600 font-semibold' 
+                    ? 'bg-yellow-100 text-yellow-600 font-semibold'
                     : 'text-slate-500 hover:bg-slate-100'}
                   rounded-full transition-all duration-300
                 `}
@@ -625,9 +666,9 @@ export default function InstructorDashboard() {
         Welcome {session?.user?.name} 👋
       </div>
       
-      <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 flex justify-between items-center rounded-t-3xl shadow-lg">
+      <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black p-6 flex justify-between items-center rounded-t-3xl shadow-lg">
         <div className="flex items-center space-x-4">
-          <div className="bg-white/20 p-3 rounded-full">
+          <div className="bg-white p-3 rounded-full">
             <Calendar className="w-10 h-10" />
           </div>
           <div>
@@ -650,13 +691,13 @@ export default function InstructorDashboard() {
                 className={`
                   flex items-center space-x-2 px-6 py-4 
                   ${activeTab === tab.id 
-                    ? 'text-pink-600 border-l-4 border-pink-500 bg-pink-50 font-semibold' 
+                    ? 'text-yellow-600 border-l-4 border-yellow-500 bg-yellow-50 font-semibold' 
                     : 'text-slate-500 hover:bg-slate-100 border-l-4 border-transparent'}
                   transition-all duration-300
                 `}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-pink-500' : ''}`} />
+                <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-yellow-500' : ''}`} />
                 <span>{tab.label}</span>
               </button>
           ))}
@@ -667,40 +708,106 @@ export default function InstructorDashboard() {
           {activeTab === 'bookings' && (
             <div className="space-y-4">
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center">
-                  <Clock className="mr-3 text-indigo-500" />
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center mb-4">
+                  <Clock className="mr-3 text-yellow-500" />
                   Approved Bookings
                 </h2>
-                <div className="flex items-center space-x-2">
-                  <span className={`text-sm ${showTodayBookings ? 'text-gray-400' : 'text-indigo-600 font-medium'}`}>All</span>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTodayBookings}
-                      onChange={toggleTodayBookings}
-                      className="hidden peer"
-                    />
-                    <div className={`
-                      w-14 h-7 rounded-full relative transition-all duration-300 
-                      ${showTodayBookings 
-                        ? 'bg-indigo-500' 
-                        : 'bg-gray-300'}
-                      after:content-[''] after:absolute after:top-1 
-                      after:left-1 after:bg-white after:rounded-full 
-                      after:h-5 after:w-5 
-                      ${showTodayBookings 
-                        ? 'after:translate-x-7' 
-                        : 'after:translate-x-0'}
-                      after:transition-all after:duration-300
-                    `}></div>
-                  </label>
-                  <span className={`text-sm ${showTodayBookings ? 'text-indigo-600 font-medium' : 'text-gray-400'}`}>Today</span>
+                
+                {/* Day selector with pagination arrows */}
+                <div className="flex items-center justify-center py-2">
+                  {/* Previous week arrow */}
+                  <button 
+                    onClick={goToPreviousWeek}
+                    className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+                    aria-label="Previous week"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  
+                  {/* Day selector circles */}
+                  <div className="flex space-x-2">
+                    {generateDates().map((date, index) => {
+                      const { day, date: dateNum, fullDate } = formatDateForSelector(date);
+                      const isSelected = fullDate === selectedDate;
+                      const isToday = new Date().toISOString().split('T')[0] === fullDate;
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => filterBookingsByDate(fullDate)}
+                          className={`
+                            flex flex-col items-center justify-center
+                            w-16 h-16 rounded-full transition-all duration-200
+                            ${isSelected 
+                              ? 'bg-yellow-500 text-black shadow-lg transform scale-110' 
+                              : isToday
+                                ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                                : 'bg-white text-slate-700 border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50'}
+                          `}
+                        >
+                          <span className="text-xs font-medium">{day}</span>
+                          <span className={`text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{dateNum}</span>
+                          <span className="text-xs">{formatDateForSelector(date).month}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Next week arrow */}
+                  <button 
+                    onClick={goToNextWeek}
+                    className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+                    aria-label="Next week"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
               
-              {bookings.length === 0 ? (
+              {/* Show skeleton loader when loading bookings */}
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {[...Array(6)].map((_, index) => (
+                    <div 
+                      key={index}
+                      className="border-l-4 border-gray-200 rounded-2xl shadow-md p-5 relative overflow-hidden animate-pulse"
+                    >
+                      <div className="absolute -right-4 -top-4 bg-gray-100 w-16 h-16 rounded-full"></div>
+                      <div className="absolute -right-2 -bottom-2 bg-gray-100 w-12 h-12 rounded-full"></div>
+                      
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
+                          <div className="h-4 bg-gray-200 rounded w-24"></div>
+                        </div>
+                        <div className="h-6 bg-gray-200 rounded w-20"></div>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="h-6 bg-gray-200 rounded w-32 mb-1"></div>
+                        <div className="h-4 bg-gray-200 rounded w-40"></div>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
+                          <div className="h-4 bg-gray-200 rounded w-24"></div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
+                          <div className="h-4 bg-gray-200 rounded w-20"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : bookings.length === 0 ? (
                 <div className="text-center py-10 bg-slate-50 rounded-lg">
                   <p className="text-slate-500">No approved bookings found.</p>
                 </div>
@@ -778,7 +885,7 @@ export default function InstructorDashboard() {
                             <span>{booking.startTime} - {booking.endTime}</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <User className="w-5 h-5 text-current" />
+                            <Phone className="w-5 h-5 text-current" />
                             <a 
                               href={`tel:${booking.user.phone}`} 
                               className="hover:underline"
@@ -904,7 +1011,7 @@ export default function InstructorDashboard() {
                     height="auto"
                     contentHeight="auto"
                     aspectRatio={1.35}
-                    dayHeaderClassNames={['text-indigo-600', 'font-semibold', 'py-2']}
+                    dayHeaderClassNames={['text-yellow-600', 'font-semibold', 'py-2']}
                     slotLabelClassNames={['text-xs', 'text-slate-500']}
                   />
                 </div>
@@ -948,7 +1055,7 @@ export default function InstructorDashboard() {
                 type="date"
                 value={newBookingDate}
                 onChange={(e) => setNewBookingDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
               />
             </div>
             
@@ -960,7 +1067,7 @@ export default function InstructorDashboard() {
                 type="time"
                 value={newStartTime}
                 onChange={(e) => setNewStartTime(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
               />
             </div>
           </div>

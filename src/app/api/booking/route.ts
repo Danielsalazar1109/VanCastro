@@ -8,7 +8,7 @@ import Price from '@/models/Price';
 import GlobalAvailability from '@/models/GlobalAvailability';
 import SpecialAvailability from '@/models/SpecialAvailability';
 import { hasTimeConflict, addBufferTime } from '@/lib/utils/bufferTime';
-import { sendBookingConfirmationEmail } from '@/lib/utils/emailService';
+import { sendBookingPendingEmail, sendBookingConfirmationEmail, sendBookingRejectedEmail } from '@/lib/utils/emailService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -418,7 +418,7 @@ export async function POST(request: NextRequest) {
           ? `${instructorDetails.user.firstName} ${instructorDetails.user.lastName}`
           : 'Your Instructor';
           
-        await sendBookingConfirmationEmail(
+        await sendBookingPendingEmail(
           {
             ...booking.toObject(),
             user: userDetails,
@@ -426,7 +426,7 @@ export async function POST(request: NextRequest) {
           },
           instructorName
         );
-        console.log('Booking confirmation email sent to student:', userDetails.email);
+        console.log('Booking pending email sent to student:', userDetails.email);
       } catch (emailError) {
         console.error('Error sending new booking email:', emailError);
         // Continue with booking creation even if email fails
@@ -501,7 +501,7 @@ export async function PUT(request: NextRequest) {
     
     // Parse the request body
     const body = await request.json();
-    const { bookingId, status, price } = body;
+    const { bookingId, status, price, reason } = body;
     
     // Validate required fields
     if (!bookingId || !status) {
@@ -512,13 +512,24 @@ export async function PUT(request: NextRequest) {
     }
     
     // Check if booking exists
-    const booking = await Booking.findById(bookingId);
+    const booking = await Booking.findById(bookingId)
+      .populate('user', 'firstName lastName email phone')
+      .populate({
+        path: 'instructor',
+        populate: {
+          path: 'user',
+          select: 'firstName lastName email'
+        }
+      });
+      
     if (!booking) {
       return NextResponse.json(
         { error: 'Booking not found' },
         { status: 404 }
       );
     }
+    
+    const previousStatus = booking.status;
     
     // Update booking status and price if provided
     booking.status = status;
@@ -529,6 +540,44 @@ export async function PUT(request: NextRequest) {
     }
     
     await booking.save();
+    
+    // If the booking is being approved, send a confirmation email
+    if (status === 'approved' && previousStatus !== 'approved' && booking.user.email) {
+      try {
+        // Get instructor name
+        const instructorName = booking.instructor?.user?.firstName 
+          ? `${booking.instructor.user.firstName} ${booking.instructor.user.lastName}`
+          : 'Your Instructor';
+          
+        await sendBookingConfirmationEmail(
+          booking,
+          instructorName
+        );
+        console.log('Booking confirmation email sent to student:', booking.user.email);
+      } catch (emailError) {
+        console.error('Error sending booking confirmation email:', emailError);
+        // Continue with booking update even if email fails
+      }
+    }
+    // If the booking is being rejected (status changed to 'cancelled'), send a rejection email
+    else if (status === 'cancelled' && previousStatus !== 'cancelled' && booking.user.email) {
+      try {
+        // Get instructor name
+        const instructorName = booking.instructor?.user?.firstName 
+          ? `${booking.instructor.user.firstName} ${booking.instructor.user.lastName}`
+          : 'Your Instructor';
+          
+        await sendBookingRejectedEmail(
+          booking,
+          instructorName,
+          reason
+        );
+        console.log('Booking rejection email sent to student:', booking.user.email);
+      } catch (emailError) {
+        console.error('Error sending booking rejection email:', emailError);
+        // Continue with booking update even if email fails
+      }
+    }
     
     return NextResponse.json({ booking });
   } catch (error) {

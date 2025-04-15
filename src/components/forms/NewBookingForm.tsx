@@ -1289,10 +1289,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 										<span className="text-gray-900">{classType}</span>
 									</p>
 									<p className="mb-2">
-										<span className="font-semibold text-gray-700">Package:</span>{" "}
-										<span className="text-gray-900">{packageType}</span>
-									</p>
-									<p className="mb-2">
 										<span className="font-semibold text-gray-700">Duration:</span>{" "}
 										<span className="text-gray-900">{duration} minutes</span>
 									</p>

@@ -66,7 +66,7 @@ const InstructorModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-pink-600">Edit Instructor</h3>
+          <h3 className="text-xl font-bold text-yellow-600">Edit Instructor</h3>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -149,7 +149,7 @@ const InstructorModal = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+              className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
             >
               Update Instructor
             </button>

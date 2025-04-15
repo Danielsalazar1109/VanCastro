@@ -765,6 +765,9 @@ export default function AdminDashboard() {
   
   const handleRejectBooking = async (bookingId: string) => {
     try {
+      // Ask for a reason (optional)
+      const reason = window.prompt('Please provide a reason for rejecting this booking (optional):');
+      
       const response = await fetch('/api/booking', {
         method: 'PUT',
         headers: {
@@ -773,6 +776,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           bookingId,
           status: 'cancelled',
+          reason: reason || undefined,
         }),
       });
       
@@ -1313,8 +1317,8 @@ export default function AdminDashboard() {
   
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-10 px-4 md:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 flex justify-between items-center rounded-t-3xl shadow-lg mb-8">
+      <div className="max-w-9xl mx-auto">
+        <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black p-6 flex justify-between items-center rounded-t-3xl shadow-lg mb-8">
           <div className="flex items-center space-x-4">
             <div className="bg-white/20 p-3 rounded-full">
               <Shield className="w-10 h-10" />
@@ -1332,7 +1336,7 @@ export default function AdminDashboard() {
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'bookings'
-                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
               } transition-all duration-300 relative`}
               onClick={() => {
@@ -1340,7 +1344,7 @@ export default function AdminDashboard() {
                 setHasNewPendingBookings(false);
               }}
             >
-              <Clock className={`w-5 h-5 ${activeTab === 'bookings' ? 'text-pink-500' : ''}`} />
+              <Clock className={`w-5 h-5 ${activeTab === 'bookings' ? 'text-yellow-500' : ''}`} />
               <span>Pending Bookings</span>
               {hasNewPendingBookings && activeTab !== 'bookings' && (
                 <span className="absolute top-2 right-2 flex h-3 w-3">
@@ -1352,47 +1356,47 @@ export default function AdminDashboard() {
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'calendar'
-                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
               } transition-all duration-300`}
               onClick={() => setActiveTab('calendar')}
             >
-              <Calendar className={`w-5 h-5 ${activeTab === 'calendar' ? 'text-pink-500' : ''}`} />
+              <Calendar className={`w-5 h-5 ${activeTab === 'calendar' ? 'text-yellow-500' : ''}`} />
               <span>Calendar View</span>
             </button>
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'instructors'
-                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
               } transition-all duration-300`}
               onClick={() => setActiveTab('instructors')}
             >
-              <User className={`w-5 h-5 ${activeTab === 'instructors' ? 'text-pink-500' : ''}`} />
+              <User className={`w-5 h-5 ${activeTab === 'instructors' ? 'text-yellow-500' : ''}`} />
               <span>Manage Instructors</span>
             </button>
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'users'
-                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
               } transition-all duration-300`}
               onClick={() => setActiveTab('users')}
             >
-              <User className={`w-5 h-5 ${activeTab === 'users' ? 'text-pink-500' : ''}`} />
+              <User className={`w-5 h-5 ${activeTab === 'users' ? 'text-yellow-500' : ''}`} />
               <span>View Users</span>
             </button>
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'prices'
-                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
               } transition-all duration-300`}
               onClick={() => setActiveTab('prices')}
             >
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
-                className={`w-5 h-5 ${activeTab === 'prices' ? 'text-pink-500' : ''}`}
+                className={`w-5 h-5 ${activeTab === 'prices' ? 'text-yellow-500' : ''}`}
                 viewBox="0 0 24 24" 
                 fill="none" 
                 stroke="currentColor" 
@@ -1409,23 +1413,23 @@ export default function AdminDashboard() {
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'locations'
-                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
               } transition-all duration-300`}
               onClick={() => setActiveTab('locations')}
             >
-              <MapPin className={`w-5 h-5 ${activeTab === 'locations' ? 'text-pink-500' : ''}`} />
+              <MapPin className={`w-5 h-5 ${activeTab === 'locations' ? 'text-yellow-500' : ''}`} />
               <span>Manage Locations</span>
             </button>
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'global-availability'
-                  ? 'text-pink-600 border-b-2 border-pink-500 font-semibold' 
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
               } transition-all duration-300`}
               onClick={() => setActiveTab('global-availability')}
             >
-              <Calendar className={`w-5 h-5 ${activeTab === 'global-availability' ? 'text-pink-500' : ''}`} />
+              <Calendar className={`w-5 h-5 ${activeTab === 'global-availability' ? 'text-yellow-500' : ''}`} />
               <span>Availability</span>
             </button>
           </div>
@@ -1436,7 +1440,7 @@ export default function AdminDashboard() {
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-slate-800 flex items-center">
-                    <Clock className="mr-3 text-pink-500" />
+                    <Clock className="mr-3 text-yellow-500" />
                     Pending Bookings
                   </h2>
                   <button
@@ -1445,7 +1449,7 @@ export default function AdminDashboard() {
                     className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
                       updatingExpired 
                         ? 'bg-gray-400' 
-                        : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600'
+                        : 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700'
                     } transition-all duration-300`}
                   >
                     {updatingExpired ? 'Updating...' : 'Cancel Expired Bookings'}
@@ -1467,19 +1471,19 @@ export default function AdminDashboard() {
                     <table className="min-w-full bg-white border">
                       <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
                         <tr>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Date</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Time</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Location</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Class</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Duration</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Student</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Email</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Phone</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Terms checked time</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Instructor</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Payment</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Time Remaining</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Actions</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Date</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Terms checked time</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                         </tr>
                       </thead>
                   <tbody>
@@ -1573,15 +1577,15 @@ export default function AdminDashboard() {
             {activeTab === 'instructors' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                  <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                     <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                     <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                     
                     <div className="flex items-center space-x-4 mb-2 relative z-10">
                       <div className="bg-white/20 p-2 rounded-full">
-                        <User className="w-8 h-8" />
+                        <User className="w-8 h-8 text-black" />
                       </div>
-                      <h2 className="text-2xl font-bold tracking-tight">Create Instructor</h2>
+                      <h2 className="text-2xl font-bold tracking-tight text-black">Create Instructor</h2>
                     </div>
                     <p className="text-white/80 relative z-10">
                       Add a new instructor to the system with their details and teaching preferences.
@@ -1597,7 +1601,7 @@ export default function AdminDashboard() {
                         onChange={(e) =>
                           setNewInstructor({ ...newInstructor, firstName: e.target.value })
                         }
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                         required
                       />
                     </div>
@@ -1676,7 +1680,7 @@ export default function AdminDashboard() {
                     <div>
                       <button
                         type="submit"
-                        className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                        className="w-full px-4 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold rounded-full shadow-md transition-all"
                       >
                         Create Instructor
                       </button>
@@ -1685,15 +1689,15 @@ export default function AdminDashboard() {
                 </div>
             
                 <div>
-                  <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                  <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                     <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                     <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                     
                     <div className="flex items-center space-x-4 mb-2 relative z-10">
                       <div className="bg-white/20 p-2 rounded-full">
-                        <User className="w-8 h-8" />
+                        <User className="w-8 h-8 text-black" />
                       </div>
-                      <h2 className="text-2xl font-bold tracking-tight">Current Instructors</h2>
+                      <h2 className="text-2xl font-bold tracking-tight text-black">Current Instructors</h2>
                     </div>
                     <p className="text-white/80 relative z-10">
                       View and manage all instructors in the system.
@@ -1722,7 +1726,7 @@ export default function AdminDashboard() {
                                 </div>
                               )}
                               <div>
-                                <h3 className="text-xl font-bold text-pink-600">
+                                <h3 className="text-xl font-bold text-yellow-600">
                                   {instructor.user.firstName} {instructor.user.lastName}
                                 </h3>
                                 <p className="text-sm text-gray-600">{instructor.user.email}</p>
@@ -1768,15 +1772,15 @@ export default function AdminDashboard() {
         
             {activeTab === 'calendar' && (
               <div>
-                <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600  text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                   <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                   <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                   
                   <div className="flex items-center space-x-4 mb-2 relative z-10">
                     <div className="bg-white/20 p-2 rounded-full">
-                      <Calendar className="w-8 h-8" />
+                      <Calendar className="w-8 h-8 text-black" />
                     </div>
-                    <h2 className="text-2xl font-bold tracking-tight">Calendar View</h2>
+                    <h2 className="text-2xl font-bold tracking-tight text-black">Calendar View</h2>
                   </div>
                   <p className="text-white/80 relative z-10">
                     View all approved bookings in a calendar format.
@@ -1784,7 +1788,7 @@ export default function AdminDashboard() {
                 </div>
                 
                 <div className="mb-6 p-4 bg-white rounded-2xl shadow-lg">
-                  <h3 className="text-lg font-semibold mb-3 text-pink-600">Instructor Color Legend</h3>
+                  <h3 className="text-lg font-semibold mb-3 text-yellow-600">Instructor Color Legend</h3>
                   <div className="flex flex-wrap items-center gap-4">
                     {instructors.map((instructor) => (
                       <div key={instructor._id} className="flex items-center bg-white px-3 py-1 rounded-full shadow-sm">
@@ -1825,15 +1829,15 @@ export default function AdminDashboard() {
         
             {activeTab === 'users' && (
               <div>
-                <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+                <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                   <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                   <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                   
                   <div className="flex items-center space-x-4 mb-2 relative z-10">
                     <div className="bg-white/20 p-2 rounded-full">
-                      <User className="w-8 h-8" />
+                      <User className="w-8 h-8 text-black" />
                     </div>
-                    <h2 className="text-2xl font-bold tracking-tight">All Users</h2>
+                    <h2 className="text-2xl font-bold tracking-tight text-black">All Users</h2>
                   </div>
                   <p className="text-white/80 relative z-10">
                     View all users registered in the system.
@@ -1849,10 +1853,10 @@ export default function AdminDashboard() {
                     <table className="min-w-full bg-white border">
                       <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
                         <tr>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Name</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Email</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Phone</th>
-                          <th className="py-3 px-4 border-b text-left text-pink-700">Role</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Name</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Role</th>
                         </tr>
                       </thead>
                   <tbody>
@@ -1888,7 +1892,7 @@ export default function AdminDashboard() {
         {activeTab === 'prices' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+              <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 
@@ -1896,7 +1900,7 @@ export default function AdminDashboard() {
                   <div className="bg-white/20 p-2 rounded-full">
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
-                      className="w-8 h-8"
+                      className="w-8 h-8 text-black"
                       viewBox="0 0 24 24" 
                       fill="none" 
                       stroke="currentColor" 
@@ -1909,7 +1913,7 @@ export default function AdminDashboard() {
                       <line x1="8" y1="12" x2="16" y2="12"></line>
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight">Add New Price</h2>
+                  <h2 className="text-2xl font-bold tracking-tight text-black">Add New Price</h2>
                 </div>
                 <p className="text-white/80 relative z-10">
                   Create pricing for different class types, durations, and packages.
@@ -1922,7 +1926,7 @@ export default function AdminDashboard() {
                   <select
                     value={newPrice.classType}
                     onChange={(e) => setNewPrice({ ...newPrice, classType: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                     required
                   >
                     <option value="class 7">Class 7</option>
@@ -1936,7 +1940,7 @@ export default function AdminDashboard() {
                   <select
                     value={newPrice.duration}
                     onChange={(e) => setNewPrice({ ...newPrice, duration: parseInt(e.target.value) })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                     required
                   >
                     <option value="60">60 minutes</option>
@@ -1950,7 +1954,7 @@ export default function AdminDashboard() {
                   <select
                     value={newPrice.package}
                     onChange={(e) => setNewPrice({ ...newPrice, package: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                     required
                   >
                     <option value="1 lesson">1 Lesson</option>
@@ -1966,7 +1970,7 @@ export default function AdminDashboard() {
                     step="0.01"
                     value={newPrice.price}
                     onChange={(e) => setNewPrice({ ...newPrice, price: parseFloat(e.target.value) })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                     required
                   />
                 </div>
@@ -1974,7 +1978,7 @@ export default function AdminDashboard() {
                 <div>
                   <button
                     type="submit"
-                    className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold rounded-full shadow-md transition-all"
                   >
                     Add Price
                   </button>
@@ -1984,7 +1988,7 @@ export default function AdminDashboard() {
             </div>
             
             <div>
-              <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+              <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600  text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 
@@ -1992,7 +1996,7 @@ export default function AdminDashboard() {
                   <div className="bg-white/20 p-2 rounded-full">
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
-                      className="w-8 h-8"
+                      className="w-8 h-8 text-black"
                       viewBox="0 0 24 24" 
                       fill="none" 
                       stroke="currentColor" 
@@ -2005,7 +2009,7 @@ export default function AdminDashboard() {
                       <line x1="8" y1="12" x2="16" y2="12"></line>
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight">Current Prices</h2>
+                  <h2 className="text-2xl font-bold tracking-tight text-black">Current Prices</h2>
                 </div>
                 <p className="text-white/80 relative z-10">
                   View and manage all pricing in the system.
@@ -2021,11 +2025,11 @@ export default function AdminDashboard() {
                   <table className="min-w-full bg-white border">
                     <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
                       <tr>
-                        <th className="py-3 px-4 border-b text-left text-pink-700">Class Type</th>
-                        <th className="py-3 px-4 border-b text-left text-pink-700">Duration</th>
-                        <th className="py-3 px-4 border-b text-left text-pink-700">Package</th>
-                        <th className="py-3 px-4 border-b text-left text-pink-700">Price</th>
-                        <th className="py-3 px-4 border-b text-left text-pink-700">Actions</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Class Type</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Package</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Price</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2070,15 +2074,15 @@ export default function AdminDashboard() {
         
         {activeTab === 'global-availability' && (
           <div>
-            <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+            <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
               <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
               <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
               
               <div className="flex items-center space-x-4 mb-2 relative z-10">
                 <div className="bg-white/20 p-2 rounded-full">
-                  <Calendar className="w-8 h-8" />
+                  <Calendar className="w-8 h-8 text-black" />
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight">Global Availability Management</h2>
+                <h2 className="text-2xl font-bold tracking-tight text-black">Global Availability Management</h2>
               </div>
               <p className="text-white/80 relative z-10">
                 Set the days and hours when bookings are allowed for all instructors in the system.
@@ -2087,7 +2091,7 @@ export default function AdminDashboard() {
             
             <div className="bg-white p-6 rounded-2xl shadow-lg mb-6">
               <div className="mb-6">
-                <h3 className="text-xl font-semibold text-pink-700 mb-4">Global Availability Settings</h3>
+                <h3 className="text-xl font-semibold text-yellow-700 mb-4">Global Availability Settings</h3>
                 <p className="text-gray-600 mb-6">
                   Set the days and hours when bookings are allowed for all instructors. These settings will apply to all instructors in the system.
                 </p>
@@ -2101,15 +2105,15 @@ export default function AdminDashboard() {
         {activeTab === 'locations' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+              <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 
                 <div className="flex items-center space-x-4 mb-2 relative z-10">
                   <div className="bg-white/20 p-2 rounded-full">
-                    <MapPin className="w-8 h-8" />
+                    <MapPin className="w-8 h-8 text-black" />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight">Add New Location</h2>
+                  <h2 className="text-2xl font-bold tracking-tight text-black">Add New Location</h2>
                 </div>
                 <p className="text-white/80 relative z-10">
                   Add a new location where driving lessons can take place.
@@ -2123,7 +2127,7 @@ export default function AdminDashboard() {
                     type="text"
                     value={newLocation.name}
                     onChange={(e) => setNewLocation({ name: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                     placeholder="e.g., Vancouver, 999 Kingsway"
                     required
                   />
@@ -2132,7 +2136,7 @@ export default function AdminDashboard() {
                 <div>
                   <button
                     type="submit"
-                    className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold rounded-full shadow-md transition-all"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:to-yellow-600 text-white font-bold rounded-full shadow-md transition-all"
                   >
                     Add Location
                   </button>
@@ -2141,15 +2145,15 @@ export default function AdminDashboard() {
             </div>
             
             <div>
-              <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
+              <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6 rounded-2xl shadow-xl mb-6 relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 <div className="absolute -left-10 -bottom-10 bg-white/10 w-40 h-40 rounded-full"></div>
                 
                 <div className="flex items-center space-x-4 mb-2 relative z-10">
                   <div className="bg-white/20 p-2 rounded-full">
-                    <MapPin className="w-8 h-8" />
+                    <MapPin className="w-8 h-8 text-black" />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight">Current Locations</h2>
+                  <h2 className="text-2xl font-bold tracking-tight text-black">Current Locations</h2>
                 </div>
                 <p className="text-white/80 relative z-10">
                   View and manage all locations in the system.
@@ -2167,7 +2171,7 @@ export default function AdminDashboard() {
                       <div className="flex justify-between items-center">
                         <div className="flex items-center space-x-3">
                           <div className={`w-3 h-3 rounded-full ${location.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <h3 className="text-xl font-bold text-pink-600">
+                          <h3 className="text-xl font-bold text-yellow-600">
                             {location.name}
                           </h3>
                         </div>
@@ -2260,7 +2264,7 @@ export default function AdminDashboard() {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-pink-600">Edit Location</h3>
+            <h3 className="text-xl font-bold text-yellow-600">Edit Location</h3>
             <button 
               onClick={() => {
                 setIsLocationModalOpen(false);
@@ -2279,7 +2283,7 @@ export default function AdminDashboard() {
                 type="text"
                 value={editingLocation.name}
                 onChange={(e) => handleLocationChange('name', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                 required
               />
             </div>
@@ -2315,7 +2319,7 @@ export default function AdminDashboard() {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+                className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-full hover:from-yellow-600 hover:to-yellow-700 transition-colors shadow-md"
               >
                 Update Location
               </button>

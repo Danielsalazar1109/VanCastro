@@ -210,7 +210,7 @@ const AbsenceModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-pink-600">
+          <h3 className="text-xl font-bold text-yellow-600">
             Manage Absences for {instructor.user.firstName} {instructor.user.lastName}
           </h3>
           <button 
@@ -229,7 +229,7 @@ const AbsenceModal = ({
           </div>
           
           <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
-            <h4 className="font-medium text-lg mb-3 text-pink-600">Add New Absence Period</h4>
+            <h4 className="font-medium text-lg mb-3 text-yellow-600">Add New Absence Period</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
@@ -237,7 +237,7 @@ const AbsenceModal = ({
                   type="date"
                   value={newStartDate}
                   onChange={(e) => setNewStartDate(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                   required
                 />
               </div>
@@ -248,7 +248,7 @@ const AbsenceModal = ({
                   value={newEndDate}
                   min = {newStartDate}
                   onChange={(e) => setNewEndDate(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                   required
                 />
               </div>
@@ -259,21 +259,21 @@ const AbsenceModal = ({
                   value={newReason}
                   onChange={(e) => setNewReason(e.target.value)}
                   placeholder="Vacation, Training, etc."
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                 />
               </div>
             </div>
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleAddAbsence}
-                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+                className="px-4 py-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white rounded-full hover:from-yellow-500 hover:to-yellow-600 transition-colors shadow-md"
               >
                 Add Absence
               </button>
             </div>
           </div>
           
-          <h4 className="font-medium text-lg mb-3 text-pink-600">Current Absence Periods</h4>
+          <h4 className="font-medium text-lg mb-3 text-yellow-600">Current Absence Periods</h4>
           {absences.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
               <p className="text-gray-500">No absences scheduled</p>
@@ -328,7 +328,7 @@ const AbsenceModal = ({
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-pink-600">Edit Absence</h3>
+                <h3 className="text-xl font-bold text-yellow-600">Edit Absence</h3>
                 <button 
                   onClick={() => setIsEditModalOpen(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -344,7 +344,7 @@ const AbsenceModal = ({
                     type="date"
                     value={editStartDate}
                     onChange={(e) => setEditStartDate(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                     required
                   />
                 </div>
@@ -356,7 +356,7 @@ const AbsenceModal = ({
                     value={editEndDate}
                     min = {editStartDate}
                     onChange={(e) => setEditEndDate(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                     required
                   />
                 </div>
@@ -368,7 +368,7 @@ const AbsenceModal = ({
                     value={editReason}
                     onChange={(e) => setEditReason(e.target.value)}
                     placeholder="Vacation, Training, etc."
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 transition-all"
                   />
                 </div>
               </div>
@@ -382,7 +382,7 @@ const AbsenceModal = ({
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+                  className="px-4 py-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white rounded-full hover:from-yellow-500 hover:to-yellow-600 transition-colors shadow-md"
                 >
                   Save Changes
                 </button>
@@ -401,7 +401,7 @@ const AbsenceModal = ({
           <button
             onClick={handleSaveAbsences}
             disabled={saving}
-            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md disabled:opacity-50"
+            className="px-4 py-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600  text-white rounded-full hover:from-yellow-500 hover:to-yellow-600 transition-colors shadow-md disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save Absences"}
           </button>

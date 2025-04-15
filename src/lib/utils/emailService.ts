@@ -50,6 +50,37 @@ const emailTemplates = {
       </div>
     `,
   }),
+  bookingPending: (data: {
+    studentName: string;
+    instructorName: string;
+    date: string;
+    startTime: string;
+    location: string;
+    classType: string;
+  }) => ({
+    subject: 'Driving Lesson Booking Request Received',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
+        </div>
+        <h2 style="color: #f59e0b; text-align: center;">Booking Request Received</h2>
+        <p>Hello ${data.studentName},</p>
+        <p>We have received your driving lesson booking request. Our team will review it shortly.</p>
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <p><strong>Instructor:</strong> ${data.instructorName}</p>
+          <p><strong>Date:</strong> ${data.date}</p>
+          <p><strong>Time:</strong> ${data.startTime}</p>
+          <p><strong>Location:</strong> ${data.location}</p>
+          <p><strong>Class Type:</strong> ${data.classType}</p>
+        </div>
+        <p>You can <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://vancastro.vercel.app'}/contracts/${data.classType.replace(/\s+/g, '')}" style="color: #4f46e5; text-decoration: underline; font-weight: bold;">review the contract here</a> for your selected class type.</p>
+        <p>Your booking is currently <strong>pending approval</strong>. You will receive another email once your booking is confirmed.</p>
+        <p>If you need to make any changes, please contact us as soon as possible.</p>
+        <p>Thank you for choosing our driving school!</p>
+      </div>
+    `,
+  }),
   bookingConfirmation: (data: {
     studentName: string;
     instructorName: string;
@@ -74,9 +105,41 @@ const emailTemplates = {
           <p><strong>Location:</strong> ${data.location}</p>
           <p><strong>Class Type:</strong> ${data.classType}</p>
         </div>
-        <p>You can <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/contracts/${data.classType.replace(/\s+/g, '')}" style="color: #4f46e5; text-decoration: underline; font-weight: bold;">review the contract here</a> for your selected class type.</p>
+        <p>You can <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://vancastro.vercel.app'}/contracts/${data.classType.replace(/\s+/g, '')}" style="color: #4f46e5; text-decoration: underline; font-weight: bold;">review the contract here</a> for your selected class type.</p>
         <p>If you need to reschedule or cancel, please contact us at least 24 hours in advance.</p>
         <p>Thank you for choosing our driving school!</p>
+      </div>
+    `,
+  }),
+  bookingRejected: (data: {
+    studentName: string;
+    instructorName: string;
+    date: string;
+    startTime: string;
+    location: string;
+    classType: string;
+    reason?: string;
+  }) => ({
+    subject: 'Driving Lesson Booking Request Declined',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
+        </div>
+        <h2 style="color: #ef4444; text-align: center;">Booking Request Declined</h2>
+        <p>Hello ${data.studentName},</p>
+        <p>We regret to inform you that your driving lesson booking request has been declined.</p>
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <p><strong>Instructor:</strong> ${data.instructorName}</p>
+          <p><strong>Date:</strong> ${data.date}</p>
+          <p><strong>Time:</strong> ${data.startTime}</p>
+          <p><strong>Location:</strong> ${data.location}</p>
+          <p><strong>Class Type:</strong> ${data.classType}</p>
+        </div>
+        ${data.reason ? `<p><strong>Reason:</strong> ${data.reason}</p>` : ''}
+        <p>If you would like to book another lesson, please visit our website to select a different time or date.</p>
+        <p>If you have any questions, please don't hesitate to contact us.</p>
+        <p>Thank you for your understanding.</p>
       </div>
     `,
   }),
@@ -239,6 +302,31 @@ export async function sendBookingRescheduleEmail(
   }
   
   return sendEmail(booking.user.email, 'bookingReschedule', emailData);
+}
+
+// Function to send pending booking email
+export async function sendBookingPendingEmail(booking: any, instructorName: string) {
+  return sendEmail(booking.user.email, 'bookingPending', {
+    studentName: `${booking.user.firstName} ${booking.user.lastName}`,
+    instructorName,
+    date: formatDate(booking.date),
+    startTime: booking.startTime,
+    location: booking.location,
+    classType: booking.classType,
+  });
+}
+
+// Function to send rejected booking email
+export async function sendBookingRejectedEmail(booking: any, instructorName: string, reason?: string) {
+  return sendEmail(booking.user.email, 'bookingRejected', {
+    studentName: `${booking.user.firstName} ${booking.user.lastName}`,
+    instructorName,
+    date: formatDate(booking.date),
+    startTime: booking.startTime,
+    location: booking.location,
+    classType: booking.classType,
+    reason,
+  });
 }
 
 // Function to send invoice email with attachment
