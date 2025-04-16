@@ -1003,6 +1003,11 @@ export default function AdminDashboard() {
       formData.append('bookingId', selectedInvoiceBookingId);
       formData.append('invoiceFile', selectedInvoiceFile);
       
+      // Add admin email for fallback authentication in production
+      if (session?.user?.email) {
+        formData.append('adminEmail', session.user.email);
+      }
+      
       if (invoiceNumber) {
         formData.append('invoiceNumber', invoiceNumber);
       }
@@ -1048,6 +1053,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           bookingId,
           status: 'approved',
+          adminEmail: session?.user?.email, // Add admin email for fallback authentication
         }),
         credentials: 'include', // Include cookies in the request
       });
@@ -1079,6 +1085,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           bookingId,
           status: 'rejected',
+          adminEmail: session?.user?.email, // Add admin email for fallback authentication
         }),
         credentials: 'include', // Include cookies in the request
       });
