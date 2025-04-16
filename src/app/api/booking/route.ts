@@ -592,13 +592,18 @@ export async function PUT(request: NextRequest) {
 import { sendBookingCancellationEmail } from '@/lib/utils/emailService';
 import { getServerSession } from 'next-auth';
 
+// NextAuth configuration
+const authOptions = {
+  secret: process.env.NEXTAUTH_SECRET
+};
+
 export async function DELETE(request: NextRequest) {
   try {
     // Connect to the database
     await connectToDatabase();
     
     // Check if the user is authenticated and has admin role
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     
     const { searchParams } = new URL(request.url);
     const bookingId = searchParams.get('bookingId');

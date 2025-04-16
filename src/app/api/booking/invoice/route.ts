@@ -3,10 +3,15 @@ import { getServerSession } from 'next-auth';
 import connectToDatabase from '@/lib/db/mongodb';
 import { sendInvoiceEmail } from '@/lib/utils/emailService';
 
+// NextAuth configuration
+const authOptions = {
+  secret: process.env.NEXTAUTH_SECRET
+};
+
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession();
+    // Check authentication with proper auth options
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -99,8 +104,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession();
+    // Check authentication with proper auth options
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
