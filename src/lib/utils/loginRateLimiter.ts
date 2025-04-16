@@ -8,17 +8,35 @@ const MAX_ATTEMPTS = 5; // Maximum 5 attempts per day
 /**
  * Extracts the IP address from the request
  */
-export const getIpAddress = (request: NextRequest): string => {
-  // Get IP from X-Forwarded-For header or directly from the connection
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    // X-Forwarded-For can contain multiple IPs separated by commas
-    const ips = forwardedFor.split(',');
-    return ips[0].trim();
+export const getIpAddress = (request: any): string => {
+  try {
+    // Handle NextRequest object (App Router)
+    if (request.headers && typeof request.headers.get === 'function') {
+      const forwardedFor = request.headers.get('x-forwarded-for');
+      if (forwardedFor) {
+        const ips = forwardedFor.split(',');
+        return ips[0].trim();
+      }
+    } 
+    // Handle standard request object (from NextAuth)
+    else if (request.headers && request.headers['x-forwarded-for']) {
+      const forwardedFor = request.headers['x-forwarded-for'];
+      if (forwardedFor) {
+        const ips = Array.isArray(forwardedFor) 
+          ? forwardedFor[0] 
+          : forwardedFor.split(',')[0];
+        return ips.trim();
+      }
+    }
+    // Handle if request has a socket with remoteAddress
+    else if (request.socket && request.socket.remoteAddress) {
+      return request.socket.remoteAddress;
+    }
+  } catch (error) {
+    console.error('Error getting IP address:', error);
   }
   
-  // If no X-Forwarded-For, try to get IP from 'ip' property
-  // If not available, use a default string
+  // Default fallback
   return '0.0.0.0';
 };
 

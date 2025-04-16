@@ -161,8 +161,10 @@ function LoginPageContent() {
           // Extract the reset date from the error message
           const resetDate = result.error.split('LIMIT_EXCEEDED:')[1];
           setError(`You have exceeded the limit of 5 login attempts per day. Your attempts will reset tomorrow (${resetDate}).`);
+          console.log("Rate limit error detected:", result.error);
         } else {
           setError("Invalid email or password");
+          console.log("Login error:", result.error);
         }
         setLoading(false);
         return;

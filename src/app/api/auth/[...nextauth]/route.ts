@@ -63,6 +63,7 @@ const handler = NextAuth({
                 year: 'numeric'
               }) : 'tomorrow';
             
+            console.log(`Rate limit exceeded for ${credentials.email}. Will reset on ${resetTimeStr}`);
             throw new Error(`LIMIT_EXCEEDED:${resetTimeStr}`);
           }
 
