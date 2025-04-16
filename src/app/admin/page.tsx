@@ -1011,10 +1011,11 @@ export default function AdminDashboard() {
         formData.append('notes', invoiceNotes);
       }
       
-      // Send the invoice
+      // Send the invoice with credentials included
       const response = await fetch('/api/booking/invoice', {
         method: 'POST',
         body: formData,
+        credentials: 'include', // Include cookies in the request
       });
       
       if (!response.ok) {
@@ -1048,6 +1049,7 @@ export default function AdminDashboard() {
           bookingId,
           status: 'approved',
         }),
+        credentials: 'include', // Include cookies in the request
       });
       
       if (!response.ok) {
@@ -1078,6 +1080,7 @@ export default function AdminDashboard() {
           bookingId,
           status: 'rejected',
         }),
+        credentials: 'include', // Include cookies in the request
       });
       
       if (!response.ok) {
