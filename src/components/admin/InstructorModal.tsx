@@ -82,7 +82,7 @@ const InstructorModal = ({
               type="text"
               value={instructor.user.firstName}
               onChange={(e) => onInstructorChange('firstName', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
               required
             />
           </div>
@@ -93,7 +93,7 @@ const InstructorModal = ({
               type="text"
               value={instructor.user.lastName}
               onChange={(e) => onInstructorChange('lastName', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
               required
             />
           </div>
@@ -104,7 +104,7 @@ const InstructorModal = ({
               type="email"
               value={instructor.user.email}
               onChange={(e) => onInstructorChange('email', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
               required
             />
           </div>
@@ -115,7 +115,7 @@ const InstructorModal = ({
               type="tel"
               value={instructor.user.phone}
               onChange={(e) => onInstructorChange('phone', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 transition-all"
               required
             />
           </div>
@@ -149,7 +149,7 @@ const InstructorModal = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-md"
+              className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-full hover:from-yellow-500 hover:to-yellow-600 transition-colors shadow-md"
             >
               Update Instructor
             </button>
