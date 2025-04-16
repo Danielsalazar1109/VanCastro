@@ -748,18 +748,21 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           bookingId,
           status: 'approved',
+          adminEmail: session?.user?.email, // Add admin email for fallback authentication
         }),
+        credentials: 'include', // Include cookies in the request
       });
       
       if (!response.ok) {
-        throw new Error('Failed to approve booking');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to approve booking');
       }
       
       // Refresh bookings
       fetchPendingBookings();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving booking:', error);
-      setError("Failed to approve booking");
+      alert(error.message || "Failed to approve booking");
     }
   };
   
@@ -777,7 +780,9 @@ export default function AdminDashboard() {
           bookingId,
           status: 'cancelled',
           reason: reason || undefined,
+          adminEmail: session?.user?.email, // Add admin email for fallback authentication
         }),
+        credentials: 'include', // Include cookies in the request
       });
       
       if (!response.ok) {
@@ -1129,7 +1134,9 @@ export default function AdminDashboard() {
           bookingId,
           sendEmail: true,
           instructorName: adminName,
+          adminEmail: session?.user?.email, // Add admin email for fallback authentication
         }),
+        credentials: 'include', // Include cookies in the request
       });
       
       if (!response.ok) {
