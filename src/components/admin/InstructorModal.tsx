@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import LocationSelector from "./LocationSelector";
 
 interface User {
   _id: string;
@@ -63,15 +64,52 @@ const InstructorModal = ({
   onImageUpload,
   onLocationChange,
   onClassTypeChange,
-  locations,
   classTypes,
-  locationMapping
+  locationMapping: propLocationMapping
 }: InstructorModalProps) => {
+  // State for instructor locations
+  const [instructorLocations, setInstructorLocations] = useState<string[]>([]);
+  const [allLocations, setAllLocations] = useState<Location[]>([]);
+  const [locationMapping, setLocationMapping] = useState<{ [key: string]: string[] }>(propLocationMapping || {});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  // Fetch locations from the instructor model when the modal opens
+  useEffect(() => {
+    if (isOpen && instructor) {
+      fetchLocations();
+    }
+  }, [isOpen, instructor]);
+  
+  // Function to fetch locations from the instructor model and API
+  const fetchLocations = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get all locations from API for the full location objects with isActive
+      const response = await fetch('/api/locations');
+      const data = await response.json();
+      setAllLocations(data.locations || []);
+      
+      // If instructor.locations is a Promise, resolve it
+      if (instructor && instructor.locations && typeof (instructor.locations as any).then === 'function') {
+        const resolvedLocations = await instructor.locations;
+        setInstructorLocations(Array.isArray(resolvedLocations) ? resolvedLocations : []);
+      } else if (instructor && Array.isArray(instructor.locations)) {
+        setInstructorLocations(instructor.locations);
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      setIsLoading(false);
+    }
+  };
+  
   if (!isOpen || !instructor) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-screen overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-yellow-600">Edit Instructor</h3>
           <button 
@@ -146,70 +184,21 @@ const InstructorModal = ({
             </div>
           </div>
           
-          {locations && locations.length > 0 && onLocationChange && (
+          {onLocationChange && (
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-700">Teaching Locations</label>
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-gray-500">Select where this instructor can teach:</span>
-                  <div className="flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Select all locations
-                        const allLocationNames = locations.map(loc => loc.name);
-                        allLocationNames.forEach(name => {
-                          if (!instructor.teachingLocations?.includes(name)) {
-                            onLocationChange(name);
-                          }
-                        });
-                      }}
-                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    >
-                      Select All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Deselect all locations
-                        const currentLocations = Array.isArray(instructor.teachingLocations) ? [...instructor.teachingLocations] : [];
-                        currentLocations.forEach(name => {
-                          onLocationChange(name);
-                        });
-                      }}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                    >
-                      Clear All
-                    </button>
-                  </div>
+              {isLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
                 </div>
-                <div className="grid grid-cols-1 gap-2 mt-2">
-                  {locations.map((location) => (
-                    <div 
-                      key={location.name} 
-                      className={`flex items-center p-2 rounded-md transition-colors ${
-                        Array.isArray(instructor.teachingLocations) && instructor.teachingLocations.includes(location.name)
-                          ? 'bg-yellow-50 border border-yellow-200'
-                          : 'hover:bg-gray-100 border border-transparent'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        id={`location-${location.name}`}
-                        checked={Array.isArray(instructor.teachingLocations) ? instructor.teachingLocations.includes(location.name) : false}
-                        onChange={() => onLocationChange(location.name)}
-                        className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor={`location-${location.name}`} className="ml-2 block text-sm text-gray-700 flex-grow">
-                        {location.name}
-                      </label>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${location.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {location.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ) : (
+                <LocationSelector
+                  selectedLocations={Array.isArray(instructor.teachingLocations) ? instructor.teachingLocations : []}
+                  onLocationChange={onLocationChange}
+                  locations={allLocations}
+                  locationMapping={locationMapping}
+                />
+              )}
             </div>
           )}
           

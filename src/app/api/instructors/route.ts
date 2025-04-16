@@ -114,13 +114,20 @@ export async function GET(request: NextRequest) {
       .populate('user', 'firstName lastName email phone')
       .sort({ 'user.firstName': 1, 'user.lastName': 1 });
     
-    // Filter instructors by location if specified
-    if (location) {
-      // Filter instructors by teachingLocations
-      instructors = instructors.filter((instructor: any) => {
-        return instructor.teachingLocations && instructor.teachingLocations.includes(location);
-      });
-    }
+  // Filter instructors by location if specified
+  if (location) {
+    // Filter instructors by teachingLocations
+    instructors = instructors.filter((instructor: any) => {
+      return instructor.teachingLocations && 
+             instructor.teachingLocations.length > 0 && 
+             instructor.teachingLocations.includes(location);
+    });
+  } else {
+    // Even if no location is specified, filter out instructors with empty teachingLocations
+    instructors = instructors.filter((instructor: any) => {
+      return instructor.teachingLocations && instructor.teachingLocations.length > 0;
+    });
+  }
     
     // Filter out instructors who are absent on the specified date
     if (checkDate) {

@@ -16,6 +16,7 @@ import PriceUpdateModal from "@/components/admin/PriceUpdateModal";
 import BookingModal from "@/components/admin/BookingModal";
 import TimeRemaining from "@/components/admin/TimeRemaining";
 import AbsenceModal from "@/components/admin/AbsenceModal";
+import LocationSelector from "@/components/admin/LocationSelector";
 
 interface User {
   _id: string;
@@ -93,6 +94,12 @@ interface PriceUpdateModalProps {
   onPriceChange: (field: string, value: any) => void;
 }
 
+interface Location {
+  _id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface InstructorModalProps {
   instructor: Instructor | null;
   isOpen: boolean;
@@ -142,7 +149,7 @@ export default function AdminDashboard() {
   
   // Map general locations to full location names
   const locationMapping: { [key: string]: string[] } = {
-    'Surrey': ["Vancouver, 999 Kingsway", "Vancouver, 4126 McDonald St"],
+    'Vancouver': ["Vancouver, 999 Kingsway", "Vancouver, 4126 McDonald St"],
     'Burnaby': ["Burnaby, 3880 Lougheed Hwy", "Burnaby, 4399 Wayburne Dr"],
     'North Vancouver': ["North Vancouver, 1331 Marine Drive"]
   };
@@ -161,14 +168,50 @@ export default function AdminDashboard() {
   };
   const classTypes = ["class 4", "class 5", "class 7"];
   
+  const [locations, setLocations] = useState<any[]>([]);
+  const [newLocation, setNewLocation] = useState({ name: '' });
+  const [editingLocation, setEditingLocation] = useState<any>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
+  
+  // Define tab types and state before using it
+  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices' | 'locations' | 'global-availability';
+  const [activeTab, setActiveTab] = useState<TabType>('bookings');
+  
   const [newInstructor, setNewInstructor] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     phone: "",
-    image: ""
+    image: "",
+    locations: [] as string[]
   });
+  
+  // Fetch locations directly for the create instructor form
+  // Explicitly use the Location interface defined at the top of this file
+  const [createFormLocations, setCreateFormLocations] = useState<Location[]>([]);
+  const [isLoadingCreateFormLocations, setIsLoadingCreateFormLocations] = useState<boolean>(false);
+  
+  // Fetch locations when the instructors tab is active
+  useEffect(() => {
+    if (activeTab === 'instructors') {
+      fetchCreateFormLocations();
+    }
+  }, [activeTab]);
+  
+  // Function to fetch locations directly from the API for the create form
+  const fetchCreateFormLocations = async () => {
+    try {
+      setIsLoadingCreateFormLocations(true);
+      const response = await fetch('/api/locations');
+      const data = await response.json();
+      setCreateFormLocations(data.locations || []);
+      setIsLoadingCreateFormLocations(false);
+    } catch (error) {
+      console.error('Error fetching locations for create form:', error);
+      setIsLoadingCreateFormLocations(false);
+    }
+  };
   
   // State for instructor edit and absence modals
   const [isInstructorModalOpen, setIsInstructorModalOpen] = useState(false);
@@ -242,12 +285,6 @@ export default function AdminDashboard() {
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices' | 'locations' | 'global-availability';
-  const [activeTab, setActiveTab] = useState<TabType>('bookings');
-  const [locations, setLocations] = useState<any[]>([]);
-  const [newLocation, setNewLocation] = useState({ name: '' });
-  const [editingLocation, setEditingLocation] = useState<any>(null);
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string>("");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
@@ -1173,7 +1210,8 @@ export default function AdminDashboard() {
           email: newInstructor.email,
           password: newInstructor.password,
           phone: newInstructor.phone,
-          image: newInstructor.image
+          image: newInstructor.image,
+          locations: newInstructor.locations
         }),
       });
       
@@ -1188,7 +1226,8 @@ export default function AdminDashboard() {
         email: "",
         password: "",
         phone: "",
-        image: ""
+        image: "",
+        locations: []
       });
       
       fetchInstructors();
@@ -1691,6 +1730,44 @@ export default function AdminDashboard() {
                         alt="Profile Preview" 
                         className="w-20 h-20 object-cover rounded-full"
                       />
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Teaching Locations</label>
+                  {isLoadingCreateFormLocations ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+                    </div>
+                  ) : createFormLocations.length > 0 && locationMapping ? (
+                    <LocationSelector
+                      selectedLocations={newInstructor.locations}
+                      onLocationChange={(location) => {
+                        const currentLocations = [...newInstructor.locations];
+                        const locationIndex = currentLocations.indexOf(location);
+                        
+                        if (locationIndex === -1) {
+                          // Add location
+                          setNewInstructor({
+                            ...newInstructor,
+                            locations: [...currentLocations, location]
+                          });
+                        } else {
+                          // Remove location
+                          currentLocations.splice(locationIndex, 1);
+                          setNewInstructor({
+                            ...newInstructor,
+                            locations: currentLocations
+                          });
+                        }
+                      }}
+                      locations={createFormLocations}
+                      locationMapping={locationMapping}
+                    />
+                  ) : (
+                    <div className="text-center py-4 bg-gray-50 rounded-lg">
+                      <p className="text-gray-500">No locations available.</p>
                     </div>
                   )}
                 </div>
