@@ -36,7 +36,8 @@ interface Availability {
 interface Instructor {
   _id: string;
   user: User;
-  locations: string[] | Promise<string[]>;
+  locations?: string[] | Promise<string[]>;
+  teachingLocations?: string[];
   classTypes: string[];
   availability?: Availability[];
   absences?: {
@@ -1214,7 +1215,7 @@ export default function AdminDashboard() {
           lastName: editingInstructor.user.lastName,
           email: editingInstructor.user.email,
           phone: editingInstructor.user.phone,
-          locations: editingInstructor.locations,
+          locations: editingInstructor.teachingLocations,
           classTypes: editingInstructor.classTypes,
           image: editingInstructor.image
         }),
@@ -2259,6 +2260,23 @@ export default function AdminDashboard() {
       onInstructorChange={handleInstructorChange}
       onImageUpload={handleEditInstructorImageUpload}
       locationMapping={locationMapping}
+      locations={locations}
+      onLocationChange={(locationName) => {
+        if (!editingInstructor) return;
+        
+        const currentLocations = Array.isArray(editingInstructor.teachingLocations) 
+          ? [...editingInstructor.teachingLocations] 
+          : [];
+        
+        const newLocations = currentLocations.includes(locationName)
+          ? currentLocations.filter(loc => loc !== locationName)
+          : [...currentLocations, locationName];
+        
+        setEditingInstructor({
+          ...editingInstructor,
+          teachingLocations: newLocations
+        });
+      }}
     />
     
     {/* Instructor Absence Modal */}

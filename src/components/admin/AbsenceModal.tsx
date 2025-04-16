@@ -12,7 +12,8 @@ interface Instructor {
     phone: string;
     role: string;
   };
-  locations: string[] | Promise<string[]>;
+  locations?: string[] | Promise<string[]>;
+  teachingLocations?: string[];
   classTypes: string[];
   availability?: {
     day: string;
