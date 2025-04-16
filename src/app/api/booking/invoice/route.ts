@@ -5,23 +5,19 @@ import { sendInvoiceEmail } from '@/lib/utils/emailService';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication without explicit config
+    // Check authentication
     const session = await getServerSession();
-    console.log('Session in invoice POST:', JSON.stringify(session, null, 2));
-    
-    // Continue even if session is not available or incomplete
-    // This allows the request to proceed for debugging purposes
     if (!session?.user?.email) {
-      console.log('No valid session found, proceeding anyway for debugging');
-      // Instead of returning 401, we'll log and continue
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     // Verify admin status
     await connectToDatabase();
     const { default: User } = await import('@/models/User');
-    // Use optional chaining to handle null session
-    const email = session?.user?.email || 'no-email@example.com'; // Fallback for debugging
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: session.user.email });
     
     if (!user || user.role !== 'admin') {
       return NextResponse.json(
@@ -103,23 +99,19 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Check authentication without explicit config
+    // Check authentication
     const session = await getServerSession();
-    console.log('Session in invoice PUT:', JSON.stringify(session, null, 2));
-    
-    // Continue even if session is not available or incomplete
-    // This allows the request to proceed for debugging purposes
     if (!session?.user?.email) {
-      console.log('No valid session found, proceeding anyway for debugging');
-      // Instead of returning 401, we'll log and continue
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     // Verify admin status
     await connectToDatabase();
     const { default: User } = await import('@/models/User');
-    // Use optional chaining to handle null session
-    const email = session?.user?.email || 'no-email@example.com'; // Fallback for debugging
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: session.user.email });
     
     if (!user || user.role !== 'admin') {
       return NextResponse.json(
