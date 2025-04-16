@@ -148,25 +148,25 @@ export default function RegisterPage() {
                 maxLength={10}
                 value={phone.replace(/\D/g, '')}
                 onChange={(e) => {
-                  // Solo permita números
+                  // Allow only numbers
                   const cleaned = e.target.value.replace(/\D/g, '');
-                  // Límite de 10 dígitos
+                  // Limit to 10 digits
                   const limited = cleaned.substring(0, 10);
                   setPhone(limited);
                 }}
                 onBlur={(e) => {
-                  // Formatee el número a (XXX) XXX-XXXX al perder el foco
+                  // Format the number to (XXX) XXX-XXXX when focus is lost
                   const cleaned = e.target.value.replace(/\D/g, '');
                   if (cleaned.length === 10) {
                     const formatted = `(${cleaned.substring(0,3)}) ${cleaned.substring(3,6)}-${cleaned.substring(6,10)}`;
-                    setPhone(cleaned); // Guardamos sin formato para el envío al API
+                    setPhone(cleaned); // Store without formatting for API submission
                   }
                 }}
                 className="flex-1 min-w-0 block w-full px-3 py-2 rounded-r-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow border border-gray-300"
               />
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              Formato: 10 dígitos, sin incluir el código de país (+1)
+              Format: 10 digits, not including the country code (+1)
             </p>
           </div>
           
@@ -216,7 +216,7 @@ export default function RegisterPage() {
           <div className="text-center mt-4">
             <p className="text-sm text-gray-600">
               Already have an account?{" "}
-              <Link href="/login" className="text-brand-yellow hover:text-brand-yellow-hover">
+              <Link href="/login" className="blue hover:text-brand-yellow-hover">
                 Sign in
               </Link>
             </p>
