@@ -156,7 +156,14 @@ function LoginPageContent() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        // Check if the error is due to exceeding the login attempt limit
+        if (result.error.includes('LIMIT_EXCEEDED:')) {
+          // Extract the reset date from the error message
+          const resetDate = result.error.split('LIMIT_EXCEEDED:')[1];
+          setError(`You have exceeded the limit of 5 login attempts per day. Your attempts will reset tomorrow (${resetDate}).`);
+        } else {
+          setError("Invalid email or password");
+        }
         setLoading(false);
         return;
       }
@@ -238,7 +245,9 @@ function LoginPageContent() {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <div className="text-red-500 text-sm text-center p-3 bg-red-50 border border-red-200 rounded-md">
+              {error}
+            </div>
           )}
 
           <div>

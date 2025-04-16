@@ -1,25 +1,36 @@
 # Driving School Booking System
 
 ## Overview
+
 This project is a web-based booking system for a driving school that allows users to schedule lessons without requiring authentication. The booking process includes selecting an available time slot, filling out a form, making a payment via Stripe, and receiving a confirmation. The system integrates with Calendly for scheduling and uses MongoDB Atlas for storing dynamic business data.
 
 ## Tech Stack
+
 - **Frontend:** Next.js (React-based framework, styled with Tailwind CSS)
 - **Backend:** Next.js API Routes
 - **Database:** MongoDB Atlas (Mongoose for ODM)
-- **Scheduling:** Calendly
-- **Payments:** Stripe
+- **Payments:** only e-transfer or cash
 
 ## Features
+
 - Multi-step booking process
 - Integration with Calendly for scheduling
 - Secure payment processing with Stripe
 - Email confirmations
 - Responsive design for all devices
+- Security features:
+  - Login rate limiting (5 attempts per day)
+  - Password hashing with bcrypt
+  - JWT-based authentication
+
+## Documentation
+
+- [Authentication System](./docs/authentication.md) - Detailed documentation of the authentication domain, including login flows and security features
 
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js (v18 or higher)
 - npm (v9 or higher)
 - MongoDB Atlas account
@@ -29,17 +40,20 @@ This project is a web-based booking system for a driving school that allows user
 ### Installation
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/your-username/driving-school-booking.git
 cd driving-school-booking
 ```
 
 2. Install dependencies
+
 ```bash
 npm install
 ```
 
 3. Create a `.env.local` file in the project root with the following variables:
+
 ```
 # MongoDB
 MONGODB_URI=your_mongodb_atlas_connection_string
@@ -56,6 +70,7 @@ EMAIL_FROM=noreply@drivingschool.com
 ```
 
 4. Run the development server
+
 ```bash
 npm run dev
 ```
@@ -63,6 +78,7 @@ npm run dev
 5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application
 
 ### Project Structure
+
 ```
 / (Root)
 ├── /public          # Static files
@@ -102,13 +118,16 @@ npm run dev
 ## API Routes
 
 ### Booking API
+
 - `POST /api/booking` - Create a new booking
 - `GET /api/booking` - Get all bookings (admin only)
 
 ### Payments API
+
 - `POST /api/payments/webhook` - Stripe webhook for payment confirmations
 
 ### Schedules API
+
 - `GET /api/schedules` - Get available time slots
 
 ## Deployment

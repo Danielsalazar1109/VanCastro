@@ -2,8 +2,15 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcrypt";
+import { NextRequest } from "next/server";
 import connectToDatabase from "@/lib/db/mongodb";
 import User from "@/models/User";
+import { 
+  getIpAddress, 
+  recordLoginAttempt, 
+  hasExceededMaxAttempts,
+  getAttemptsInfo
+} from "@/lib/utils/loginRateLimiter";
 
 // Determine the base URL based on environment
 const baseUrl = process.env.NODE_ENV === "production" 
@@ -30,7 +37,7 @@ const handler = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -38,11 +45,33 @@ const handler = NextAuth({
         try {
           // Connect to the database
           await connectToDatabase();
+          
+          // Get IP address from the request
+          const ipAddress = getIpAddress(req as unknown as NextRequest);
+          
+          // Check if the user has exceeded the login attempt limit
+          const hasExceeded = await hasExceededMaxAttempts(credentials.email, ipAddress);
+          if (hasExceeded) {
+            // If limit exceeded, get information about the next reset time
+            const { nextResetTime } = await getAttemptsInfo(credentials.email, ipAddress);
+            
+            // Format the date to display in the error message (date only, no time)
+            const resetTimeStr = nextResetTime ? 
+              nextResetTime.toLocaleDateString('en-US', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric'
+              }) : 'tomorrow';
+            
+            throw new Error(`LIMIT_EXCEEDED:${resetTimeStr}`);
+          }
 
           // Find the user by email
           const user = await User.findOne({ email: credentials.email });
 
           if (!user) {
+            // Record the failed attempt
+            await recordLoginAttempt(credentials.email, ipAddress, false);
             return null;
           }
 
@@ -53,8 +82,13 @@ const handler = NextAuth({
           );
 
           if (!isPasswordValid) {
+            // Record the failed attempt
+            await recordLoginAttempt(credentials.email, ipAddress, false);
             return null;
           }
+
+          // Record the successful attempt
+          await recordLoginAttempt(credentials.email, ipAddress, true);
 
           // Return the user object (excluding the password)
           return {
@@ -68,6 +102,10 @@ const handler = NextAuth({
           };
         } catch (error) {
           console.error("Authentication error:", error);
+          // If the error is due to exceeding the limit, propagate the error
+          if (error instanceof Error && error.message.startsWith('LIMIT_EXCEEDED:')) {
+            throw error;
+          }
           return null;
         }
       },
