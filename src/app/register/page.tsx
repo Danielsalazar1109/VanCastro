@@ -4,8 +4,6 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import PhoneInput from 'react-phone-input-2';
-import 'react-phone-input-2/lib/style.css';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -136,22 +134,40 @@ export default function RegisterPage() {
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
               Phone Number
             </label>
-            <PhoneInput
-              country={'us'}
-              value={phone}
-              onChange={(value) => setPhone(value)}
-              inputProps={{
-                id: 'phone',
-                name: 'phone',
-                required: true,
-                placeholder: "Phone Number",
-                className: "mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
-              }}
-              containerClass="mt-1"
-              inputClass="w-full"
-              buttonClass="border rounded-l-md"
-              dropdownClass="bg-white"
-            />
+            <div className="mt-1 flex rounded-md shadow-sm">
+              <span className="inline-flex items-center px-3 py-2 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                +1
+              </span>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                required
+                placeholder="(XXX) XXX-XXXX"
+                pattern="[0-9]{10}"
+                maxLength={10}
+                value={phone.replace(/\D/g, '')}
+                onChange={(e) => {
+                  // Solo permita números
+                  const cleaned = e.target.value.replace(/\D/g, '');
+                  // Límite de 10 dígitos
+                  const limited = cleaned.substring(0, 10);
+                  setPhone(limited);
+                }}
+                onBlur={(e) => {
+                  // Formatee el número a (XXX) XXX-XXXX al perder el foco
+                  const cleaned = e.target.value.replace(/\D/g, '');
+                  if (cleaned.length === 10) {
+                    const formatted = `(${cleaned.substring(0,3)}) ${cleaned.substring(3,6)}-${cleaned.substring(6,10)}`;
+                    setPhone(cleaned); // Guardamos sin formato para el envío al API
+                  }
+                }}
+                className="flex-1 min-w-0 block w-full px-3 py-2 rounded-r-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow border border-gray-300"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Formato: 10 dígitos, sin incluir el código de país (+1)
+            </p>
           </div>
           
           {error && <div className="text-red-500 text-sm">{error}</div>}
