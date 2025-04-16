@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { handler as authOptions } from '@/app/api/auth/[...nextauth]/route';
 import connectToDatabase from '@/lib/db/mongodb';
 import { sendInvoiceEmail } from '@/lib/utils/emailService';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication with auth options
-    const session = await getServerSession(authOptions);
+    // Check authentication without explicit config
+    const session = await getServerSession();
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -100,8 +99,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Check authentication with auth options
-    const session = await getServerSession(authOptions);
+    // Check authentication without explicit config
+    const session = await getServerSession();
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
