@@ -94,7 +94,6 @@ function BookingConfirmationContent() {
             service: booking.classType,
             confirmationNumber: 'DRV-' + booking._id.substring(0, 6).toUpperCase(),
             price: booking.price,
-            package: booking.package,
             duration: booking.duration,
             createdAt: booking.createdAt
           });
@@ -196,10 +195,6 @@ function BookingConfirmationContent() {
             <div>
               <p className="text-gray-500 text-sm">Confirmation Number</p>
               <p className="font-medium">{bookingDetails.confirmationNumber}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Package</p>
-              <p className="font-medium">{bookingDetails.package}</p>
             </div>
             <div>
               <p className="text-gray-500 text-sm">Duration</p>

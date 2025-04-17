@@ -341,7 +341,7 @@ export default function GlobalAvailabilityManager() {
   if (loading && activeTab === 'regular') {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
       </div>
     );
   }
@@ -349,7 +349,7 @@ export default function GlobalAvailabilityManager() {
   if (loadingSpecial && activeTab === 'special') {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
       </div>
     );
   }
@@ -376,7 +376,7 @@ export default function GlobalAvailabilityManager() {
               onClick={() => setActiveTab('regular')}
               className={`inline-block p-4 rounded-t-lg ${
                 activeTab === 'regular'
-                  ? 'text-pink-600 border-b-2 border-pink-600 active'
+                  ? 'text-yellow-600 border-b-2 border-yellow-600 active'
                   : 'text-gray-500 hover:text-gray-600 hover:border-gray-300 border-b-2 border-transparent'
               }`}
             >
@@ -388,7 +388,7 @@ export default function GlobalAvailabilityManager() {
               onClick={() => setActiveTab('special')}
               className={`inline-block p-4 rounded-t-lg ${
                 activeTab === 'special'
-                  ? 'text-pink-600 border-b-2 border-pink-600 active'
+                  ? 'text-yellow-600 border-b-2 border-yellow-600 active'
                   : 'text-gray-500 hover:text-gray-600 hover:border-gray-300 border-b-2 border-transparent'
               }`}
             >
@@ -402,7 +402,7 @@ export default function GlobalAvailabilityManager() {
       {activeTab === 'regular' && (
         <div className="bg-white rounded-xl shadow-md overflow-hidden border border-pink-100 mb-6">
           <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-            <h3 className="text-xl font-semibold text-pink-700">Default Availability Settings</h3>
+            <h3 className="text-xl font-semibold text-yellow-700">Default Availability Settings</h3>
             <p className="text-sm text-gray-600">
               Set the default business hours for bookings. These settings apply when no special date range is active.
             </p>
@@ -410,11 +410,11 @@ export default function GlobalAvailabilityManager() {
           
           <div className="p-6">
             <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-              <h4 className="text-xl font-semibold text-pink-700 mb-4">Business Hours</h4>
+              <h4 className="text-xl font-semibold text-yellow-700 mb-4">Business Hours</h4>
               <div className="flex items-center justify-center mb-6">
                 <div className="text-center bg-pink-50 p-6 rounded-lg border border-pink-200 shadow-sm w-full max-w-md">
                   <p className="text-lg font-medium text-gray-800 mb-2">Monday - Saturday</p>
-                  <p className="text-xl font-bold text-pink-700">9:00 AM - 5:00 PM</p>
+                  <p className="text-xl font-bold text-yellow-700">{globalAvailability.find(item => item.day === 'Monday')?.startTime} - {globalAvailability.find(item => item.day === 'Saturday')?.endTime}</p>
                 </div>
               </div>
               
@@ -423,7 +423,7 @@ export default function GlobalAvailabilityManager() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
                   <input
                     type="time"
-                    defaultValue="09:00"
+                    value={globalAvailability.find(item => item.day === 'Monday')?.startTime || '09:00'}
                     onChange={(e) => {
                       // Update all weekdays (Monday-Saturday) with the new start time
                       const updatedAvailability = globalAvailability.map(item => 
@@ -440,7 +440,7 @@ export default function GlobalAvailabilityManager() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
                   <input
                     type="time"
-                    defaultValue="17:00"
+                    value={globalAvailability.find(item => item.day === 'Monday')?.endTime || '17:00'}
                     onChange={(e) => {
                       // Update all weekdays (Monday-Saturday) with the new end time
                       const updatedAvailability = globalAvailability.map(item => 
@@ -465,7 +465,7 @@ export default function GlobalAvailabilityManager() {
                 px-6 py-3 rounded-full font-bold transition-all duration-300
                 ${saving 
                   ? 'bg-slate-300 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white hover:shadow-lg'}
+                  : 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white hover:shadow-lg'}
               `}
             >
               {saving ? "Saving..." : "Save Default Availability"}
@@ -480,8 +480,8 @@ export default function GlobalAvailabilityManager() {
           {/* Existing Special Date Ranges */}
           {specialAvailability.length > 0 && (
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-pink-100 mb-6">
-              <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-                <h3 className="text-xl font-semibold text-pink-700">Existing Special Date Ranges</h3>
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-4 border-b border-pink-100">
+                <h3 className="text-xl font-semibold text-yellow-700">Existing Special Date Ranges</h3>
                 <p className="text-sm text-gray-600">
                   These special availability settings override the default settings during their date ranges.
                 </p>
@@ -584,7 +584,7 @@ export default function GlobalAvailabilityManager() {
           {/* Add New Special Date Range */}
           <div className="bg-white rounded-xl shadow-md overflow-hidden border border-pink-100 mb-6">
             <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-pink-100">
-              <h3 className="text-xl font-semibold text-pink-700">Add Special Date Range</h3>
+              <h3 className="text-xl font-semibold text-yellow-700">Add Special Date Range</h3>
               <p className="text-sm text-gray-600">
                 Create special availability settings that apply only during a specific date range.
               </p>

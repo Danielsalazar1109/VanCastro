@@ -8,7 +8,7 @@ import Price from '@/models/Price';
 import GlobalAvailability from '@/models/GlobalAvailability';
 import SpecialAvailability from '@/models/SpecialAvailability';
 import { hasTimeConflict, addBufferTime } from '@/lib/utils/bufferTime';
-import { sendBookingConfirmationEmail } from '@/lib/utils/emailService';
+import { sendBookingPendingEmail, sendBookingConfirmationEmail, sendBookingRejectedEmail } from '@/lib/utils/emailService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
       startTime,
       endTime,
       status: 'pending',
-      paymentStatus: 'completed', // Set as completed since we're not using Stripe
+      paymentStatus: 'requested', // Initial payment status, will be updated by admin
       termsAccepted: termsAccepted,
       termsAcceptedAt: new Date() // Always set to current date to ensure it's saved
     };
@@ -418,7 +418,7 @@ export async function POST(request: NextRequest) {
           ? `${instructorDetails.user.firstName} ${instructorDetails.user.lastName}`
           : 'Your Instructor';
           
-        await sendBookingConfirmationEmail(
+        await sendBookingPendingEmail(
           {
             ...booking.toObject(),
             user: userDetails,
@@ -426,7 +426,7 @@ export async function POST(request: NextRequest) {
           },
           instructorName
         );
-        console.log('Booking confirmation email sent to student:', userDetails.email);
+        console.log('Booking pending email sent to student:', userDetails.email);
       } catch (emailError) {
         console.error('Error sending new booking email:', emailError);
         // Continue with booking creation even if email fails
@@ -496,12 +496,71 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Connect to the database
+    console.log('Booking API: Starting PUT request');
+    
+    // Try to get the session without passing any options (recommended for App Router)
+    let session;
+    try {
+      session = await getServerSession();
+      console.log('Booking API: Session result:', session ? 'Session found' : 'No session');
+    } catch (sessionError) {
+      console.error('Booking API: Error getting session:', sessionError);
+      session = null;
+    }
+    
+    // Get the authorization header as a fallback
+    const authHeader = request.headers.get('authorization');
+    console.log('Booking API: Authorization header present:', !!authHeader);
+    
+    // Connect to database first to prepare for authentication
     await connectToDatabase();
+    const { default: User } = await import('@/models/User');
     
     // Parse the request body
     const body = await request.json();
-    const { bookingId, status, price } = body;
+    const { bookingId, status, price, reason, adminEmail } = body;
+    
+    // Check if we have a valid session
+    if (!session?.user?.email) {
+      console.log('Booking API: No valid session, checking request body for admin email');
+      
+      // If no session, check if the request includes admin credentials in body
+      if (adminEmail) {
+        console.log('Booking API: Admin email provided in body:', adminEmail);
+        // Check if this is a valid admin email
+        const adminUser = await User.findOne({ email: adminEmail, role: 'admin' });
+        
+        if (!adminUser) {
+          console.log('Booking API: Invalid admin email or not an admin');
+          return NextResponse.json(
+            { error: 'Unauthorized - Invalid admin credentials' },
+            { status: 401 }
+          );
+        }
+        
+        console.log('Booking API: Valid admin email, proceeding with request');
+      } else {
+        console.log('Booking API: No admin email provided, returning 401');
+        return NextResponse.json(
+          { error: 'Unauthorized - No valid session or admin credentials' },
+          { status: 401 }
+        );
+      }
+    } else {
+      // If we have a valid session, verify admin status
+      console.log('Booking API: Valid session, checking admin status');
+      const user = await User.findOne({ email: session.user.email });
+      
+      if (!user || user.role !== 'admin') {
+        console.log('Booking API: User is not an admin');
+        return NextResponse.json(
+          { error: 'Unauthorized - Admin access required' },
+          { status: 403 }
+        );
+      }
+      
+      console.log('Booking API: User is admin, proceeding with request');
+    }
     
     // Validate required fields
     if (!bookingId || !status) {
@@ -512,13 +571,24 @@ export async function PUT(request: NextRequest) {
     }
     
     // Check if booking exists
-    const booking = await Booking.findById(bookingId);
+    const booking = await Booking.findById(bookingId)
+      .populate('user', 'firstName lastName email phone')
+      .populate({
+        path: 'instructor',
+        populate: {
+          path: 'user',
+          select: 'firstName lastName email'
+        }
+      });
+      
     if (!booking) {
       return NextResponse.json(
         { error: 'Booking not found' },
         { status: 404 }
       );
     }
+    
+    const previousStatus = booking.status;
     
     // Update booking status and price if provided
     booking.status = status;
@@ -529,6 +599,44 @@ export async function PUT(request: NextRequest) {
     }
     
     await booking.save();
+    
+    // If the booking is being approved, send a confirmation email
+    if (status === 'approved' && previousStatus !== 'approved' && booking.user.email) {
+      try {
+        // Get instructor name
+        const instructorName = booking.instructor?.user?.firstName 
+          ? `${booking.instructor.user.firstName} ${booking.instructor.user.lastName}`
+          : 'Your Instructor';
+          
+        await sendBookingConfirmationEmail(
+          booking,
+          instructorName
+        );
+        console.log('Booking confirmation email sent to student:', booking.user.email);
+      } catch (emailError) {
+        console.error('Error sending booking confirmation email:', emailError);
+        // Continue with booking update even if email fails
+      }
+    }
+    // If the booking is being rejected (status changed to 'cancelled'), send a rejection email
+    else if (status === 'cancelled' && previousStatus !== 'cancelled' && booking.user.email) {
+      try {
+        // Get instructor name
+        const instructorName = booking.instructor?.user?.firstName 
+          ? `${booking.instructor.user.firstName} ${booking.instructor.user.lastName}`
+          : 'Your Instructor';
+          
+        await sendBookingRejectedEmail(
+          booking,
+          instructorName,
+          reason
+        );
+        console.log('Booking rejection email sent to student:', booking.user.email);
+      } catch (emailError) {
+        console.error('Error sending booking rejection email:', emailError);
+        // Continue with booking update even if email fails
+      }
+    }
     
     return NextResponse.json({ booking });
   } catch (error) {
@@ -545,18 +653,74 @@ import { getServerSession } from 'next-auth';
 
 export async function DELETE(request: NextRequest) {
   try {
-    // Connect to the database
+    console.log('Booking API: Starting DELETE request');
+    
+    // Try to get the session without passing any options (recommended for App Router)
+    let session;
+    try {
+      session = await getServerSession();
+      console.log('Booking API: Session result:', session ? 'Session found' : 'No session');
+    } catch (sessionError) {
+      console.error('Booking API: Error getting session:', sessionError);
+      session = null;
+    }
+    
+    // Get the authorization header as a fallback
+    const authHeader = request.headers.get('authorization');
+    console.log('Booking API: Authorization header present:', !!authHeader);
+    
+    // Connect to database first to prepare for authentication
     await connectToDatabase();
-    
-    // Check if the user is authenticated and has admin role
-    const session = await getServerSession();
-    
-    const { searchParams } = new URL(request.url);
-    const bookingId = searchParams.get('bookingId');
+    const { default: User } = await import('@/models/User');
     
     // Parse request body for additional data
     const body = await request.json();
-    const { sendEmail = false, instructorName = 'Your Instructor' } = body;
+    const { sendEmail = false, instructorName = 'Your Instructor', adminEmail } = body;
+    
+    // Check if we have a valid session
+    if (!session?.user?.email) {
+      console.log('Booking API: No valid session, checking request body for admin email');
+      
+      // If no session, check if the request includes admin credentials in body
+      if (adminEmail) {
+        console.log('Booking API: Admin email provided in body:', adminEmail);
+        // Check if this is a valid admin email
+        const adminUser = await User.findOne({ email: adminEmail, role: 'admin' });
+        
+        if (!adminUser) {
+          console.log('Booking API: Invalid admin email or not an admin');
+          return NextResponse.json(
+            { error: 'Unauthorized - Invalid admin credentials' },
+            { status: 401 }
+          );
+        }
+        
+        console.log('Booking API: Valid admin email, proceeding with request');
+      } else {
+        console.log('Booking API: No admin email provided, returning 401');
+        return NextResponse.json(
+          { error: 'Unauthorized - No valid session or admin credentials' },
+          { status: 401 }
+        );
+      }
+    } else {
+      // If we have a valid session, verify admin status
+      console.log('Booking API: Valid session, checking admin status');
+      const user = await User.findOne({ email: session.user.email });
+      
+      if (!user || user.role !== 'admin') {
+        console.log('Booking API: User is not an admin');
+        return NextResponse.json(
+          { error: 'Unauthorized - Admin access required' },
+          { status: 403 }
+        );
+      }
+      
+      console.log('Booking API: User is admin, proceeding with request');
+    }
+    
+    const { searchParams } = new URL(request.url);
+    const bookingId = searchParams.get('bookingId');
     
     if (!bookingId) {
       return NextResponse.json(
