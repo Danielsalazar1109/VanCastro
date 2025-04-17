@@ -860,13 +860,31 @@ export default function AdminDashboard() {
     }
   };
 
+  // Function to get general location from full location name
+  const getGeneralLocationFromFull = (fullLocation: string): string => {
+    // Check each general location
+    for (const [generalLocation, fullLocations] of Object.entries(locationMapping)) {
+      // If the full location is in the array for this general location, return the general location
+      if (fullLocations.includes(fullLocation)) {
+        return generalLocation;
+      }
+    }
+    // If no match found, return the original location (might be a general location already)
+    return fullLocation;
+  };
+
   const fetchAvailableInstructors = async (classType: string, location: string) => {
     try {
       setLoadingInstructors(true);
       
+      // Get the general location from the full location name
+      const generalLocation = getGeneralLocationFromFull(location);
+      console.log(`Fetching instructors for class type: ${classType}, location: ${location}, general location: ${generalLocation}`);
+      
       // Fetch instructors who can teach this class type and are available at this location
+      // Try both the original location and the general location
       const response = await fetch(
-        `/api/instructors?classType=${classType}&location=${location}`
+        `/api/instructors?classType=${classType}&location=${encodeURIComponent(generalLocation)}`
       );
       
       if (!response.ok) {
@@ -874,6 +892,7 @@ export default function AdminDashboard() {
       }
       
       const data = await response.json();
+      console.log(`Found ${data.instructors?.length || 0} instructors`);
       setAvailableInstructors(data.instructors || []);
     } catch (error: any) {
       console.error("Error fetching available instructors:", error);
@@ -1030,8 +1049,9 @@ export default function AdminDashboard() {
   // Handler for sending invoice
   const handleSendInvoice = async (bookingId: string) => {
     try {
-      // Find the booking
-      const booking = pendingBookings.find(b => b._id === bookingId);
+      // Find the booking in both pending and approved bookings
+      const booking = pendingBookings.find(b => b._id === bookingId) || 
+                     allBookings.find(b => b._id === bookingId);
       
       if (!booking) {
         throw new Error('Booking not found');
