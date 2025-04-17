@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import LocationSelector from "./LocationSelector";
 
 interface User {
   _id: string;
@@ -22,7 +23,8 @@ interface Availability {
 interface Instructor {
   _id: string;
   user: User;
-  locations: string[] | Promise<string[]>;
+  locations?: string[] | Promise<string[]>;
+  teachingLocations?: string[];
   classTypes: string[];
   availability?: Availability[];
   absences?: {
@@ -31,6 +33,12 @@ interface Instructor {
     reason?: string;
   }[];
   image?: string;
+}
+
+interface Location {
+  _id: string;
+  name: string;
+  isActive: boolean;
 }
 
 interface InstructorModalProps {
@@ -42,7 +50,7 @@ interface InstructorModalProps {
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onLocationChange?: (location: string) => void;
   onClassTypeChange?: (classType: string) => void;
-  locations?: string[];
+  locations?: Location[];
   classTypes?: string[];
   locationMapping?: { [key: string]: string[] };
 }
@@ -56,15 +64,52 @@ const InstructorModal = ({
   onImageUpload,
   onLocationChange,
   onClassTypeChange,
-  locations,
   classTypes,
-  locationMapping
+  locationMapping: propLocationMapping
 }: InstructorModalProps) => {
+  // State for instructor locations
+  const [instructorLocations, setInstructorLocations] = useState<string[]>([]);
+  const [allLocations, setAllLocations] = useState<Location[]>([]);
+  const [locationMapping, setLocationMapping] = useState<{ [key: string]: string[] }>(propLocationMapping || {});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  // Fetch locations from the instructor model when the modal opens
+  useEffect(() => {
+    if (isOpen && instructor) {
+      fetchLocations();
+    }
+  }, [isOpen, instructor]);
+  
+  // Function to fetch locations from the instructor model and API
+  const fetchLocations = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get all locations from API for the full location objects with isActive
+      const response = await fetch('/api/locations');
+      const data = await response.json();
+      setAllLocations(data.locations || []);
+      
+      // If instructor.locations is a Promise, resolve it
+      if (instructor && instructor.locations && typeof (instructor.locations as any).then === 'function') {
+        const resolvedLocations = await instructor.locations;
+        setInstructorLocations(Array.isArray(resolvedLocations) ? resolvedLocations : []);
+      } else if (instructor && Array.isArray(instructor.locations)) {
+        setInstructorLocations(instructor.locations);
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      setIsLoading(false);
+    }
+  };
+  
   if (!isOpen || !instructor) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-screen overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-yellow-600">Edit Instructor</h3>
           <button 
@@ -138,6 +183,24 @@ const InstructorModal = ({
               />
             </div>
           </div>
+          
+          {onLocationChange && (
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700">Teaching Locations</label>
+              {isLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+                </div>
+              ) : (
+                <LocationSelector
+                  selectedLocations={Array.isArray(instructor.teachingLocations) ? instructor.teachingLocations : []}
+                  onLocationChange={onLocationChange}
+                  locations={allLocations}
+                  locationMapping={locationMapping}
+                />
+              )}
+            </div>
+          )}
           
           <div className="mt-6 flex space-x-3 justify-end">
             <button

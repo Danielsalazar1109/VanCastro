@@ -14,6 +14,7 @@ interface Instructor {
 	};
 	locations: string[];
 	classTypes: string[];
+	teachingLocations: string[];
 	image?: string;
 }
 
@@ -148,12 +149,12 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 	const savedState = loadSavedState();
 
 	// Form state
+	const [date, setDate] = useState<string>(savedState?.date || "");
+	const [instructorId, setInstructorId] = useState<string>(savedState?.instructorId || "");
 	const [location, setLocation] = useState<string>(savedState?.location || "");
 	const [classType, setClassType] = useState<string>(savedState?.classType || "");
 	const [packageType, setPackageType] = useState<string>(savedState?.packageType || "");
 	const [duration, setDuration] = useState<number>(savedState?.duration || 0);
-	const [date, setDate] = useState<string>(savedState?.date || "");
-	const [instructorId, setInstructorId] = useState<string>(savedState?.instructorId || "");
 	const [timeSlot, setTimeSlot] = useState<string>(savedState?.timeSlot || "");
 	const [price, setPrice] = useState<number | null>(savedState?.price || null);
 	const [isPackageComplete, setIsPackageComplete] = useState<boolean>(savedState?.isPackageComplete || false);
@@ -539,12 +540,17 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 		}
 	}, [step]);
 
-	// Load instructors based on selected location, class type, and date
+	// Load instructors based on selected date
 	useEffect(() => {
-		if (location && classType && date) {
+		if (date) {
 			fetchInstructors();
 		}
-	}, [location, classType, date]);
+	}, [date]);
+
+	// Load available locations when component mounts and when instructor changes
+	useEffect(() => {
+		fetchInstructorLocations();
+	}, [instructorId]);
 
 	// Calculate minimum booking date (2 days from now)
 	const getMinBookingDate = () => {
@@ -750,7 +756,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 		try {
 			setLoading(true);
 			const response = await fetch(
-				`/api/instructors?location=${location}&classType=${classType}${date ? `&checkDate=${date}` : ""}`
+				`/api/instructors${date ? `?checkDate=${date}` : ""}`
 			);
 
 			if (!response.ok) {
@@ -764,6 +770,82 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 			console.error("Error fetching instructors:", error);
 			setError("Failed to load instructors. Please try again.");
 			setLoading(false);
+		}
+	};
+
+	const fetchInstructorLocations = async () => {
+		try {
+			setLoadingLocations(true);
+			
+			// Fetch all locations to get their full details
+			const response = await fetch("/api/locations?activeOnly=true");
+			
+			if (!response.ok) {
+				throw new Error("Failed to fetch locations");
+			}
+			
+			const data = await response.json();
+			
+			if (data.locations && data.locations.length > 0) {
+				// Format all locations
+				const formattedLocations = data.locations.map((loc: any) => ({
+					value: loc.name,
+					alt: loc.name.includes(",")
+						? `${loc.name.split(",")[0]} - ${loc.name.split(",")[1].trim()} Location`
+						: `${loc.name} Location`,
+				}));
+				
+				// Find the selected instructor
+				const selectedInstructor = instructors.find(instructor => instructor._id === instructorId);
+				
+				// If an instructor is selected, filter locations
+				if (selectedInstructor && selectedInstructor.teachingLocations) {
+					// Filter location options to only include locations where the instructor teaches
+					const instructorLocationNames = selectedInstructor.teachingLocations;
+					
+					// Filter locations to only include those where the instructor teaches
+					const filteredLocations = formattedLocations.filter(
+						(loc: any) => instructorLocationNames.includes(loc.value)
+					);
+					
+					setLocationOptions(filteredLocations);
+					
+					// If there's only one location, select it automatically
+					if (filteredLocations.length === 1) {
+						setLocation(filteredLocations[0].value);
+					} else if (location && !instructorLocationNames.includes(location)) {
+						// If current location is not in instructor's locations, reset it
+						setLocation("");
+					}
+				} else {
+					// If no instructor is selected, show all locations
+					setLocationOptions(formattedLocations);
+				}
+			} else {
+				// Fallback to hardcoded locations if none are found in the database
+				setLocationOptions([
+					{ value: "Vancouver, 999 Kingsway", alt: "Vancouver - Kingsway Location" },
+					{ value: "Vancouver, 4126 McDonald St", alt: "Vancouver - McDonald St Location" },
+					{ value: "Burnaby, 3880 Lougheed Hwy", alt: "Burnaby - Lougheed Hwy Location" },
+					{ value: "Burnaby, 4399 Wayburne Dr", alt: "Burnaby - Wayburne Dr Location" },
+					{ value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" },
+				]);
+			}
+			
+			setLoadingLocations(false);
+		} catch (error) {
+			console.error("Error fetching instructor locations:", error);
+			
+			// Fallback to hardcoded locations if there's an error
+			setLocationOptions([
+				{ value: "Vancouver, 999 Kingsway", alt: "Vancouver - Kingsway Location" },
+				{ value: "Vancouver, 4126 McDonald St", alt: "Vancouver - McDonald St Location" },
+				{ value: "Burnaby, 3880 Lougheed Hwy", alt: "Burnaby - Lougheed Hwy Location" },
+				{ value: "Burnaby, 4399 Wayburne Dr", alt: "Burnaby - Wayburne Dr Location" },
+				{ value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" },
+			]);
+			
+			setLoadingLocations(false);
 		}
 	};
 
@@ -894,10 +976,10 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 	const isStepValid = () => {
 		switch (step) {
 			case 1:
-				return location !== "" && classType !== "" && packageType !== "" && duration !== 0;
-			case 2:
 				// Also check if the selected date is available
-				return instructorId !== "" && date !== "" && dateIsAvailable;
+				return date !== "" && dateIsAvailable && instructorId !== "" && location !== "";
+			case 2:
+				return classType !== "" && packageType !== "" && duration !== 0;
 			case 3:
 				return timeSlot !== "";
 			default:
@@ -990,36 +1072,118 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 			<form onSubmit={handleSubmit}>
 				{step === 1 && (
 					<div className="space-y-8">
-						{/* Location Selection - Styled Radio Buttons */}
 						<div className="mb-6">
-							<label className="block text-gray-700 text-sm font-bold mb-3">Select Location</label>
-							{loadingLocations ? (
-								<div className="flex justify-center py-4">
-									<div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+							<label className="block text-gray-700 text-sm font-bold mb-3">
+								Select Your Lesson Date
+							</label>
+							<div className="bg-white rounded-lg shadow-md p-6 border-2 border-yellow-300 hover:border-yellow-400 transition-all duration-300">
+								{loadingGlobalAvailability ? (
+									<div className="flex justify-center py-4">
+										<div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+									</div>
+								) : (
+									<>
+										<CustomDatePicker
+											value={date}
+											onChange={(dateStr: string) => {
+												// Create a synthetic event to pass to handleDateChange
+												const syntheticEvent = {
+													target: { value: dateStr },
+												} as React.ChangeEvent<HTMLInputElement>;
+												handleDateChange(syntheticEvent);
+											}}
+											minDate={getMinBookingDate()}
+											className="w-full bg-transparent text-center text-xl font-bold text-yellow-700 focus:outline-none"
+										/>
+										<div className="mt-3 text-xs text-gray-600">
+											<p>Note: Sundays are not available for booking.</p>
+										</div>
+									</>
+								)}
+								<div className="flex justify-between mt-4 text-sm text-gray-600">
+									<span>Earliest Date: {new Date(getMinBookingDate()).toLocaleDateString()}</span>
+									<span>
+										Selected: {date ? new Date(date + "T00:00:00").toLocaleDateString() : "None"}
+									</span>
 								</div>
-							) : locationOptions.length === 0 ? (
+							</div>
+						</div>
+
+						<div className="mb-6">
+							<label className="block text-gray-700 text-sm font-bold mb-4">Select an Instructor</label>
+							{loading ? (
+								<div className="flex justify-center py-8">
+									<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+								</div>
+							) : instructors.length === 0 ? (
 								<div className="bg-yellow-50 border border-yellow-300 p-4 rounded-md text-yellow-800 text-center">
-									No locations available. Please try again later.
+									No instructors available for the selected date.
 								</div>
 							) : (
-								<div className="space-y-2">
-									{locationOptions.map((option) => (
-										<label key={option.value} className="flex items-center cursor-pointer">
-											<input
-												type="radio"
-												name="location"
-												value={option.value}
-												checked={location === option.value}
-												onChange={() => setLocation(option.value)}
-												className="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-500"
-											/>
-											<span className="ml-2 text-gray-700">{option.value}</span>
-										</label>
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+									{instructors.map((instructor) => (
+										<InstructorCard
+											key={instructor._id}
+											instructor={instructor}
+											selected={instructorId === instructor._id}
+											onSelect={setInstructorId}
+										/>
 									))}
 								</div>
 							)}
 						</div>
 
+						{/* Location Selection - Only shown when an instructor is selected */}
+						{instructorId && (
+							<div className="mb-6">
+								<label className="block text-gray-700 text-sm font-bold mb-3">Select Location</label>
+								{loadingLocations ? (
+									<div className="flex justify-center py-4">
+										<div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+									</div>
+								) : locationOptions.length === 0 ? (
+									<div className="bg-yellow-50 border border-yellow-300 p-4 rounded-md text-yellow-800 text-center">
+										No locations available for the selected instructor.
+									</div>
+								) : (
+									<div className="space-y-2">
+										{locationOptions.map((option) => (
+											<label key={option.value} className="flex items-center cursor-pointer">
+												<input
+													type="radio"
+													name="location"
+													value={option.value}
+													checked={location === option.value}
+													onChange={() => setLocation(option.value)}
+													className="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-500"
+												/>
+												<span className="ml-2 text-gray-700">{option.value}</span>
+											</label>
+										))}
+									</div>
+								)}
+							</div>
+						)}
+
+						<div className="flex justify-end mt-6">
+							<button
+								type="button"
+								onClick={() => setStep(2)}
+								disabled={!isStepValid()}
+								className={`px-4 py-2 rounded-md ${
+									isStepValid()
+										? "bg-yellow-400 hover:bg-yellow-500 text-black"
+										: "bg-gray-300 cursor-not-allowed text-gray-700"
+								}`}
+							>
+								Next
+							</button>
+						</div>
+					</div>
+				)}
+
+				{step === 2 && (
+					<div className="space-y-8">
 						{/* Class Type - Keep CircularSelector */}
 						<CircularSelector
 							label="Select Class Type"
@@ -1119,86 +1283,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 										</div>
 									</label>
 								))}
-							</div>
-						</div>
-
-						<div className="flex justify-end mt-6">
-							<button
-								type="button"
-								onClick={() => setStep(2)}
-								disabled={!isStepValid()}
-								className={`px-4 py-2 rounded-md ${
-									isStepValid()
-										? "bg-yellow-400 hover:bg-yellow-500 text-black"
-										: "bg-gray-300 cursor-not-allowed text-gray-700"
-								}`}
-							>
-								Next
-							</button>
-						</div>
-					</div>
-				)}
-
-				{step === 2 && (
-					<div className="space-y-8">
-						<div className="mb-6">
-							<label className="block text-gray-700 text-sm font-bold mb-4">Select an Instructor</label>
-							{loading ? (
-								<div className="flex justify-center py-8">
-									<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
-								</div>
-							) : instructors.length === 0 ? (
-								<div className="bg-yellow-50 border border-yellow-300 p-4 rounded-md text-yellow-800 text-center">
-									No instructors available for the selected location and class type.
-								</div>
-							) : (
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-									{instructors.map((instructor) => (
-										<InstructorCard
-											key={instructor._id}
-											instructor={instructor}
-											selected={instructorId === instructor._id}
-											onSelect={setInstructorId}
-										/>
-									))}
-								</div>
-							)}
-						</div>
-
-						<div className="mb-6">
-							<label className="block text-gray-700 text-sm font-bold mb-3">
-								Select Your Lesson Date
-							</label>
-							<div className="bg-white rounded-lg shadow-md p-6 border-2 border-yellow-300 hover:border-yellow-400 transition-all duration-300">
-								{loadingGlobalAvailability ? (
-									<div className="flex justify-center py-4">
-										<div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
-									</div>
-								) : (
-									<>
-										<CustomDatePicker
-											value={date}
-											onChange={(dateStr: string) => {
-												// Create a synthetic event to pass to handleDateChange
-												const syntheticEvent = {
-													target: { value: dateStr },
-												} as React.ChangeEvent<HTMLInputElement>;
-												handleDateChange(syntheticEvent);
-											}}
-											minDate={getMinBookingDate()}
-											className="w-full bg-transparent text-center text-xl font-bold text-yellow-700 focus:outline-none"
-										/>
-										<div className="mt-3 text-xs text-gray-600">
-											<p>Note: Sundays are not available for booking.</p>
-										</div>
-									</>
-								)}
-								<div className="flex justify-between mt-4 text-sm text-gray-600">
-									<span>Earliest Date: {new Date(getMinBookingDate()).toLocaleDateString()}</span>
-									<span>
-										Selected: {date ? new Date(date + "T00:00:00").toLocaleDateString() : "None"}
-									</span>
-								</div>
 							</div>
 						</div>
 

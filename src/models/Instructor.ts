@@ -19,6 +19,7 @@ export interface IInstructor extends Document {
   user: IUser['_id'];
   availability: IAvailability[];
   absences: IAbsence[];
+  teachingLocations: string[];
   image?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -46,6 +47,7 @@ const InstructorSchema: Schema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     availability: [AvailabilitySchema],
     absences: [AbsenceSchema],
+    teachingLocations: { type: [String], default: [] },
     image: { type: String }
   },
   { timestamps: true }

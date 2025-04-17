@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       user: user._id,
       availability: availability || [],
       absences: absences || [],
+      teachingLocations: locations || [],
       image
     });
     
@@ -113,28 +114,20 @@ export async function GET(request: NextRequest) {
       .populate('user', 'firstName lastName email phone')
       .sort({ 'user.firstName': 1, 'user.lastName': 1 });
     
-    // Filter instructors by location if specified
-    if (location) {
-      // We need to filter after fetching because locations is a virtual property
-      const filteredInstructors = [];
-      
-      for (const instructor of instructors) {
-        // Cast instructor to a type that includes the virtual property
-        const instructorDoc = instructor as unknown as { 
-          locations: Promise<string[]>;
-        };
-        
-        // Get the instructor's locations
-        const instructorLocations = await instructorDoc.locations;
-        
-        // Check if the instructor is available at the specified location
-        if (instructorLocations.includes(location)) {
-          filteredInstructors.push(instructor);
-        }
-      }
-      
-      instructors = filteredInstructors;
-    }
+  // Filter instructors by location if specified
+  if (location) {
+    // Filter instructors by teachingLocations
+    instructors = instructors.filter((instructor: any) => {
+      return instructor.teachingLocations && 
+             instructor.teachingLocations.length > 0 && 
+             instructor.teachingLocations.includes(location);
+    });
+  } else {
+    // Even if no location is specified, filter out instructors with empty teachingLocations
+    instructors = instructors.filter((instructor: any) => {
+      return instructor.teachingLocations && instructor.teachingLocations.length > 0;
+    });
+  }
     
     // Filter out instructors who are absent on the specified date
     if (checkDate) {
@@ -210,6 +203,9 @@ export async function PUT(request: NextRequest) {
     
     // Update image if provided
     if (image !== undefined) instructor.image = image;
+    
+    // Update teachingLocations if provided
+    if (locations) instructor.teachingLocations = locations;
     
     await instructor.save();
     
