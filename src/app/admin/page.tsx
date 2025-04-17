@@ -138,6 +138,8 @@ export default function AdminDashboard() {
   const [instructorColors, setInstructorColors] = useState<{[key: string]: string}>({});
   const [updatingExpired, setUpdatingExpired] = useState<boolean>(false);
   const [updateMessage, setUpdateMessage] = useState<string>("");
+  const [sendingReminders, setSendingReminders] = useState<boolean>(false);
+  const [reminderMessage, setReminderMessage] = useState<string>("");
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [newPrice, setNewPrice] = useState({
     classType: 'class 7',
@@ -176,7 +178,7 @@ export default function AdminDashboard() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   
   // Define tab types and state before using it
-  type TabType = 'bookings' | 'calendar' | 'instructors' | 'users' | 'prices' | 'locations' | 'global-availability';
+  type TabType = 'bookings' | 'approved-bookings' | 'calendar' | 'instructors' | 'users' | 'prices' | 'locations' | 'global-availability';
   const [activeTab, setActiveTab] = useState<TabType>('bookings');
   
   const [newInstructor, setNewInstructor] = useState({
@@ -389,7 +391,7 @@ export default function AdminDashboard() {
   // Handle other tabs data loading
   useEffect(() => {
     if (isAdmin) {
-      if (activeTab === 'calendar') {
+      if (activeTab === 'calendar' || activeTab === 'approved-bookings') {
         fetchAllBookings();
         fetchInstructors();
       } else if (activeTab === 'instructors') {
@@ -710,6 +712,27 @@ export default function AdminDashboard() {
       setUpdateMessage("Failed to update expired bookings");
     } finally {
       setUpdatingExpired(false);
+    }
+  };
+  
+  const handleSendReminders = async () => {
+    try {
+      setSendingReminders(true);
+      setReminderMessage("");
+      
+      const response = await fetch('/api/booking/reminder');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error('Failed to send reminder emails');
+      }
+      
+      setReminderMessage(data.message || `Sent ${data.remindersSent} reminder emails`);
+    } catch (error) {
+      console.error('Error sending reminder emails:', error);
+      setReminderMessage("Failed to send reminder emails");
+    } finally {
+      setSendingReminders(false);
     }
   };
   
@@ -1414,6 +1437,32 @@ export default function AdminDashboard() {
             </button>
             <button
               className={`px-6 py-4 flex items-center space-x-2 ${
+                activeTab === 'approved-bookings'
+                  ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
+                  : 'text-slate-500 hover:bg-slate-100'
+              } transition-all duration-300`}
+              onClick={() => {
+                setActiveTab('approved-bookings');
+                fetchAllBookings();
+              }}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`w-5 h-5 ${activeTab === 'approved-bookings' ? 'text-yellow-500' : ''}`}
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>Approved Bookings</span>
+            </button>
+            <button
+              className={`px-6 py-4 flex items-center space-x-2 ${
                 activeTab === 'calendar'
                   ? 'text-yellow-600 border-b-2 border-yellow-500 font-semibold' 
                   : 'text-slate-500 hover:bg-slate-100'
@@ -1629,12 +1678,6 @@ export default function AdminDashboard() {
                         <td className="py-3 px-4 border-b">
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => handleSendInvoice(booking._id)}
-                              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
-                            >
-                              Send Invoice
-                            </button>
-                            <button
                               onClick={() => handleApproveBooking(booking._id)}
                               className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-full hover:from-green-600 hover:to-teal-600 shadow-sm transition-all"
                             >
@@ -1645,6 +1688,195 @@ export default function AdminDashboard() {
                               className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
                             >
                               Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'approved-bookings' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center">
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center">
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="mr-3 text-yellow-500 h-6 w-6"
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  Approved Bookings
+                </h2>
+              </div>
+              <div className="relative group">
+                <button
+                  onClick={handleSendReminders}
+                  disabled={sendingReminders}
+                  className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
+                    sendingReminders 
+                      ? 'bg-gray-400' 
+                      : 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700'
+                  } transition-all duration-300 flex items-center`}
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5 mr-2" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                  </svg>
+                  {sendingReminders ? 'Sending...' : 'Send Reminders'}
+                </button>
+                <div className="absolute bottom-full mb-2 right-0 w-64 bg-black text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                  <p>Reminders are automatically sent daily at 10:05 PM. Use this button only for manual sending.</p>
+                  <div className="absolute bottom-0 right-6 transform translate-y-1/2 rotate-45 w-2 h-2 bg-black"></div>
+                </div>
+              </div>
+            </div>
+            
+            {reminderMessage && (
+              <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-xl text-green-800 shadow-sm">
+                {reminderMessage}
+              </div>
+            )}
+            
+            {allBookings.length === 0 ? (
+              <div className="text-center py-10 bg-slate-50 rounded-lg">
+                <p className="text-slate-500">No approved bookings found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl shadow-lg">
+                <table className="min-w-full bg-white border">
+                  <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
+                    <tr>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Date</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Terms Accepted</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">License Confirmed</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Privacy Policy</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allBookings.map((booking) => (
+                      <tr 
+                        key={booking._id}
+                        className="transition-all duration-300 animate-fadeIn"
+                      >
+                        <td className="py-2 px-4 border-b">
+                          {new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.startTime} - {booking.endTime}
+                        </td>
+                        <td className="py-2 px-4 border-b">{booking.location}</td>
+                        <td className="py-2 px-4 border-b">{booking.classType}</td>
+                        <td className="py-2 px-4 border-b">{booking.duration} mins</td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.user.firstName} {booking.user.lastName}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.user.email}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.user.phone}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.termsAcceptedAt 
+                            ? new Date(booking.termsAcceptedAt).toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Not accepted'}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.hasLicenseAcceptedAt 
+                            ? new Date(booking.hasLicenseAcceptedAt).toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Not confirmed'}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.privacyPolicyAcceptedAt 
+                            ? new Date(booking.privacyPolicyAcceptedAt).toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Not accepted'}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              booking.paymentStatus === 'approved'
+                                ? 'bg-green-100 text-green-800'
+                                : booking.paymentStatus === 'invoice sent'
+                                ? 'bg-blue-100 text-blue-800'
+                                : booking.paymentStatus === 'requested'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {booking.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 border-b">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleSendInvoice(booking._id)}
+                              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
+                            >
+                              Send Invoice
+                            </button>
+                            <button
+                              onClick={() => handleRescheduleBooking(booking._id)}
+                              className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full hover:from-yellow-600 hover:to-orange-600 shadow-sm transition-all"
+                            >
+                              Reschedule
+                            </button>
+                            <button
+                              onClick={() => handleCancelBooking(booking._id)}
+                              className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+                            >
+                              Cancel
                             </button>
                           </div>
                         </td>
