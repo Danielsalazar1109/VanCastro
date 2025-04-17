@@ -159,11 +159,10 @@ function BookingConfirmationContent() {
           <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Submitted!</h1>
           <CountdownTimer createdAt={bookingDetails.createdAt} />
           <p className="text-xl font-semibold text-yellow-600 mt-4 mb-2">
-            You have 24 hours to complete the payment. Please <Link href="/contact" className="text-primary-600 hover:underline">contact us</Link> to process your payment.
+            You have 24 hours to complete the payment.
           </p>
-          <p className="text-gray-600">
-            Your driving lesson has been successfully booked and is now pending approval.
-            You can track the status of your booking in the tracking page.
+          <p className="text-red-600 text-lg">
+          You can make the payment through an E-transfer to the following account: Vancastrodrivingschool@gmail.com
           </p>
         </div>
 
