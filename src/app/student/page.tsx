@@ -70,8 +70,8 @@ function StudentDashboardContent() {
 						<div className="flex flex-col md:flex-row">
 							{/* Left column - Profile information */}
 							<div className="w-full md:w-2/3">
-								<h2 className="text-xl font-semibold mb-4">Your Profile</h2>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<h2 className="text-xl font-semibold mb-4 text-center">Your Profile</h2>
+								<div className="space-y-4">
 									<div>
 										<p className="text-gray-600">Name</p>
 										<p className="font-medium">
