@@ -1497,26 +1497,26 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 							</div>
 						</div>
 
-						<div className="mt-6 mb-4">
+						<div className="mt-6 mb-6">
 							<div className="flex items-start">
 								<div className="flex items-center h-5">
 									<input
-										id="terms"
+										id="termsAndPrivacy"
 										type="checkbox"
-										checked={termsAccepted}
+										checked={termsAccepted && privacyPolicyAccepted}
 										onChange={(e) => {
-											setTermsAccepted(e.target.checked);
-											if (e.target.checked) {
-												setTermsAcceptedAt(new Date().toISOString());
-											} else {
-												setTermsAcceptedAt(null);
-											}
+											const isChecked = e.target.checked;
+											setTermsAccepted(isChecked);
+											setPrivacyPolicyAccepted(isChecked);
+											const timestamp = isChecked ? new Date().toISOString() : null;
+											setTermsAcceptedAt(timestamp);
+											setPrivacyPolicyAcceptedAt(timestamp);
 										}}
 										className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-yellow-300"
 										required
 									/>
 								</div>
-								<label htmlFor="terms" className="ml-2 text-sm font-medium text-gray-700">
+								<label htmlFor="termsAndPrivacy" className="ml-2 text-sm font-medium text-gray-700">
 									I agree to the{" "}
 									<a
 										href={classType ? `/contracts/${classType.replace(/\s+/g, "")}` : "#"}
@@ -1525,38 +1525,8 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 										className="text-blue-600 hover:underline"
 									>
 										Terms and Conditions
-									</a>
-								</label>
-								
-							</div>
-							{step === 3 && timeSlot !== "" && !termsAccepted && (
-								<p className="text-sm text-red-500 mt-2">
-									You must accept the terms and conditions to continue.
-								</p>
-							)}
-						</div>
-
-						<div className="mb-6">
-							<div className="flex items-start">
-								<div className="flex items-center h-5">
-									<input
-										id="privacyPolicy"
-										type="checkbox"
-										checked={privacyPolicyAccepted}
-										onChange={(e) => {
-											setPrivacyPolicyAccepted(e.target.checked);
-											if (e.target.checked) {
-												setPrivacyPolicyAcceptedAt(new Date().toISOString());
-											} else {
-												setPrivacyPolicyAcceptedAt(null);
-											}
-										}}
-										className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-yellow-300"
-										required
-									/>
-								</div>
-								<label htmlFor="privacyPolicy" className="ml-2 text-sm font-medium text-gray-700">
-									I agree to the{" "}
+									</a>{" "}
+									and the{" "}
 									<a
 										href="/privacy-policy"
 										target="_blank"
@@ -1567,9 +1537,9 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 									</a>
 								</label>
 							</div>
-							{step === 3 && timeSlot !== "" && !privacyPolicyAccepted && (
+							{step === 3 && timeSlot !== "" && (!termsAccepted || !privacyPolicyAccepted) && (
 								<p className="text-sm text-red-500 mt-2">
-									You must accept the privacy policy to continue.
+									You must accept both the terms and conditions and privacy policy to continue.
 								</p>
 							)}
 						</div>
