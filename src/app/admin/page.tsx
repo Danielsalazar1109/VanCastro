@@ -881,19 +881,54 @@ export default function AdminDashboard() {
       const generalLocation = getGeneralLocationFromFull(location);
       console.log(`Fetching instructors for class type: ${classType}, location: ${location}, general location: ${generalLocation}`);
       
-      // Fetch instructors who can teach this class type and are available at this location
-      // Try both the original location and the general location
-      const response = await fetch(
-        `/api/instructors?classType=${classType}&location=${encodeURIComponent(generalLocation)}`
-      );
+      // First try to fetch all instructors
+      const allInstructorsResponse = await fetch('/api/instructors');
       
-      if (!response.ok) {
+      if (!allInstructorsResponse.ok) {
         throw new Error("Failed to fetch instructors");
       }
       
-      const data = await response.json();
-      console.log(`Found ${data.instructors?.length || 0} instructors`);
-      setAvailableInstructors(data.instructors || []);
+      const allInstructorsData = await allInstructorsResponse.json();
+      const allInstructors = allInstructorsData.instructors || [];
+      console.log(`Found ${allInstructors.length} total instructors`);
+      
+      // Filter instructors client-side
+      const filteredInstructors = allInstructors.filter((instructor: Instructor) => {
+        // Check if instructor can teach this class type
+        const canTeachClassType = instructor.classTypes.includes(classType);
+        
+        // Check if instructor teaches at this location or general location
+        let teachesAtLocation = false;
+        if (instructor.teachingLocations) {
+          // Check for exact location match
+          if (instructor.teachingLocations.includes(location)) {
+            teachesAtLocation = true;
+          }
+          // Check for general location match
+          else if (instructor.teachingLocations.includes(generalLocation)) {
+            teachesAtLocation = true;
+          }
+          // Check if any of the instructor's locations are in the same general area
+          else {
+            for (const instructorLocation of instructor.teachingLocations) {
+              const instructorGeneralLocation = getGeneralLocationFromFull(instructorLocation);
+              if (instructorGeneralLocation === generalLocation) {
+                teachesAtLocation = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        return canTeachClassType && teachesAtLocation;
+      });
+      
+      console.log(`Filtered to ${filteredInstructors.length} instructors for class type ${classType} and location ${location}`);
+      console.log('Filtered instructors:', filteredInstructors.map((i: Instructor) => 
+        `${i.user.firstName} ${i.user.lastName} - Class Types: ${i.classTypes.join(', ')} - Locations: ${i.teachingLocations?.join(', ')}`
+      ));
+      
+      setAvailableInstructors(filteredInstructors);
     } catch (error: any) {
       console.error("Error fetching available instructors:", error);
       setError("Failed to load available instructors. Please try again.");
