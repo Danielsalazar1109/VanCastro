@@ -88,8 +88,8 @@ export default function PrivacyPolicy() {
             If you have any questions about this privacy policy or our privacy practices, please contact us at:
           </p>
           <p className="mb-4">
-            Email: privacy@drivingschool.com<br />
-            Phone: (123) 456-7890
+            Email: Vancastrodrivingschool@gmail.com <br />
+            Phone: +1 604-600-9173 or +1 778-680-5613
           </p>
         </div>
 

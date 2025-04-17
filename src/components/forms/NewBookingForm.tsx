@@ -1527,6 +1527,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 										Terms and Conditions
 									</a>
 								</label>
+								
 							</div>
 							{step === 3 && timeSlot !== "" && !termsAccepted && (
 								<p className="text-sm text-red-500 mt-2">
