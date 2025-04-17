@@ -28,7 +28,11 @@ export async function POST(request: NextRequest) {
       startTime,
       price,
       termsAccepted,
-      termsAcceptedAt
+      termsAcceptedAt,
+      hasLicense,
+      hasLicenseAcceptedAt,
+      privacyPolicyAccepted,
+      privacyPolicyAcceptedAt
     } = body;
     // Validate required fields
     if (!userId || !instructorId || !location || !classType || !packageType || !duration || !date || !startTime || !termsAccepted) {
@@ -308,7 +312,11 @@ export async function POST(request: NextRequest) {
       status: 'pending',
       paymentStatus: 'requested', // Initial payment status, will be updated by admin
       termsAccepted: termsAccepted,
-      termsAcceptedAt: new Date() // Always set to current date to ensure it's saved
+      termsAcceptedAt: new Date(), // Always set to current date to ensure it's saved
+      hasLicense: hasLicense || false,
+      hasLicenseAcceptedAt: new Date(),
+      privacyPolicyAccepted: privacyPolicyAccepted || false,
+      privacyPolicyAcceptedAt: new Date()
     };
 
     // If termsAcceptedAt was provided in the request, use that instead
@@ -318,6 +326,28 @@ export async function POST(request: NextRequest) {
         console.log('Using provided termsAcceptedAt:', bookingData.termsAcceptedAt);
       } catch (error) {
         console.error('Error parsing termsAcceptedAt date:', error);
+        // Keep the default current date if parsing fails
+      }
+    }
+
+    // If hasLicenseAcceptedAt was provided in the request, use that instead
+    if (hasLicenseAcceptedAt) {
+      try {
+        bookingData.hasLicenseAcceptedAt = new Date(hasLicenseAcceptedAt);
+        console.log('Using provided hasLicenseAcceptedAt:', bookingData.hasLicenseAcceptedAt);
+      } catch (error) {
+        console.error('Error parsing hasLicenseAcceptedAt date:', error);
+        // Keep the default current date if parsing fails
+      }
+    }
+
+    // If privacyPolicyAcceptedAt was provided in the request, use that instead
+    if (privacyPolicyAcceptedAt) {
+      try {
+        bookingData.privacyPolicyAcceptedAt = new Date(privacyPolicyAcceptedAt);
+        console.log('Using provided privacyPolicyAcceptedAt:', bookingData.privacyPolicyAcceptedAt);
+      } catch (error) {
+        console.error('Error parsing privacyPolicyAcceptedAt date:', error);
         // Keep the default current date if parsing fails
       }
     }

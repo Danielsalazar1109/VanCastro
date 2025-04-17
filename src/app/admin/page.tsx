@@ -65,6 +65,8 @@ interface Booking {
   createdAt?: string;
   updatedAt?: string;
   termsAcceptedAt: string;
+  hasLicenseAcceptedAt?: string;
+  privacyPolicyAcceptedAt?: string;
 }
 
 // Modal components for viewing/deleting bookings and updating prices
@@ -1536,7 +1538,9 @@ export default function AdminDashboard() {
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Terms checked time</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Terms Accepted</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">License Confirmed</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Privacy Policy</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
@@ -1570,6 +1574,28 @@ export default function AdminDashboard() {
                         <td className="py-2 px-4 border-b">
                           {booking.termsAcceptedAt 
                             ? new Date(booking.termsAcceptedAt).toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Not accepted'}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.hasLicenseAcceptedAt 
+                            ? new Date(booking.hasLicenseAcceptedAt).toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Not confirmed'}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.privacyPolicyAcceptedAt 
+                            ? new Date(booking.privacyPolicyAcceptedAt).toLocaleString('en-US', {
                                 year: 'numeric',
                                 month: 'short',
                                 day: 'numeric',

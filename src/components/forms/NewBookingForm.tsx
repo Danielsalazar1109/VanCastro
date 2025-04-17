@@ -162,6 +162,10 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 	const [discountedPrice, setDiscountedPrice] = useState<number | null>(savedState?.discountedPrice || null);
 	const [termsAccepted, setTermsAccepted] = useState<boolean>(savedState?.termsAccepted || false);
 	const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(savedState?.termsAcceptedAt || null);
+	const [hasLicense, setHasLicense] = useState<boolean>(savedState?.hasLicense || false);
+	const [hasLicenseAcceptedAt, setHasLicenseAcceptedAt] = useState<string | null>(savedState?.hasLicenseAcceptedAt || null);
+	const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState<boolean>(savedState?.privacyPolicyAccepted || false);
+	const [privacyPolicyAcceptedAt, setPrivacyPolicyAcceptedAt] = useState<string | null>(savedState?.privacyPolicyAcceptedAt || null);
 
 	// Data state
 	const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -212,6 +216,10 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 			discountedPrice,
 			termsAccepted,
 			termsAcceptedAt,
+			hasLicense,
+			hasLicenseAcceptedAt,
+			privacyPolicyAccepted,
+			privacyPolicyAcceptedAt,
 			step,
 			hasPassedKnowledgeTest,
 		};
@@ -231,6 +239,10 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 		discountedPrice,
 		termsAccepted,
 		termsAcceptedAt,
+		hasLicense,
+		hasLicenseAcceptedAt,
+		privacyPolicyAccepted,
+		privacyPolicyAcceptedAt,
 		step,
 		hasPassedKnowledgeTest,
 		userId,
@@ -952,6 +964,10 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 					hasPassedKnowledgeTest: classType === "class 7" ? true : undefined,
 					termsAccepted,
 					termsAcceptedAt,
+					hasLicense,
+					hasLicenseAcceptedAt,
+					privacyPolicyAccepted,
+					privacyPolicyAcceptedAt
 				}),
 			});
 
@@ -1224,7 +1240,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 							</div>
 						</div>
 
-						<div className="mb-8">
+						<div className="mb-4">
 							<label className="block text-gray-700 text-sm font-bold mb-4">Select Duration</label>
 							<div className="grid grid-cols-3 gap-3 sm:gap-5">
 								{durations.map((dur) => (
@@ -1284,6 +1300,37 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 									</label>
 								))}
 							</div>
+						</div>
+
+						{/* License/Yellow Paper Confirmation Checkbox */}
+						<div className="mb-6">
+							<div className="flex items-start">
+								<div className="flex items-center h-5">
+									<input
+										id="hasLicense"
+										type="checkbox"
+										checked={hasLicense}
+										onChange={(e) => {
+											setHasLicense(e.target.checked);
+											if (e.target.checked) {
+												setHasLicenseAcceptedAt(new Date().toISOString());
+											} else {
+												setHasLicenseAcceptedAt(null);
+											}
+										}}
+										className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-yellow-300"
+										required
+									/>
+								</div>
+								<label htmlFor="hasLicense" className="ml-2 text-sm font-medium text-gray-700">
+									I confirm that I have a valid {classType === "class 7" ? "learner's permit (yellow paper)" : "driver's license"} required for this class type
+								</label>
+							</div>
+							{classType !== "" && !hasLicense && (
+								<p className="text-sm text-red-500 mt-2">
+									You must confirm that you have the required documentation to continue.
+								</p>
+							)}
 						</div>
 
 						<div className="flex justify-between mt-6">
@@ -1450,7 +1497,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 							</div>
 						</div>
 
-						<div className="mt-6 mb-6">
+						<div className="mt-6 mb-4">
 							<div className="flex items-start">
 								<div className="flex items-center h-5">
 									<input
@@ -1484,6 +1531,44 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 							{step === 3 && timeSlot !== "" && !termsAccepted && (
 								<p className="text-sm text-red-500 mt-2">
 									You must accept the terms and conditions to continue.
+								</p>
+							)}
+						</div>
+
+						<div className="mb-6">
+							<div className="flex items-start">
+								<div className="flex items-center h-5">
+									<input
+										id="privacyPolicy"
+										type="checkbox"
+										checked={privacyPolicyAccepted}
+										onChange={(e) => {
+											setPrivacyPolicyAccepted(e.target.checked);
+											if (e.target.checked) {
+												setPrivacyPolicyAcceptedAt(new Date().toISOString());
+											} else {
+												setPrivacyPolicyAcceptedAt(null);
+											}
+										}}
+										className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-yellow-300"
+										required
+									/>
+								</div>
+								<label htmlFor="privacyPolicy" className="ml-2 text-sm font-medium text-gray-700">
+									I agree to the{" "}
+									<a
+										href="/privacy-policy"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-blue-600 hover:underline"
+									>
+										Privacy Policy
+									</a>
+								</label>
+							</div>
+							{step === 3 && timeSlot !== "" && !privacyPolicyAccepted && (
+								<p className="text-sm text-red-500 mt-2">
+									You must accept the privacy policy to continue.
 								</p>
 							)}
 						</div>
