@@ -10,24 +10,6 @@ interface CustomDatePickerProps {
 }
 
 const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, minDate, className = "" }) => {
-	// State for the calendar
-	const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-	const [isOpen, setIsOpen] = useState<boolean>(false);
-	const [selectedDate, setSelectedDate] = useState<Date | null>(value ? new Date(value) : null);
-
-	// Update the current month when the value changes
-	useEffect(() => {
-		if (value) {
-			// Parse date safely from YYYY-MM-DD format to avoid timezone issues
-			const [year, month, day] = value.split('-').map(num => parseInt(num, 10));
-			if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-				const date = new Date(year, month - 1, day);
-				setSelectedDate(date);
-				setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-			}
-		}
-	}, [value]);
-
 	// Format date as YYYY-MM-DD
 	const formatDate = (date: Date): string => {
 		const year = date.getFullYear();
@@ -35,6 +17,51 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, mi
 		const day = String(date.getDate()).padStart(2, "0");
 		return `${year}-${month}-${day}`;
 	};
+
+	// Calculate max date (4 months from now)
+	const getMaxDate = (): string => {
+		const today = new Date();
+		const maxDate = new Date(today.getFullYear(), today.getMonth() + 4, today.getDate());
+		return formatDate(maxDate);
+	};
+
+	// Initialize with the month of minDate if it's in the future
+	const getInitialMonth = (): Date => {
+		const today = new Date();
+		const minDateObj = new Date(minDate + "T00:00:00");
+
+		// If minDate is in a future month, use that month
+		if (
+			minDateObj.getFullYear() > today.getFullYear() ||
+			(minDateObj.getFullYear() === today.getFullYear() && minDateObj.getMonth() > today.getMonth())
+		) {
+			return new Date(minDateObj.getFullYear(), minDateObj.getMonth(), 1);
+		}
+
+		// Otherwise use current month
+		return new Date(today.getFullYear(), today.getMonth(), 1);
+	};
+
+	// State for the calendar
+	const [currentMonth, setCurrentMonth] = useState<Date>(getInitialMonth());
+	const [isOpen, setIsOpen] = useState<boolean>(false);
+	const [selectedDate, setSelectedDate] = useState<Date | null>(
+		value && value.trim() !== "" ? new Date(value) : null
+	);
+	const [maxDate] = useState<string>(getMaxDate());
+
+	// Update the current month when the value changes
+	useEffect(() => {
+		if (value) {
+			// Parse date safely from YYYY-MM-DD format to avoid timezone issues
+			const [year, month, day] = value.split("-").map((num) => parseInt(num, 10));
+			if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+				const date = new Date(year, month - 1, day);
+				setSelectedDate(date);
+				setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+			}
+		}
+	}, [value]);
 
 	// Format date for display
 	const formatDisplayDate = (date: Date | null): string => {
@@ -77,7 +104,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, mi
 				date,
 				day,
 				isCurrentMonth: false,
-				isSelectable: formatDate(date) >= minDate,
+				isSelectable: formatDate(date) >= minDate && formatDate(date) <= maxDate,
 			});
 		}
 
@@ -90,7 +117,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, mi
 					date,
 					day: i,
 					isCurrentMonth: true,
-					isSelectable: formatDate(date) >= minDate,
+					isSelectable: formatDate(date) >= minDate && formatDate(date) <= maxDate,
 				});
 			}
 		}
@@ -105,7 +132,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, mi
 					date,
 					day: i,
 					isCurrentMonth: false,
-					isSelectable: formatDate(date) >= minDate,
+					isSelectable: formatDate(date) >= minDate && formatDate(date) <= maxDate,
 				});
 			} else {
 				// Add one more day to compensate for skipped Sunday
@@ -127,14 +154,35 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, mi
 		setIsOpen(false);
 	};
 
-	// Navigate to previous month
-	const goToPreviousMonth = () => {
-		setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+	// Check if current month is the current month (to disable previous month navigation)
+	const isCurrentMonth = () => {
+		const today = new Date();
+		return currentMonth.getFullYear() === today.getFullYear() && currentMonth.getMonth() === today.getMonth();
 	};
 
-	// Navigate to next month
+	// Check if current month is 4 months ahead (to disable next month navigation)
+	const isFourMonthsAhead = () => {
+		const today = new Date();
+		const fourMonthsLater = new Date(today.getFullYear(), today.getMonth() + 4, 1);
+		return (
+			currentMonth.getFullYear() > fourMonthsLater.getFullYear() ||
+			(currentMonth.getFullYear() === fourMonthsLater.getFullYear() &&
+				currentMonth.getMonth() >= fourMonthsLater.getMonth())
+		);
+	};
+
+	// Navigate to previous month (only if not current month)
+	const goToPreviousMonth = () => {
+		if (!isCurrentMonth()) {
+			setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+		}
+	};
+
+	// Navigate to next month (only if not 4 months ahead)
 	const goToNextMonth = () => {
-		setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+		if (!isFourMonthsAhead()) {
+			setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+		}
 	};
 
 	// Get month and year display
@@ -163,12 +211,26 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, mi
 						<button
 							type="button"
 							onClick={goToPreviousMonth}
-							className="p-1 hover:bg-gray-100 rounded-full"
+							disabled={isCurrentMonth()}
+							className={`p-1 rounded-full ${
+								isCurrentMonth()
+									? "text-gray-300 cursor-not-allowed"
+									: "hover:bg-gray-100 text-gray-700"
+							}`}
 						>
 							&#9664;
 						</button>
 						<div className="font-medium">{getMonthYearDisplay()}</div>
-						<button type="button" onClick={goToNextMonth} className="p-1 hover:bg-gray-100 rounded-full">
+						<button
+							type="button"
+							onClick={goToNextMonth}
+							disabled={isFourMonthsAhead()}
+							className={`p-1 rounded-full ${
+								isFourMonthsAhead()
+									? "text-gray-300 cursor-not-allowed"
+									: "hover:bg-gray-100 text-gray-700"
+							}`}
+						>
 							&#9654;
 						</button>
 					</div>
@@ -217,16 +279,17 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange, mi
 						<button
 							type="button"
 							onClick={() => {
-								// Create a new date for today that's timezone-safe
-								const today = new Date();
-								const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-								setSelectedDate(todayDate);
-								onChange(formatDate(todayDate));
+								// Create a new date for minDate (today + 2 days)
+								const minDateObj = new Date(minDate + "T00:00:00");
+
+								// Use minDate instead of today
+								setSelectedDate(minDateObj);
+								onChange(formatDate(minDateObj));
 								setIsOpen(false);
 							}}
 							className="text-sm text-blue-500 hover:text-blue-700"
 						>
-							Today
+							Earliest Date
 						</button>
 					</div>
 				</div>
