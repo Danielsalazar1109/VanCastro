@@ -3,6 +3,32 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+
+// Component para el botón de retorno al dashboard
+const ReturnToDashboardButton = () => {
+  const { data: session } = useSession();
+  
+  // Determinar la URL del dashboard según el rol del usuario
+  const getDashboardUrl = () => {
+    if (!session || !session.user) return '/student'; // Default fallback
+    
+    const userRole = session.user.role as string || 'student';
+    
+    if (userRole === 'admin') return '/admin';
+    if (userRole === 'instructor') return '/instructor';
+    return '/student';
+  };
+
+  return (
+    <Link 
+      href={getDashboardUrl()} 
+      className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-6 rounded-lg transition-all duration-300"
+    >
+      Return to Dashboard
+    </Link>
+  );
+};
 
 // Countdown component to handle real-time updates
 const CountdownTimer = ({ createdAt }: { createdAt: string }) => {
@@ -156,14 +182,13 @@ function BookingConfirmationContent() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Submitted!</h1>
+          <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Requested!</h1>
           <CountdownTimer createdAt={bookingDetails.createdAt} />
           <p className="text-xl font-semibold text-yellow-600 mt-4 mb-2">
-            You have 24 hours to complete the payment. Please <Link href="/contact" className="text-primary-600 hover:underline">contact us</Link> to process your payment.
+            You have 24 hours to complete the payment.
           </p>
-          <p className="text-gray-600">
-            Your driving lesson has been successfully booked and is now pending approval.
-            You can track the status of your booking in the tracking page.
+          <p className="text-red-600 text-lg">
+          You can make the payment through an E-transfer to the following account: Vancastrodrivingschool@gmail.com
           </p>
         </div>
 
@@ -211,15 +236,7 @@ function BookingConfirmationContent() {
           <p className="text-gray-600 mb-6">
             A confirmation email has been sent to {bookingDetails.email} with all the details.
           </p>
-          <Link href="/tracking" className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-6 rounded-lg transition-all duration-300">
-            Track Your Booking
-          </Link>
-          <Link href="/" className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg ml-4 transition-all duration-300">
-            Return to Home
-          </Link>
-          <Link href="/booking" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg ml-4 transition-all duration-300">
-            Book Another Lesson
-          </Link>
+          <ReturnToDashboardButton />
         </div>
       </div>
     </div>

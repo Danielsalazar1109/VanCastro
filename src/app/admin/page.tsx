@@ -32,6 +32,7 @@ import BookingModal from "@/components/admin/BookingModal";
 import TimeRemaining from "@/components/admin/TimeRemaining";
 import AbsenceModal from "@/components/admin/AbsenceModal";
 import LocationSelector from "@/components/admin/LocationSelector";
+import CustomDatePicker from "@/components/forms/CustomDatePicker";
 
 interface User {
 	_id: string;
@@ -80,6 +81,8 @@ interface Booking {
 	createdAt?: string;
 	updatedAt?: string;
 	termsAcceptedAt: string;
+	hasLicenseAcceptedAt?: string;
+	privacyPolicyAcceptedAt?: string;
 }
 
 // Modal components for viewing/deleting bookings and updating prices
@@ -146,11 +149,104 @@ export default function AdminDashboard() {
 	const [instructors, setInstructors] = useState<Instructor[]>([]);
 	const [users, setUsers] = useState<User[]>([]);
 	const [prices, setPrices] = useState<any[]>([]);
-	const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 	const [selectedDateBookings, setSelectedDateBookings] = useState<Booking[]>([]);
 	const [instructorColors, setInstructorColors] = useState<{ [key: string]: string }>({});
 	const [updatingExpired, setUpdatingExpired] = useState<boolean>(false);
 	const [updateMessage, setUpdateMessage] = useState<string>("");
+	const [sendingReminders, setSendingReminders] = useState<boolean>(false);
+	const [reminderMessage, setReminderMessage] = useState<string>("");
+	// Initialize with today's date in YYYY-MM-DD format
+	const today = new Date();
+	const year = today.getFullYear();
+	const month = String(today.getMonth() + 1).padStart(2, "0");
+	const day = String(today.getDate()).padStart(2, "0");
+	const todayFormatted = `${year}-${month}-${day}`;
+
+	const [selectedDate, setSelectedDate] = useState<string>(todayFormatted); // Default to today using local timezone
+	const [isDateFiltered, setIsDateFiltered] = useState<boolean>(false);
+	const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+	const [dateRangeOffset, setDateRangeOffset] = useState<number>(0); // Track pagination offset
+
+	// Format current date as YYYY-MM-DD
+	const formatCurrentDate = (): string => {
+		const today = new Date();
+		const year = today.getFullYear();
+		const month = String(today.getMonth() + 1).padStart(2, "0");
+		const day = String(today.getDate()).padStart(2, "0");
+		return `${year}-${month}-${day}`;
+	};
+
+	// Generate dates for the day selector with pagination
+	const generateDates = () => {
+		const dates = [];
+		const today = new Date();
+
+		// Generate 7 days with offset for pagination
+		// When offset is 0, it shows 3 days before today, today, and 3 days after today
+		// When offset is 1, it shows the next 7 days, and so on
+		for (let i = -3 + dateRangeOffset * 7; i <= 3 + dateRangeOffset * 7; i++) {
+			const date = new Date(today);
+			date.setDate(today.getDate() + i);
+			dates.push(date);
+		}
+
+		return dates;
+	};
+
+	// Navigate to previous week
+	const goToPreviousWeek = () => {
+		setDateRangeOffset((prev) => prev - 1);
+	};
+
+	// Navigate to next week
+	const goToNextWeek = () => {
+		setDateRangeOffset((prev) => prev + 1);
+	};
+
+	// Reset to current week
+	const resetToCurrentWeek = () => {
+		setDateRangeOffset(0);
+	};
+
+	// Format date for display in day selector - using local timezone to avoid date shifts
+	const formatDateForSelector = (date: Date) => {
+		// Format the date in YYYY-MM-DD format using local timezone
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		const localDateStr = `${year}-${month}-${day}`;
+
+		return {
+			day: date.toLocaleDateString("en-US", { weekday: "short" }),
+			date: date.getDate(),
+			month: date.toLocaleDateString("en-US", { month: "short" }),
+			fullDate: localDateStr, // Use local date string instead of ISO string
+		};
+	};
+
+	// Filter bookings by selected date
+	const filterBookingsByDate = (date: string) => {
+		if (date === "all") {
+			// Show all bookings
+			setFilteredBookings([]);
+			setIsDateFiltered(false);
+		} else {
+			// Filter bookings to only include those for the selected date
+			const filteredBookings = allBookings.filter((booking: Booking) => {
+				// Handle dates like "2025-03-24T00:00:00.000+00:00"
+				// Extract just the YYYY-MM-DD part from the booking date
+				const bookingDateStr = booking.date.split("T")[0];
+
+				// Compare the date strings directly
+				return bookingDateStr === date;
+			});
+
+			// Update state with filtered bookings
+			setFilteredBookings(filteredBookings || []);
+			setIsDateFiltered(true);
+			setSelectedDate(date);
+		}
+	};
 	const [isSmallScreen, setIsSmallScreen] = useState(false);
 	const [newPrice, setNewPrice] = useState({
 		classType: "class 7",
@@ -188,7 +284,15 @@ export default function AdminDashboard() {
 	const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
 
 	// Define tab types and state before using it
-	type TabType = "bookings" | "calendar" | "instructors" | "users" | "prices" | "locations" | "global-availability";
+	type TabType =
+		| "bookings"
+		| "approved-bookings"
+		| "calendar"
+		| "instructors"
+		| "users"
+		| "prices"
+		| "locations"
+		| "global-availability";
 	const [activeTab, setActiveTab] = useState<TabType>("bookings");
 
 	const [newInstructor, setNewInstructor] = useState({
@@ -307,40 +411,21 @@ export default function AdminDashboard() {
 	const [slotMinTime, setSlotMinTime] = useState<string>("00:00");
 	const [slotMaxTime, setSlotMaxTime] = useState<string>("23:59");
 
-	// Check if navigation tabs fit in the container - show hamburger menu when they don't
+	// Check screen size
 	useEffect(() => {
-		const checkNavOverflow = () => {
-			// Get the navigation container and all tab buttons
-			const navContainer = document.querySelector(".flex.border-b.overflow-x-auto");
-			if (!navContainer) return;
-
-			// Calculate the total width needed for all tabs
-			let totalTabsWidth = 0;
-			const tabButtons = navContainer.querySelectorAll("button");
-
-			tabButtons.forEach((button) => {
-				totalTabsWidth += button.offsetWidth;
-			});
-
-			// Compare with the available width of the container
-			const containerWidth = navContainer.clientWidth;
-
-			// If tabs need more space than available, show hamburger menu
-			setIsSmallScreen(totalTabsWidth > containerWidth);
+		const checkScreenSize = () => {
+			setIsSmallScreen(window.innerWidth < 1024); // lg breakpoint in Tailwind
 		};
 
-		// Initial check after render
-		setTimeout(checkNavOverflow, 100); // Small delay to ensure DOM is ready
+		// Initial check
+		checkScreenSize();
 
 		// Add event listener for window resize
-		window.addEventListener("resize", checkNavOverflow);
+		window.addEventListener("resize", checkScreenSize);
 
 		// Cleanup
-		return () => window.removeEventListener("resize", checkNavOverflow);
+		return () => window.removeEventListener("resize", checkScreenSize);
 	}, []);
-
-	// State for side menu
-	const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
 
 	// Generate a color for each instructor
 	useEffect(() => {
@@ -428,7 +513,7 @@ export default function AdminDashboard() {
 	// Handle other tabs data loading
 	useEffect(() => {
 		if (isAdmin) {
-			if (activeTab === "calendar") {
+			if (activeTab === "calendar" || activeTab === "approved-bookings") {
 				fetchAllBookings();
 				fetchInstructors();
 			} else if (activeTab === "instructors") {
@@ -755,6 +840,27 @@ export default function AdminDashboard() {
 		}
 	};
 
+	const handleSendReminders = async () => {
+		try {
+			setSendingReminders(true);
+			setReminderMessage("");
+
+			const response = await fetch("/api/booking/reminder");
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error("Failed to send reminder emails");
+			}
+
+			setReminderMessage(data.message || `Sent ${data.remindersSent} reminder emails`);
+		} catch (error) {
+			console.error("Error sending reminder emails:", error);
+			setReminderMessage("Failed to send reminder emails");
+		} finally {
+			setSendingReminders(false);
+		}
+	};
+
 	const fetchInstructors = async () => {
 		try {
 			setLoading(true);
@@ -879,19 +985,83 @@ export default function AdminDashboard() {
 		}
 	};
 
+	// Function to get general location from full location name
+	const getGeneralLocationFromFull = (fullLocation: string): string => {
+		// Check each general location
+		for (const [generalLocation, fullLocations] of Object.entries(locationMapping)) {
+			// If the full location is in the array for this general location, return the general location
+			if (fullLocations.includes(fullLocation)) {
+				return generalLocation;
+			}
+		}
+		// If no match found, return the original location (might be a general location already)
+		return fullLocation;
+	};
+
 	const fetchAvailableInstructors = async (classType: string, location: string) => {
 		try {
 			setLoadingInstructors(true);
 
-			// Fetch instructors who can teach this class type and are available at this location
-			const response = await fetch(`/api/instructors?classType=${classType}&location=${location}`);
+			// Get the general location from the full location name
+			const generalLocation = getGeneralLocationFromFull(location);
+			console.log(
+				`Fetching instructors for class type: ${classType}, location: ${location}, general location: ${generalLocation}`
+			);
 
-			if (!response.ok) {
+			// First try to fetch all instructors
+			const allInstructorsResponse = await fetch("/api/instructors");
+
+			if (!allInstructorsResponse.ok) {
 				throw new Error("Failed to fetch instructors");
 			}
 
-			const data = await response.json();
-			setAvailableInstructors(data.instructors || []);
+			const allInstructorsData = await allInstructorsResponse.json();
+			const allInstructors = allInstructorsData.instructors || [];
+			console.log(`Found ${allInstructors.length} total instructors`);
+
+			// Filter instructors client-side
+			const filteredInstructors = allInstructors.filter((instructor: Instructor) => {
+				// Check if instructor can teach this class type
+				const canTeachClassType = instructor.classTypes.includes(classType);
+
+				// Check if instructor teaches at this location or general location
+				let teachesAtLocation = false;
+				if (instructor.teachingLocations) {
+					// Check for exact location match
+					if (instructor.teachingLocations.includes(location)) {
+						teachesAtLocation = true;
+					}
+					// Check for general location match
+					else if (instructor.teachingLocations.includes(generalLocation)) {
+						teachesAtLocation = true;
+					}
+					// Check if any of the instructor's locations are in the same general area
+					else {
+						for (const instructorLocation of instructor.teachingLocations) {
+							const instructorGeneralLocation = getGeneralLocationFromFull(instructorLocation);
+							if (instructorGeneralLocation === generalLocation) {
+								teachesAtLocation = true;
+								break;
+							}
+						}
+					}
+				}
+
+				return canTeachClassType && teachesAtLocation;
+			});
+
+			console.log(
+				`Filtered to ${filteredInstructors.length} instructors for class type ${classType} and location ${location}`
+			);
+			console.log(
+				"Filtered instructors:",
+				filteredInstructors.map(
+					(i: Instructor) =>
+						`${i.user.firstName} ${i.user.lastName} - Class Types: ${i.classTypes.join(", ")} - Locations: ${i.teachingLocations?.join(", ")}`
+				)
+			);
+
+			setAvailableInstructors(filteredInstructors);
 		} catch (error: any) {
 			console.error("Error fetching available instructors:", error);
 			setError("Failed to load available instructors. Please try again.");
@@ -1047,8 +1217,9 @@ export default function AdminDashboard() {
 	// Handler for sending invoice
 	const handleSendInvoice = async (bookingId: string) => {
 		try {
-			// Find the booking
-			const booking = pendingBookings.find((b) => b._id === bookingId);
+			// Find the booking in both pending and approved bookings
+			const booking =
+				pendingBookings.find((b) => b._id === bookingId) || allBookings.find((b) => b._id === bookingId);
 
 			if (!booking) {
 				throw new Error("Booking not found");
@@ -1429,294 +1600,135 @@ export default function AdminDashboard() {
 				</div>
 
 				<div className="bg-white shadow-2xl rounded-3xl overflow-hidden">
-					{/* Desktop navigation tabs */}
-					{!isSmallScreen ? (
-						<div className="flex border-b overflow-x-auto">
-							<button
-								className={`px-6 py-4 flex items-center space-x-2 ${
-									activeTab === "bookings"
-										? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
-										: "text-slate-500 hover:bg-slate-100"
-								} transition-all duration-300 relative whitespace-nowrap`}
-								onClick={() => {
-									setActiveTab("bookings");
-									setHasNewPendingBookings(false);
-								}}
-							>
-								<Clock className={`w-5 h-5 ${activeTab === "bookings" ? "text-yellow-500" : ""}`} />
-								<span>Pending Bookings</span>
-								{hasNewPendingBookings && activeTab !== "bookings" && (
-									<span className="absolute top-2 right-2 flex h-3 w-3">
-										<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-										<span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-									</span>
-								)}
-							</button>
-							<button
-								className={`px-6 py-4 flex items-center space-x-2 ${
-									activeTab === "calendar"
-										? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
-										: "text-slate-500 hover:bg-slate-100"
-								} transition-all duration-300 whitespace-nowrap`}
-								onClick={() => setActiveTab("calendar")}
-							>
-								<Calendar className={`w-5 h-5 ${activeTab === "calendar" ? "text-yellow-500" : ""}`} />
-								<span>Calendar View</span>
-							</button>
-							<button
-								className={`px-6 py-4 flex items-center space-x-2 ${
-									activeTab === "instructors"
-										? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
-										: "text-slate-500 hover:bg-slate-100"
-								} transition-all duration-300 whitespace-nowrap`}
-								onClick={() => setActiveTab("instructors")}
-							>
-								<User className={`w-5 h-5 ${activeTab === "instructors" ? "text-yellow-500" : ""}`} />
-								<span>Manage Instructors</span>
-							</button>
-							<button
-								className={`px-6 py-4 flex items-center space-x-2 ${
-									activeTab === "users"
-										? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
-										: "text-slate-500 hover:bg-slate-100"
-								} transition-all duration-300 whitespace-nowrap`}
-								onClick={() => setActiveTab("users")}
-							>
-								<User className={`w-5 h-5 ${activeTab === "users" ? "text-yellow-500" : ""}`} />
-								<span>View Users</span>
-							</button>
-							<button
-								className={`px-6 py-4 flex items-center space-x-2 ${
-									activeTab === "prices"
-										? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
-										: "text-slate-500 hover:bg-slate-100"
-								} transition-all duration-300 whitespace-nowrap`}
-								onClick={() => setActiveTab("prices")}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									className={`w-5 h-5 ${activeTab === "prices" ? "text-yellow-500" : ""}`}
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<circle cx="12" cy="12" r="10"></circle>
-									<line x1="12" y1="8" x2="12" y2="16"></line>
-									<line x1="8" y1="12" x2="16" y2="12"></line>
-								</svg>
-								<span>Manage Prices</span>
-							</button>
-							<button
-								className={`px-6 py-4 flex items-center space-x-2 ${
-									activeTab === "locations"
-										? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
-										: "text-slate-500 hover:bg-slate-100"
-								} transition-all duration-300 whitespace-nowrap`}
-								onClick={() => setActiveTab("locations")}
-							>
-								<MapPin className={`w-5 h-5 ${activeTab === "locations" ? "text-yellow-500" : ""}`} />
-								<span>Manage Locations</span>
-							</button>
-							<button
-								className={`px-6 py-4 flex items-center space-x-2 ${
-									activeTab === "global-availability"
-										? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
-										: "text-slate-500 hover:bg-slate-100"
-								} transition-all duration-300 whitespace-nowrap`}
-								onClick={() => setActiveTab("global-availability")}
-							>
-								<Calendar
-									className={`w-5 h-5 ${activeTab === "global-availability" ? "text-yellow-500" : ""}`}
-								/>
-								<span>Availability</span>
-							</button>
-						</div>
-					) : (
-						/* Mobile hamburger menu */
-						<>
-							<div className="p-4 border-b flex justify-between items-center">
-								<button
-									onClick={() => setIsSideMenuOpen(!isSideMenuOpen)}
-									className="p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
-								>
-									{isSideMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-								</button>
-								<h2 className="text-xl font-bold text-yellow-600">
-									{activeTab === "bookings" && "Pending Bookings"}
-									{activeTab === "calendar" && "Calendar View"}
-									{activeTab === "instructors" && "Manage Instructors"}
-									{activeTab === "users" && "View Users"}
-									{activeTab === "prices" && "Manage Prices"}
-									{activeTab === "locations" && "Manage Locations"}
-									{activeTab === "global-availability" && "Availability"}
-								</h2>
-								<div className="w-6"></div> {/* Empty div for flex spacing */}
-							</div>
-
-							{/* Side menu with black background and white text */}
-							<div
-								className={`fixed inset-y-0 left-0 z-50 w-64 bg-black shadow-xl transform transition-transform duration-300 ease-in-out ${
-									isSideMenuOpen ? "translate-x-0" : "-translate-x-full"
-								}`}
-							>
-								<div className="p-4 border-b border-gray-800 flex justify-between items-center">
-									<h2 className="text-xl font-bold text-white">Admin Menu</h2>
-									<button
-										onClick={() => setIsSideMenuOpen(false)}
-										className="p-2 rounded-md text-white hover:bg-gray-800 focus:outline-none"
-									>
-										<X className="h-6 w-6" />
-									</button>
-								</div>
-
-								<nav className="mt-4">
-									<button
-										className={`w-full px-6 py-4 flex items-center space-x-2 ${
-											activeTab === "bookings"
-												? "bg-gray-800 text-yellow-400"
-												: "text-white hover:bg-gray-800"
-										} transition-all duration-300 relative`}
-										onClick={() => {
-											setActiveTab("bookings");
-											setHasNewPendingBookings(false);
-											setIsSideMenuOpen(false);
-										}}
-									>
-										<Clock
-											className={`w-5 h-5 ${activeTab === "bookings" ? "text-yellow-400" : "text-white"}`}
-										/>
-										<span>Pending Bookings</span>
-										{hasNewPendingBookings && activeTab !== "bookings" && (
-											<span className="absolute top-4 right-4 flex h-3 w-3">
-												<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-												<span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-											</span>
-										)}
-									</button>
-									<button
-										className={`w-full px-6 py-4 flex items-center space-x-2 ${
-											activeTab === "calendar"
-												? "bg-gray-800 text-yellow-400"
-												: "text-white hover:bg-gray-800"
-										} transition-all duration-300`}
-										onClick={() => {
-											setActiveTab("calendar");
-											setIsSideMenuOpen(false);
-										}}
-									>
-										<Calendar
-											className={`w-5 h-5 ${activeTab === "calendar" ? "text-yellow-400" : "text-white"}`}
-										/>
-										<span>Calendar View</span>
-									</button>
-									<button
-										className={`w-full px-6 py-4 flex items-center space-x-2 ${
-											activeTab === "instructors"
-												? "bg-gray-800 text-yellow-400"
-												: "text-white hover:bg-gray-800"
-										} transition-all duration-300`}
-										onClick={() => {
-											setActiveTab("instructors");
-											setIsSideMenuOpen(false);
-										}}
-									>
-										<User
-											className={`w-5 h-5 ${activeTab === "instructors" ? "text-yellow-400" : "text-white"}`}
-										/>
-										<span>Manage Instructors</span>
-									</button>
-									<button
-										className={`w-full px-6 py-4 flex items-center space-x-2 ${
-											activeTab === "users"
-												? "bg-gray-800 text-yellow-400"
-												: "text-white hover:bg-gray-800"
-										} transition-all duration-300`}
-										onClick={() => {
-											setActiveTab("users");
-											setIsSideMenuOpen(false);
-										}}
-									>
-										<User
-											className={`w-5 h-5 ${activeTab === "users" ? "text-yellow-400" : "text-white"}`}
-										/>
-										<span>View Users</span>
-									</button>
-									<button
-										className={`w-full px-6 py-4 flex items-center space-x-2 ${
-											activeTab === "prices"
-												? "bg-gray-800 text-yellow-400"
-												: "text-white hover:bg-gray-800"
-										} transition-all duration-300`}
-										onClick={() => {
-											setActiveTab("prices");
-											setIsSideMenuOpen(false);
-										}}
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											className={`w-5 h-5 ${activeTab === "prices" ? "text-yellow-400" : "text-white"}`}
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											strokeWidth="2"
-											strokeLinecap="round"
-											strokeLinejoin="round"
-										>
-											<circle cx="12" cy="12" r="10"></circle>
-											<line x1="12" y1="8" x2="12" y2="16"></line>
-											<line x1="8" y1="12" x2="16" y2="12"></line>
-										</svg>
-										<span>Manage Prices</span>
-									</button>
-									<button
-										className={`w-full px-6 py-4 flex items-center space-x-2 ${
-											activeTab === "locations"
-												? "bg-gray-800 text-yellow-400"
-												: "text-white hover:bg-gray-800"
-										} transition-all duration-300`}
-										onClick={() => {
-											setActiveTab("locations");
-											setIsSideMenuOpen(false);
-										}}
-									>
-										<MapPin
-											className={`w-5 h-5 ${activeTab === "locations" ? "text-yellow-400" : "text-white"}`}
-										/>
-										<span>Manage Locations</span>
-									</button>
-									<button
-										className={`w-full px-6 py-4 flex items-center space-x-2 ${
-											activeTab === "global-availability"
-												? "bg-gray-800 text-yellow-400"
-												: "text-white hover:bg-gray-800"
-										} transition-all duration-300`}
-										onClick={() => {
-											setActiveTab("global-availability");
-											setIsSideMenuOpen(false);
-										}}
-									>
-										<Calendar
-											className={`w-5 h-5 ${
-												activeTab === "global-availability" ? "text-yellow-400" : "text-white"
-											}`}
-										/>
-										<span>Availability</span>
-									</button>
-								</nav>
-							</div>
-
-							{/* Overlay to close menu when clicking outside */}
-							{isSideMenuOpen && (
-								<div
-									className="fixed inset-0 bg-black bg-opacity-50 z-40"
-									onClick={() => setIsSideMenuOpen(false)}
-								></div>
+					<div className="flex border-b">
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "bookings"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300 relative`}
+							onClick={() => {
+								setActiveTab("bookings");
+								setHasNewPendingBookings(false);
+							}}
+						>
+							<Clock className={`w-5 h-5 ${activeTab === "bookings" ? "text-yellow-500" : ""}`} />
+							<span>Pending Bookings</span>
+							{hasNewPendingBookings && activeTab !== "bookings" && (
+								<span className="absolute top-2 right-2 flex h-3 w-3">
+									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+									<span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+								</span>
 							)}
-						</>
-					)}
+						</button>
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "approved-bookings"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300`}
+							onClick={() => {
+								setActiveTab("approved-bookings");
+								fetchAllBookings();
+							}}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								className={`w-5 h-5 ${activeTab === "approved-bookings" ? "text-yellow-500" : ""}`}
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+								<polyline points="22 4 12 14.01 9 11.01"></polyline>
+							</svg>
+							<span>Approved Bookings</span>
+						</button>
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "calendar"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300`}
+							onClick={() => setActiveTab("calendar")}
+						>
+							<Calendar className={`w-5 h-5 ${activeTab === "calendar" ? "text-yellow-500" : ""}`} />
+							<span>Calendar View</span>
+						</button>
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "instructors"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300`}
+							onClick={() => setActiveTab("instructors")}
+						>
+							<User className={`w-5 h-5 ${activeTab === "instructors" ? "text-yellow-500" : ""}`} />
+							<span>Manage Instructors</span>
+						</button>
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "users"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300`}
+							onClick={() => setActiveTab("users")}
+						>
+							<User className={`w-5 h-5 ${activeTab === "users" ? "text-yellow-500" : ""}`} />
+							<span>View Users</span>
+						</button>
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "prices"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300`}
+							onClick={() => setActiveTab("prices")}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								className={`w-5 h-5 ${activeTab === "prices" ? "text-yellow-500" : ""}`}
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<circle cx="12" cy="12" r="10"></circle>
+								<line x1="12" y1="8" x2="12" y2="16"></line>
+								<line x1="8" y1="12" x2="16" y2="12"></line>
+							</svg>
+							<span>Manage Prices</span>
+						</button>
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "locations"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300`}
+							onClick={() => setActiveTab("locations")}
+						>
+							<MapPin className={`w-5 h-5 ${activeTab === "locations" ? "text-yellow-500" : ""}`} />
+							<span>Manage Locations</span>
+						</button>
+						<button
+							className={`px-6 py-4 flex items-center space-x-2 ${
+								activeTab === "global-availability"
+									? "text-yellow-600 border-b-2 border-yellow-500 font-semibold"
+									: "text-slate-500 hover:bg-slate-100"
+							} transition-all duration-300`}
+							onClick={() => setActiveTab("global-availability")}
+						>
+							<Calendar
+								className={`w-5 h-5 ${activeTab === "global-availability" ? "text-yellow-500" : ""}`}
+							/>
+							<span>Availability</span>
+						</button>
+					</div>
 
 					<div className="p-6">
 						{activeTab === "bookings" && (
@@ -1779,7 +1791,13 @@ export default function AdminDashboard() {
 														Phone
 													</th>
 													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Terms checked time
+														Terms Accepted
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														License Confirmed
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Privacy Policy
 													</th>
 													<th className="py-3 px-4 border-b text-left text-yellow-700">
 														Instructor
@@ -1832,6 +1850,33 @@ export default function AdminDashboard() {
 																: "Not accepted"}
 														</td>
 														<td className="py-2 px-4 border-b">
+															{booking.hasLicenseAcceptedAt
+																? new Date(booking.hasLicenseAcceptedAt).toLocaleString(
+																		"en-US",
+																		{
+																			year: "numeric",
+																			month: "short",
+																			day: "numeric",
+																			hour: "2-digit",
+																			minute: "2-digit",
+																		}
+																	)
+																: "Not confirmed"}
+														</td>
+														<td className="py-2 px-4 border-b">
+															{booking.privacyPolicyAcceptedAt
+																? new Date(
+																		booking.privacyPolicyAcceptedAt
+																	).toLocaleString("en-US", {
+																		year: "numeric",
+																		month: "short",
+																		day: "numeric",
+																		hour: "2-digit",
+																		minute: "2-digit",
+																	})
+																: "Not accepted"}
+														</td>
+														<td className="py-2 px-4 border-b">
 															{booking.instructor?.user?.firstName}{" "}
 															{booking.instructor?.user?.lastName}
 														</td>
@@ -1857,12 +1902,6 @@ export default function AdminDashboard() {
 														<td className="py-3 px-4 border-b">
 															<div className="flex space-x-2">
 																<button
-																	onClick={() => handleSendInvoice(booking._id)}
-																	className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
-																>
-																	Send Invoice
-																</button>
-																<button
 																	onClick={() => handleApproveBooking(booking._id)}
 																	className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-full hover:from-green-600 hover:to-teal-600 shadow-sm transition-all"
 																>
@@ -1873,6 +1912,379 @@ export default function AdminDashboard() {
 																	className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
 																>
 																	Reject
+																</button>
+															</div>
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								)}
+							</div>
+						)}
+
+						{activeTab === "approved-bookings" && (
+							<div>
+								<div className="mb-6">
+									<div className="flex justify-between items-center mb-4">
+										<div className="flex items-center">
+											<h2 className="text-2xl font-bold text-slate-800 flex items-center">
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													className="mr-3 text-yellow-500 h-6 w-6"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+													<polyline points="22 4 12 14.01 9 11.01"></polyline>
+												</svg>
+												Approved Bookings
+											</h2>
+										</div>
+										<div className="relative group">
+											<button
+												onClick={handleSendReminders}
+												disabled={sendingReminders}
+												className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
+													sendingReminders
+														? "bg-gray-400"
+														: "bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700"
+												} transition-all duration-300 flex items-center`}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													className="h-5 w-5 mr-2"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+												</svg>
+												{sendingReminders ? "Sending..." : "Send Reminders"}
+											</button>
+											<div className="absolute bottom-full mb-2 right-0 w-64 bg-black text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+												<p>
+													Reminders are automatically sent daily at 10:05 PM. Use this button
+													only for manual sending.
+												</p>
+												<div className="absolute bottom-0 right-6 transform translate-y-1/2 rotate-45 w-2 h-2 bg-black"></div>
+											</div>
+										</div>
+									</div>
+
+									{/* Day selector with pagination arrows */}
+									<div className="bg-white p-4 rounded-xl shadow-md mb-4">
+										<div className="flex items-center justify-center py-2">
+											{/* Previous week arrow */}
+											<button
+												onClick={goToPreviousWeek}
+												className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+												aria-label="Previous week"
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													className="h-5 w-5"
+													viewBox="0 0 20 20"
+													fill="currentColor"
+												>
+													<path
+														fillRule="evenodd"
+														d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+														clipRule="evenodd"
+													/>
+												</svg>
+											</button>
+
+											{/* Day selector circles */}
+											<div className="flex space-x-2">
+												{generateDates().map((date, index) => {
+													const {
+														day,
+														date: dateNum,
+														fullDate,
+													} = formatDateForSelector(date);
+													const isSelected = fullDate === selectedDate;
+													const isToday =
+														formatDateForSelector(new Date()).fullDate === fullDate;
+
+													return (
+														<button
+															key={index}
+															onClick={() => filterBookingsByDate(fullDate)}
+															className={`
+                            flex flex-col items-center justify-center
+                            w-16 h-16 rounded-full transition-all duration-200
+                            ${
+								isSelected
+									? "bg-yellow-500 text-black shadow-lg transform scale-110"
+									: isToday
+										? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+										: "bg-white text-slate-700 border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50"
+							}
+                          `}
+														>
+															<span className="text-xs font-medium">{day}</span>
+															<span
+																className={`text-lg ${isSelected ? "font-bold" : "font-semibold"}`}
+															>
+																{dateNum}
+															</span>
+															<span className="text-xs">
+																{formatDateForSelector(date).month}
+															</span>
+														</button>
+													);
+												})}
+											</div>
+
+											{/* Next week arrow */}
+											<button
+												onClick={goToNextWeek}
+												className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+												aria-label="Next week"
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													className="h-5 w-5"
+													viewBox="0 0 20 20"
+													fill="currentColor"
+												>
+													<path
+														fillRule="evenodd"
+														d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+														clipRule="evenodd"
+													/>
+												</svg>
+											</button>
+										</div>
+
+										{isDateFiltered && (
+											<div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
+												<div className="flex items-center">
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														className="h-5 w-5 mr-2 text-blue-500"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														strokeWidth="2"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													>
+														<circle cx="12" cy="12" r="10" />
+														<path d="M12 8v4" />
+														<path d="M12 16h.01" />
+													</svg>
+													<span>
+														Showing bookings for{" "}
+														<strong>
+															{new Date(selectedDate + "T12:00:00Z").toLocaleDateString()}
+														</strong>
+													</span>
+												</div>
+											</div>
+										)}
+
+										<div className="mt-3 flex justify-center">
+											<button
+												onClick={() => {
+													resetToCurrentWeek();
+													filterBookingsByDate("all");
+												}}
+												className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-all flex items-center"
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													className="h-5 w-5 mr-1"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<path d="M3 3v18h18" />
+													<path d="M18.36 11.64a6 6 0 0 1-8.48 8.48" />
+													<path d="M21 3l-7.64 7.64" />
+												</svg>
+												Show All Bookings
+											</button>
+										</div>
+									</div>
+								</div>
+
+								{reminderMessage && (
+									<div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-xl text-green-800 shadow-sm">
+										{reminderMessage}
+									</div>
+								)}
+
+								{allBookings.length === 0 && !isDateFiltered ? (
+									<div className="text-center py-10 bg-slate-50 rounded-lg">
+										<p className="text-slate-500">No approved bookings found.</p>
+									</div>
+								) : isDateFiltered && filteredBookings.length === 0 ? (
+									<div className="text-center py-10 bg-slate-50 rounded-lg">
+										<p className="text-slate-500">No bookings found for the selected date.</p>
+									</div>
+								) : (
+									<div className="overflow-x-auto rounded-xl shadow-lg">
+										<table className="min-w-full bg-white border">
+											<thead className="bg-gradient-to-r from-pink-50 to-purple-50">
+												<tr>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Date
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Time
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Location
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Class
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Duration
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Student
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Email
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Phone
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Terms Accepted
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														License Confirmed
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Privacy Policy
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Instructor
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Payment
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Actions
+													</th>
+												</tr>
+											</thead>
+											<tbody>
+												{(isDateFiltered ? filteredBookings : allBookings).map((booking) => (
+													<tr
+														key={booking._id}
+														className="transition-all duration-300 animate-fadeIn"
+													>
+														<td className="py-2 px-4 border-b">
+															{new Date(booking.date).toLocaleDateString("en-US", {
+																timeZone: "UTC",
+															})}
+														</td>
+														<td className="py-2 px-4 border-b">
+															{booking.startTime} - {booking.endTime}
+														</td>
+														<td className="py-2 px-4 border-b">{booking.location}</td>
+														<td className="py-2 px-4 border-b">{booking.classType}</td>
+														<td className="py-2 px-4 border-b">{booking.duration} mins</td>
+														<td className="py-2 px-4 border-b">
+															{booking.user.firstName} {booking.user.lastName}
+														</td>
+														<td className="py-2 px-4 border-b">{booking.user.email}</td>
+														<td className="py-2 px-4 border-b">{booking.user.phone}</td>
+														<td className="py-2 px-4 border-b">
+															{booking.termsAcceptedAt
+																? new Date(booking.termsAcceptedAt).toLocaleString(
+																		"en-US",
+																		{
+																			year: "numeric",
+																			month: "short",
+																			day: "numeric",
+																			hour: "2-digit",
+																			minute: "2-digit",
+																		}
+																	)
+																: "Not accepted"}
+														</td>
+														<td className="py-2 px-4 border-b">
+															{booking.hasLicenseAcceptedAt
+																? new Date(booking.hasLicenseAcceptedAt).toLocaleString(
+																		"en-US",
+																		{
+																			year: "numeric",
+																			month: "short",
+																			day: "numeric",
+																			hour: "2-digit",
+																			minute: "2-digit",
+																		}
+																	)
+																: "Not confirmed"}
+														</td>
+														<td className="py-2 px-4 border-b">
+															{booking.privacyPolicyAcceptedAt
+																? new Date(
+																		booking.privacyPolicyAcceptedAt
+																	).toLocaleString("en-US", {
+																		year: "numeric",
+																		month: "short",
+																		day: "numeric",
+																		hour: "2-digit",
+																		minute: "2-digit",
+																	})
+																: "Not accepted"}
+														</td>
+														<td className="py-2 px-4 border-b">
+															{booking.instructor?.user?.firstName}{" "}
+															{booking.instructor?.user?.lastName}
+														</td>
+														<td className="py-2 px-4 border-b">
+															<span
+																className={`px-2 py-1 rounded text-xs ${
+																	booking.paymentStatus === "approved"
+																		? "bg-green-100 text-green-800"
+																		: booking.paymentStatus === "invoice sent"
+																			? "bg-blue-100 text-blue-800"
+																			: booking.paymentStatus === "requested"
+																				? "bg-yellow-100 text-yellow-800"
+																				: "bg-red-100 text-red-800"
+																}`}
+															>
+																{booking.paymentStatus}
+															</span>
+														</td>
+														<td className="py-3 px-4 border-b">
+															<div className="flex space-x-2">
+																<button
+																	onClick={() => handleSendInvoice(booking._id)}
+																	className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
+																>
+																	Send Invoice
+																</button>
+																<button
+																	onClick={() => handleRescheduleBooking(booking._id)}
+																	className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full hover:from-yellow-600 hover:to-orange-600 shadow-sm transition-all"
+																>
+																	Reschedule
+																</button>
+																<button
+																	onClick={() => handleCancelBooking(booking._id)}
+																	className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+																>
+																	Cancel
 																</button>
 															</div>
 														</td>

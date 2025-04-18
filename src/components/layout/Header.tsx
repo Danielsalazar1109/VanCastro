@@ -5,9 +5,31 @@ import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 
+// Definición de enlaces de navegación pública
+const publicNavLinks = [
+	{ href: "/", label: "Home" },
+	{ href: "/plans", label: "Plans" },
+	{ href: "/booking", label: "Booking" },
+	{ href: "/faq", label: "FAQ" },
+	{ href: "/contact", label: "Contact" }
+];
+
 export default function Header() {
 	const { data: session, status } = useSession();
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+	// Determinar el dashboard del usuario según su rol
+	const getDashboardLink = () => {
+		if (!session) return null;
+		
+		const userRole = session.user?.role || "student";
+		
+		if (userRole === "admin") return "/admin";
+		if (userRole === "instructor") return "/instructor";
+		return "/student";
+	};
+
+	const dashboardLink = getDashboardLink();
 
 	// Close menu when clicking outside
 	useEffect(() => {
@@ -28,10 +50,81 @@ export default function Header() {
 		setIsMenuOpen(!isMenuOpen);
 	};
 
+	// Renderiza los enlaces de navegación según el estado de autenticación
+	const renderNavLinks = (isMobile: boolean = false) => {
+		// Si el usuario está autenticado, solo mostrar botón de dashboard y logout
+		if (status === "authenticated") {
+			const linkClasses = isMobile
+				? "text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
+				: "text-white hover:text-yellow-500 transition-colors duration-200";
+
+			return (
+				<>
+					{dashboardLink && (
+						<li>
+							<Link
+								href={dashboardLink}
+								className={linkClasses}
+								onClick={() => isMobile && setIsMenuOpen(false)}
+							>
+								Dashboard
+							</Link>
+						</li>
+					)}
+					<li>
+						<button
+							onClick={() => {
+								signOut({ callbackUrl: "/" });
+								isMobile && setIsMenuOpen(false);
+							}}
+							className={`bg-red-500 px-4 py-${isMobile ? "3" : "2"} rounded-md text-white hover:bg-red-600 transition-colors duration-200 ${
+								isMobile ? "w-full text-left text-lg font-medium" : "flex items-center space-x-2"
+							}`}
+						>
+							<span>Logout</span>
+						</button>
+					</li>
+				</>
+			);
+		}
+
+		// Para usuarios no autenticados, mostrar todos los enlaces públicos
+		return (
+			<>
+				{publicNavLinks.map((link) => (
+					<li key={link.href}>
+						<Link
+							href={link.href}
+							className={
+								isMobile
+									? "text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
+									: "text-white hover:text-yellow-500 transition-colors duration-200"
+							}
+							onClick={() => isMobile && setIsMenuOpen(false)}
+						>
+							{link.label}
+						</Link>
+					</li>
+				))}
+				<li>
+					{isMobile ? (
+						<Link href="/login" className="block" onClick={() => setIsMenuOpen(false)}>
+							<button className="btn-primary w-full text-left py-3 text-lg font-medium">Login</button>
+						</Link>
+					) : (
+						<Link href="/login" className="text-white hover:text-yellow-500 transition-colors duration-200">
+							<button className="btn-primary">Login</button>
+						</Link>
+					)}
+				</li>
+			</>
+		);
+	};
+
 	return (
 		<header className="bg-stone-900 shadow-sm py-3">
 			<div className="container mx-auto px-6 flex items-center justify-between h-20">
-				<Link href="/">
+				<Link href={status === "authenticated" ? getDashboardLink() || "/" : "/"}>
 					<Image
 						src="https://framerusercontent.com/images/jPAQ8xuOTcFAmT9WHP9tr41J4.png"
 						alt="VanCastro Driving School Logo"
@@ -82,60 +175,7 @@ export default function Header() {
 				{/* Desktop Navigation */}
 				<nav className="hidden md:block">
 					<ul className="flex items-center space-x-8 text-lg">
-						<li>
-							<Link href="/" className="text-white hover:text-yellow-500 transition-colors duration-200">
-								Home
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/plans"
-								className="text-white hover:text-yellow-500 transition-colors duration-200"
-							>
-								Plans
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/booking"
-								className="text-white hover:text-yellow-500 transition-colors duration-200"
-							>
-								Booking
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/faq"
-								className="text-white hover:text-yellow-500 transition-colors duration-200"
-							>
-								FAQ
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/contact"
-								className="text-white hover:text-yellow-500 transition-colors duration-200"
-							>
-								Contact
-							</Link>
-						</li>
-						<li>
-							{status === "authenticated" ? (
-								<button
-									onClick={() => signOut({ callbackUrl: "/" })}
-									className="bg-red-500 px-4 py-2 rounded-md text-white hover:bg-red-600 transition-colors duration-200 flex items-center space-x-2"
-								>
-									<span>Logout</span>
-								</button>
-							) : (
-								<Link
-									href="/login"
-									className="text-white hover:text-yellow-500 transition-colors duration-200"
-								>
-									<button className="btn-primary">Login</button>
-								</Link>
-							)}
-						</li>
+						{renderNavLinks()}
 					</ul>
 				</nav>
 			</div>
@@ -149,7 +189,7 @@ export default function Header() {
 				<div className="absolute inset-0 bg-black opacity-50" onClick={() => setIsMenuOpen(false)}></div>
 				<div className="relative bg-stone-900 h-full w-4/5 max-w-xs shadow-xl overflow-y-auto">
 					<div className="flex justify-between items-center p-4 border-b border-gray-700">
-						<Link href="/" onClick={() => setIsMenuOpen(false)}>
+						<Link href={status === "authenticated" ? getDashboardLink() || "/" : "/"} onClick={() => setIsMenuOpen(false)}>
 							<Image
 								src="https://framerusercontent.com/images/jPAQ8xuOTcFAmT9WHP9tr41J4.png"
 								alt="VanCastro Driving School Logo"
@@ -180,70 +220,7 @@ export default function Header() {
 					</div>
 					<nav className="p-4">
 						<ul className="flex flex-col space-y-4">
-							<li>
-								<Link
-									href="/"
-									className="text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-									onClick={() => setIsMenuOpen(false)}
-								>
-									Home
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/plans"
-									className="text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-									onClick={() => setIsMenuOpen(false)}
-								>
-									Plans
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/booking"
-									className="text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-									onClick={() => setIsMenuOpen(false)}
-								>
-									Booking
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/faq"
-									className="text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-									onClick={() => setIsMenuOpen(false)}
-								>
-									FAQ
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/contact"
-									className="text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-									onClick={() => setIsMenuOpen(false)}
-								>
-									Contact
-								</Link>
-							</li>
-							<li className="pt-4 mt-4 border-t border-gray-700">
-								{status === "authenticated" ? (
-									<button
-										onClick={() => {
-											signOut({ callbackUrl: "/" });
-											setIsMenuOpen(false);
-										}}
-										className="bg-red-500 px-4 py-3 rounded-md text-white hover:bg-red-600 transition-colors duration-200 w-full text-left text-lg font-medium"
-									>
-										Logout
-									</button>
-								) : (
-									<Link href="/login" className="block" onClick={() => setIsMenuOpen(false)}>
-										<button className="btn-primary w-full text-left py-3 text-lg font-medium">
-											Login
-										</button>
-									</Link>
-								)}
-							</li>
+							{renderNavLinks(true)}
 						</ul>
 					</nav>
 				</div>
