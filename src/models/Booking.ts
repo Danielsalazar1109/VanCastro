@@ -23,6 +23,10 @@ export interface IBooking extends Document {
   notes?: string;
   termsAccepted: boolean;
   termsAcceptedAt: Date;
+  hasLicense: boolean;
+  hasLicenseAcceptedAt: Date;
+  privacyPolicyAccepted: boolean;
+  privacyPolicyAcceptedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +72,10 @@ const BookingSchema: Schema = new Schema(
     notes: { type: String },
     termsAccepted: { type: Boolean, required: true, default: false },
     termsAcceptedAt: { type: Date },
+    hasLicense: { type: Boolean, default: false },
+    hasLicenseAcceptedAt: { type: Date },
+    privacyPolicyAccepted: { type: Boolean, default: false },
+    privacyPolicyAcceptedAt: { type: Date },
   },
   { timestamps: true }
 );
