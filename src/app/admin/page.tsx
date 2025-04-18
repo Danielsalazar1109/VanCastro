@@ -1917,37 +1917,7 @@ export default function AdminDashboard() {
                   </h2>
                 </div>
                 <div className="flex space-x-3">
-                  <div className="relative group">
-                    <button
-                      onClick={() => handleSendReminders(false)}
-                      disabled={sendingReminders}
-                      className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
-                        sendingReminders 
-                          ? 'bg-gray-400' 
-                          : 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700'
-                      } transition-all duration-300 flex items-center`}
-                    >
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className="h-5 w-5 mr-2" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      >
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                      </svg>
-                      {sendingReminders ? 'Sending...' : 'Send Reminders'}
-                    </button>
-                    <div className="absolute bottom-full mb-2 right-0 w-64 bg-black text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                      <p>Reminders are automatically sent daily at 8 AM. Use this button only for manual sending.</p>
-                      <div className="absolute bottom-0 right-6 transform translate-y-1/2 rotate-45 w-2 h-2 bg-black"></div>
-                    </div>
-                  </div>
-                  
-                  {/* Auto-reminders button removed as they now run automatically */}
+                  {/* Send Reminders button removed - reminders are sent automatically */}
                 </div>
               </div>
               
@@ -2066,18 +2036,6 @@ export default function AdminDashboard() {
                     <span className="font-semibold">Auto-reminders active</span> - {lastReminderTime}
                   </div>
                 )}
-              </div>
-            )}
-            
-              {!reminderMessage && (
-              <div className="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-xl text-blue-800 shadow-sm flex items-center">
-                <div className="mr-3 flex-shrink-0">
-                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-600"></div>
-                </div>
-                <div>
-                  <span className="font-semibold">Automatic email reminders are running</span>
-                  {lastReminderTime && <span> - Last sent at: {lastReminderTime}</span>}
-                </div>
               </div>
             )}
             
