@@ -1,5 +1,6 @@
 import connectToDatabase from '@/lib/db/mongodb';
 import { sendBookingReminderEmail } from './emailService';
+import cron from 'node-cron';
 
 /**
  * Sends reminder emails to clients with bookings scheduled for the next day
@@ -72,66 +73,22 @@ export async function sendReminderEmails() {
 }
 
 /**
- * Calculates the milliseconds until the next half-hour (XX:30)
- */
-function getMillisecondsUntilNextHalfHour() {
-  const now = new Date();
-  const target = new Date(now);
-  
-  // Set target time to the next half-hour (XX:30)
-  const currentMinutes = now.getMinutes();
-  if (currentMinutes < 30) {
-    // If current time is before XX:30, set to XX:30
-    target.setMinutes(30, 0, 0);
-  } else {
-    // If current time is after XX:30, set to the next hour's XX:30
-    target.setHours(target.getHours() + 1);
-    target.setMinutes(30, 0, 0);
-  }
-  
-  // Calculate milliseconds until target time
-  return target.getTime() - now.getTime();
-}
-
-/**
- * Schedules the next reminder email run at the next half-hour (XX:30)
- * This is a temporary change for testing purposes
- */
-function scheduleNextRun() {
-  const msUntilNextHalfHour = getMillisecondsUntilNextHalfHour();
-  
-  console.log(`Scheduling next reminder email run in ${Math.floor(msUntilNextHalfHour / 1000 / 60)} minutes`);
-  
-  // Schedule the next run
-  setTimeout(async () => {
-    try {
-      // Send reminder emails
-      await sendReminderEmails();
-    } catch (error) {
-      console.error('Error in scheduled reminder email run:', error);
-    } finally {
-      // Schedule the next run regardless of success/failure
-      scheduleNextRun();
-    }
-  }, msUntilNextHalfHour);
-}
-
-/**
- * Initializes the scheduler to send reminder emails at the next half-hour (XX:30)
- * This is a temporary change for testing purposes
- * 
- * Note: This function should be called after the application has started
- * and mongoose has been properly initialized
+ * Initializes the scheduler to send reminder emails at 8 AM daily
  */
 export function initScheduler() {
   console.log('Initializing reminder email scheduler...');
   
-  // Delay the first scheduling to ensure mongoose is properly initialized
-  setTimeout(() => {
-    // Start the scheduling cycle
-    scheduleNextRun();
-    console.log('Reminder email scheduler initialized and first run scheduled');
-  }, 5000); // 5 second delay to ensure mongoose is initialized
+  // Schedule the job to run at 8 AM every day
+  // Cron format: minute hour day-of-month month day-of-week
+  cron.schedule('0 8 * * *', async () => {
+    try {
+      console.log('Cron job: Sending reminder emails...');
+      await sendReminderEmails();
+    } catch (error) {
+      console.error('Error in reminder email cron job:', error);
+    }
+  });
   
+  console.log('Reminder email scheduler initialized to run at 8 AM daily');
   return true;
 }

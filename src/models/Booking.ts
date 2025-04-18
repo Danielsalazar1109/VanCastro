@@ -17,7 +17,7 @@ export interface IBooking extends Document {
   startTime: string;
   endTime: string;
   status: 'pending' | 'approved' | 'completed' | 'cancelled';
-  paymentStatus: 'requested' | 'invoice sent' | 'approved' | 'rejected';
+  paymentStatus: 'requested' | 'invoice sent' | 'approved' | 'rejected' | 'completed';
   paymentId?: string;
   price?: number;
   notes?: string;
@@ -25,6 +25,11 @@ export interface IBooking extends Document {
   termsAcceptedAt: Date;
   hasLicense: boolean;
   hasLicenseAcceptedAt: Date;
+  document?: {
+    data: string;
+    filename: string;
+    contentType: string;
+  };
   privacyPolicyAccepted: boolean;
   privacyPolicyAcceptedAt: Date;
   createdAt: Date;
@@ -64,7 +69,7 @@ const BookingSchema: Schema = new Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ['requested', 'invoice sent', 'approved', 'rejected'],
+      enum: ['requested', 'invoice sent', 'approved', 'rejected', 'completed'],
       default: 'requested',
     },
     paymentId: { type: String },
@@ -74,6 +79,14 @@ const BookingSchema: Schema = new Schema(
     termsAcceptedAt: { type: Date },
     hasLicense: { type: Boolean, default: false },
     hasLicenseAcceptedAt: { type: Date },
+    document: {
+      type: {
+        data: String,
+        filename: String,
+        contentType: String
+      },
+      default: null
+    },
     privacyPolicyAccepted: { type: Boolean, default: false },
     privacyPolicyAcceptedAt: { type: Date },
   },

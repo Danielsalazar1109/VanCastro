@@ -681,6 +681,49 @@ export async function PUT(request: NextRequest) {
 import { sendBookingCancellationEmail } from '@/lib/utils/emailService';
 import { getServerSession } from 'next-auth';
 
+export async function PATCH(request: NextRequest) {
+  try {
+    // Connect to the database
+    await connectToDatabase();
+    
+    // Parse the request body
+    const body = await request.json();
+    const { bookingId, document } = body;
+    
+    // Validate required fields
+    if (!bookingId) {
+      return NextResponse.json(
+        { error: 'Booking ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if booking exists
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Update document field
+    booking.document = document;
+    await booking.save();
+    
+    return NextResponse.json({ 
+      message: 'Document updated successfully',
+      booking
+    });
+  } catch (error) {
+    console.error('Error updating booking document:', error);
+    return NextResponse.json(
+      { error: 'Failed to update booking document' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     console.log('Booking API: Starting DELETE request');

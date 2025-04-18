@@ -7,6 +7,11 @@ export interface IUser extends Document {
   phone: string;
   password: string;
   role: 'user' | 'instructor' | 'admin';
+  document?: {
+    data: string;
+    filename: string;
+    contentType: string;
+  };
   createdAt: Date;
   updatedAt: Date;
   bookings?: string[];
@@ -20,7 +25,15 @@ const UserSchema: Schema = new Schema(
   phone: { type: String, required: false }, // Made optional to support OAuth providers
   password: { type: String, required: false }, // Optional for OAuth providers
   googleId: { type: String, required: false }, // For Google authentication
-    role: { 
+  document: {
+    type: {
+      data: String,
+      filename: String,
+      contentType: String
+    },
+    default: null
+  },
+    role: {
       type: String, 
       enum: ['user', 'instructor', 'admin'], 
       default: 'user' 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import FullCalendar from '@fullcalendar/react';
@@ -8,6 +8,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield, Image, Edit } from "lucide-react";
+import DocumentModal from "@/components/forms/DocumentModal";
 import LoadingComponent from "@/components/layout/Loading";
 import Booking from "@/models/Booking";
 import GlobalAvailabilityManager from "@/components/admin/GlobalAvailabilityManager";
@@ -68,6 +69,11 @@ interface Booking {
   termsAcceptedAt: string;
   hasLicenseAcceptedAt?: string;
   privacyPolicyAcceptedAt?: string;
+  document?: {
+    data: string;
+    filename: string;
+    contentType: string;
+  };
 }
 
 // Modal components for viewing/deleting bookings and updating prices
@@ -140,6 +146,7 @@ export default function AdminDashboard() {
   const [updateMessage, setUpdateMessage] = useState<string>("");
   const [sendingReminders, setSendingReminders] = useState<boolean>(false);
   const [reminderMessage, setReminderMessage] = useState<string>("");
+  const [lastReminderTime, setLastReminderTime] = useState<string>("");
   // Initialize with today's date in YYYY-MM-DD format
   const today = new Date();
   const year = today.getFullYear();
@@ -386,6 +393,14 @@ export default function AdminDashboard() {
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [slotMinTime, setSlotMinTime] = useState<string>("00:00");
   const [slotMaxTime, setSlotMaxTime] = useState<string>("23:59");
+  
+  // State for document modal
+  const [viewingDocument, setViewingDocument] = useState<{
+    data: string;
+    filename: string;
+    contentType: string;
+  } | null>(null);
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState<boolean>(false);
   
   // Check screen size
   useEffect(() => {
@@ -807,7 +822,8 @@ export default function AdminDashboard() {
     }
   };
   
-  const handleSendReminders = async () => {
+  // Function to send reminders - can be called manually or by the cron job
+  const handleSendReminders = async (isAutomatic = false) => {
     try {
       setSendingReminders(true);
       setReminderMessage("");
@@ -819,7 +835,14 @@ export default function AdminDashboard() {
         throw new Error('Failed to send reminder emails');
       }
       
-      setReminderMessage(data.message || `Sent ${data.remindersSent} reminder emails`);
+      const message = data.message || `Sent ${data.remindersSent} reminder emails`;
+      setReminderMessage(message);
+      
+      // Update last reminder time if this was an automatic reminder
+      if (isAutomatic) {
+        const now = new Date();
+        setLastReminderTime(now.toLocaleTimeString());
+      }
     } catch (error) {
       console.error('Error sending reminder emails:', error);
       setReminderMessage("Failed to send reminder emails");
@@ -951,7 +974,10 @@ export default function AdminDashboard() {
       setError("Failed to reject booking");
     }
   };
-
+  // Set initial last reminder time
+  useEffect(() => {
+    setLastReminderTime('Reminders sent daily at 8 AM');
+  }, []); // Empty dependency array means this runs once on mount
   // Function to get general location from full location name
   const getGeneralLocationFromFull = (fullLocation: string): string => {
     // Check each general location
@@ -1739,6 +1765,7 @@ export default function AdminDashboard() {
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Privacy Policy</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                         </tr>
@@ -1819,6 +1846,26 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="py-2 px-4 border-b">
+                          {booking.document ? (
+                            <div className="flex items-center">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Uploaded</span>
+                              <button 
+                                onClick={() => {
+                                  if (booking.document) {
+                                    setViewingDocument(booking.document);
+                                    setIsDocumentModalOpen(true);
+                                  }
+                                }}
+                                className="text-blue-500 hover:underline text-sm"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not uploaded</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 border-b">
                           {/* Replace the static calculation with the dynamic component */}
                           <TimeRemaining createdAt={booking.createdAt} />
                         </td>
@@ -1869,34 +1916,38 @@ export default function AdminDashboard() {
                     Approved Bookings
                   </h2>
                 </div>
-                <div className="relative group">
-                  <button
-                    onClick={handleSendReminders}
-                    disabled={sendingReminders}
-                    className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
-                      sendingReminders 
-                        ? 'bg-gray-400' 
-                        : 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700'
-                    } transition-all duration-300 flex items-center`}
-                  >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-5 w-5 mr-2" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
+                <div className="flex space-x-3">
+                  <div className="relative group">
+                    <button
+                      onClick={() => handleSendReminders(false)}
+                      disabled={sendingReminders}
+                      className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
+                        sendingReminders 
+                          ? 'bg-gray-400' 
+                          : 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700'
+                      } transition-all duration-300 flex items-center`}
                     >
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                    </svg>
-                    {sendingReminders ? 'Sending...' : 'Send Reminders'}
-                  </button>
-                  <div className="absolute bottom-full mb-2 right-0 w-64 bg-black text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                    <p>Reminders are automatically sent daily at 10:05 PM. Use this button only for manual sending.</p>
-                    <div className="absolute bottom-0 right-6 transform translate-y-1/2 rotate-45 w-2 h-2 bg-black"></div>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-5 w-5 mr-2" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                      </svg>
+                      {sendingReminders ? 'Sending...' : 'Send Reminders'}
+                    </button>
+                    <div className="absolute bottom-full mb-2 right-0 w-64 bg-black text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                      <p>Reminders are automatically sent daily at 8 AM. Use this button only for manual sending.</p>
+                      <div className="absolute bottom-0 right-6 transform translate-y-1/2 rotate-45 w-2 h-2 bg-black"></div>
+                    </div>
                   </div>
+                  
+                  {/* Auto-reminders button removed as they now run automatically */}
                 </div>
               </div>
               
@@ -2010,6 +2061,23 @@ export default function AdminDashboard() {
             {reminderMessage && (
               <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-xl text-green-800 shadow-sm">
                 {reminderMessage}
+                {lastReminderTime && (
+                  <div className="mt-2 text-sm">
+                    <span className="font-semibold">Auto-reminders active</span> - {lastReminderTime}
+                  </div>
+                )}
+              </div>
+            )}
+            
+              {!reminderMessage && (
+              <div className="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-xl text-blue-800 shadow-sm flex items-center">
+                <div className="mr-3 flex-shrink-0">
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-600"></div>
+                </div>
+                <div>
+                  <span className="font-semibold">Automatic email reminders are running</span>
+                  {lastReminderTime && <span> - Last sent at: {lastReminderTime}</span>}
+                </div>
               </div>
             )}
             
@@ -2039,6 +2107,7 @@ export default function AdminDashboard() {
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Privacy Policy</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                     </tr>
                   </thead>
@@ -2116,6 +2185,26 @@ export default function AdminDashboard() {
                           >
                             {booking.paymentStatus}
                           </span>
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.document ? (
+                            <div className="flex items-center">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Uploaded</span>
+                              <button 
+                                onClick={() => {
+                                  if (booking.document) {
+                                    setViewingDocument(booking.document);
+                                    setIsDocumentModalOpen(true);
+                                  }
+                                }}
+                                className="text-blue-500 hover:underline text-sm"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not uploaded</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 border-b">
                           <div className="flex space-x-2">
@@ -2957,6 +3046,13 @@ export default function AdminDashboard() {
         </div>
       </div>
     )}
+    
+    {/* Document Modal */}
+    <DocumentModal
+      document={viewingDocument}
+      isOpen={isDocumentModalOpen}
+      onClose={() => setIsDocumentModalOpen(false)}
+    />
     
     {/* Invoice Modal */}
     {isInvoiceModalOpen && selectedBookingForInvoice && (

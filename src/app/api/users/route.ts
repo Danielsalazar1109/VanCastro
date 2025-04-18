@@ -155,6 +155,49 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    // Connect to the database
+    await connectToDatabase();
+    
+    // Parse the request body
+    const body = await request.json();
+    const { userId, document } = body;
+    
+    // Validate required fields
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Update document field
+    user.document = document;
+    await user.save();
+    
+    return NextResponse.json({ 
+      message: 'Document updated successfully',
+      user
+    });
+  } catch (error) {
+    console.error('Error updating user document:', error);
+    return NextResponse.json(
+      { error: 'Failed to update user document' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     // Connect to the database
