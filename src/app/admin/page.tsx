@@ -307,20 +307,36 @@ export default function AdminDashboard() {
 	const [slotMinTime, setSlotMinTime] = useState<string>("00:00");
 	const [slotMaxTime, setSlotMaxTime] = useState<string>("23:59");
 
-	// Check screen size - only show hamburger menu when options don't fit
+	// Check if navigation tabs fit in the container - show hamburger menu when they don't
 	useEffect(() => {
-		const checkScreenSize = () => {
-			setIsSmallScreen(window.innerWidth < 768); // Show hamburger menu on mobile screens
+		const checkNavOverflow = () => {
+			// Get the navigation container and all tab buttons
+			const navContainer = document.querySelector(".flex.border-b.overflow-x-auto");
+			if (!navContainer) return;
+
+			// Calculate the total width needed for all tabs
+			let totalTabsWidth = 0;
+			const tabButtons = navContainer.querySelectorAll("button");
+
+			tabButtons.forEach((button) => {
+				totalTabsWidth += button.offsetWidth;
+			});
+
+			// Compare with the available width of the container
+			const containerWidth = navContainer.clientWidth;
+
+			// If tabs need more space than available, show hamburger menu
+			setIsSmallScreen(totalTabsWidth > containerWidth);
 		};
 
-		// Initial check
-		checkScreenSize();
+		// Initial check after render
+		setTimeout(checkNavOverflow, 100); // Small delay to ensure DOM is ready
 
 		// Add event listener for window resize
-		window.addEventListener("resize", checkScreenSize);
+		window.addEventListener("resize", checkNavOverflow);
 
 		// Cleanup
-		return () => window.removeEventListener("resize", checkScreenSize);
+		return () => window.removeEventListener("resize", checkNavOverflow);
 	}, []);
 
 	// State for side menu
