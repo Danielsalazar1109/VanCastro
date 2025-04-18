@@ -17,6 +17,7 @@ import BookingModal from "@/components/admin/BookingModal";
 import TimeRemaining from "@/components/admin/TimeRemaining";
 import AbsenceModal from "@/components/admin/AbsenceModal";
 import LocationSelector from "@/components/admin/LocationSelector";
+import CustomDatePicker from "@/components/forms/CustomDatePicker";
 
 interface User {
   _id: string;
@@ -133,13 +134,104 @@ export default function AdminDashboard() {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [prices, setPrices] = useState<any[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDateBookings, setSelectedDateBookings] = useState<Booking[]>([]);
   const [instructorColors, setInstructorColors] = useState<{[key: string]: string}>({});
   const [updatingExpired, setUpdatingExpired] = useState<boolean>(false);
   const [updateMessage, setUpdateMessage] = useState<string>("");
   const [sendingReminders, setSendingReminders] = useState<boolean>(false);
   const [reminderMessage, setReminderMessage] = useState<string>("");
+  // Initialize with today's date in YYYY-MM-DD format
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const todayFormatted = `${year}-${month}-${day}`;
+  
+  const [selectedDate, setSelectedDate] = useState<string>(todayFormatted); // Default to today using local timezone
+  const [isDateFiltered, setIsDateFiltered] = useState<boolean>(false);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const [dateRangeOffset, setDateRangeOffset] = useState<number>(0); // Track pagination offset
+  
+  // Format current date as YYYY-MM-DD
+  const formatCurrentDate = (): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  
+  // Generate dates for the day selector with pagination
+  const generateDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    // Generate 7 days with offset for pagination
+    // When offset is 0, it shows 3 days before today, today, and 3 days after today
+    // When offset is 1, it shows the next 7 days, and so on
+    for (let i = -3 + (dateRangeOffset * 7); i <= 3 + (dateRangeOffset * 7); i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+    
+    return dates;
+  };
+  
+  // Navigate to previous week
+  const goToPreviousWeek = () => {
+    setDateRangeOffset(prev => prev - 1);
+  };
+  
+  // Navigate to next week
+  const goToNextWeek = () => {
+    setDateRangeOffset(prev => prev + 1);
+  };
+  
+  // Reset to current week
+  const resetToCurrentWeek = () => {
+    setDateRangeOffset(0);
+  };
+
+  // Format date for display in day selector - using local timezone to avoid date shifts
+  const formatDateForSelector = (date: Date) => {
+    // Format the date in YYYY-MM-DD format using local timezone
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const localDateStr = `${year}-${month}-${day}`;
+    
+    return {
+      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      date: date.getDate(),
+      month: date.toLocaleDateString('en-US', { month: 'short' }),
+      fullDate: localDateStr // Use local date string instead of ISO string
+    };
+  };
+  
+  // Filter bookings by selected date
+  const filterBookingsByDate = (date: string) => {
+    if (date === 'all') {
+      // Show all bookings
+      setFilteredBookings([]);
+      setIsDateFiltered(false);
+    } else {
+      // Filter bookings to only include those for the selected date
+      const filteredBookings = allBookings.filter((booking: Booking) => {
+        // Handle dates like "2025-03-24T00:00:00.000+00:00"
+        // Extract just the YYYY-MM-DD part from the booking date
+        const bookingDateStr = booking.date.split('T')[0];
+        
+        // Compare the date strings directly
+        return bookingDateStr === date;
+      });
+      
+      // Update state with filtered bookings
+      setFilteredBookings(filteredBookings || []);
+      setIsDateFiltered(true);
+      setSelectedDate(date);
+    }
+  };
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [newPrice, setNewPrice] = useState({
     classType: 'class 7',
@@ -1757,52 +1849,160 @@ export default function AdminDashboard() {
 
         {activeTab === 'approved-bookings' && (
           <div>
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center">
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="mr-3 text-yellow-500 h-6 w-6"
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center">
+                  <h2 className="text-2xl font-bold text-slate-800 flex items-center">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="mr-3 text-yellow-500 h-6 w-6"
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Approved Bookings
+                  </h2>
+                </div>
+                <div className="relative group">
+                  <button
+                    onClick={handleSendReminders}
+                    disabled={sendingReminders}
+                    className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
+                      sendingReminders 
+                        ? 'bg-gray-400' 
+                        : 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700'
+                    } transition-all duration-300 flex items-center`}
                   >
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
-                  Approved Bookings
-                </h2>
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5 mr-2" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    </svg>
+                    {sendingReminders ? 'Sending...' : 'Send Reminders'}
+                  </button>
+                  <div className="absolute bottom-full mb-2 right-0 w-64 bg-black text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <p>Reminders are automatically sent daily at 10:05 PM. Use this button only for manual sending.</p>
+                    <div className="absolute bottom-0 right-6 transform translate-y-1/2 rotate-45 w-2 h-2 bg-black"></div>
+                  </div>
+                </div>
               </div>
-              <div className="relative group">
-                <button
-                  onClick={handleSendReminders}
-                  disabled={sendingReminders}
-                  className={`px-6 py-3 rounded-full text-white font-medium shadow-md ${
-                    sendingReminders 
-                      ? 'bg-gray-400' 
-                      : 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:via-yellow-600 hover:to-yellow-700'
-                  } transition-all duration-300 flex items-center`}
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-5 w-5 mr-2" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
+              
+              {/* Day selector with pagination arrows */}
+              <div className="bg-white p-4 rounded-xl shadow-md mb-4">
+                <div className="flex items-center justify-center py-2">
+                  {/* Previous week arrow */}
+                  <button 
+                    onClick={goToPreviousWeek}
+                    className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+                    aria-label="Previous week"
                   >
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                  </svg>
-                  {sendingReminders ? 'Sending...' : 'Send Reminders'}
-                </button>
-                <div className="absolute bottom-full mb-2 right-0 w-64 bg-black text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                  <p>Reminders are automatically sent daily at 10:05 PM. Use this button only for manual sending.</p>
-                  <div className="absolute bottom-0 right-6 transform translate-y-1/2 rotate-45 w-2 h-2 bg-black"></div>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  
+                  {/* Day selector circles */}
+                  <div className="flex space-x-2">
+                    {generateDates().map((date, index) => {
+                      const { day, date: dateNum, fullDate } = formatDateForSelector(date);
+                      const isSelected = fullDate === selectedDate;
+                      const isToday = formatDateForSelector(new Date()).fullDate === fullDate;
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => filterBookingsByDate(fullDate)}
+                          className={`
+                            flex flex-col items-center justify-center
+                            w-16 h-16 rounded-full transition-all duration-200
+                            ${isSelected 
+                              ? 'bg-yellow-500 text-black shadow-lg transform scale-110' 
+                              : isToday
+                                ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                                : 'bg-white text-slate-700 border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50'}
+                          `}
+                        >
+                          <span className="text-xs font-medium">{day}</span>
+                          <span className={`text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{dateNum}</span>
+                          <span className="text-xs">{formatDateForSelector(date).month}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Next week arrow */}
+                  <button 
+                    onClick={goToNextWeek}
+                    className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+                    aria-label="Next week"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {isDateFiltered && (
+                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
+                    <div className="flex items-center">
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-5 w-5 mr-2 text-blue-500" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 8v4" />
+                        <path d="M12 16h.01" />
+                      </svg>
+                      <span>
+                        Showing bookings for <strong>{new Date(selectedDate + "T12:00:00Z").toLocaleDateString()}</strong>
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={() => {
+                      resetToCurrentWeek();
+                      filterBookingsByDate('all');
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-all flex items-center"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5 mr-1" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 3v18h18" />
+                      <path d="M18.36 11.64a6 6 0 0 1-8.48 8.48" />
+                      <path d="M21 3l-7.64 7.64" />
+                    </svg>
+                    Show All Bookings
+                  </button>
                 </div>
               </div>
             </div>
@@ -1813,9 +2013,13 @@ export default function AdminDashboard() {
               </div>
             )}
             
-            {allBookings.length === 0 ? (
+            {allBookings.length === 0 && !isDateFiltered ? (
               <div className="text-center py-10 bg-slate-50 rounded-lg">
                 <p className="text-slate-500">No approved bookings found.</p>
+              </div>
+            ) : isDateFiltered && filteredBookings.length === 0 ? (
+              <div className="text-center py-10 bg-slate-50 rounded-lg">
+                <p className="text-slate-500">No bookings found for the selected date.</p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-xl shadow-lg">
@@ -1839,7 +2043,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {allBookings.map((booking) => (
+                    {(isDateFiltered ? filteredBookings : allBookings).map((booking) => (
                       <tr 
                         key={booking._id}
                         className="transition-all duration-300 animate-fadeIn"
