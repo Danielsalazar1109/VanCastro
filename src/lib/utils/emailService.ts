@@ -209,6 +209,45 @@ const emailTemplates = {
       </div>
     `,
   }),
+  
+  bookingReminder: (data: {
+    studentName: string;
+    instructorName: string;
+    date: string;
+    startTime: string;
+    location: string;
+    classType: string;
+  }) => ({
+    subject: 'Reminder: Your Driving Lesson Tomorrow',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
+        </div>
+        <h2 style="color: #4f46e5; text-align: center;">Your Driving Lesson is Tomorrow!</h2>
+        <p>Hello ${data.studentName},</p>
+        <p>This is a friendly reminder that your driving lesson is scheduled for tomorrow. We're looking forward to seeing you!</p>
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <p><strong>Instructor:</strong> ${data.instructorName}</p>
+          <p><strong>Date:</strong> ${data.date}</p>
+          <p><strong>Time:</strong> ${data.startTime}</p>
+          <p><strong>Location:</strong> ${data.location}</p>
+          <p><strong>Class Type:</strong> ${data.classType}</p>
+        </div>
+        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b;">
+          <p style="font-weight: bold; color: #92400e;">Important Reminder:</p>
+          <p>Please remember to bring your ${data.classType === 'class 7' ? 'learner\'s permit (yellow paper)' : 'driver\'s license'} to your lesson. You will not be able to drive without it!</p>
+        </div>
+        <div style="background-color: #dcfce7; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e;">
+          <p style="font-weight: bold; color: #166534;">You've Got This!</p>
+          <p>Remember, every expert was once a beginner. Stay positive, be patient with yourself, and trust in your instructor's guidance. We believe in you and are excited to help you on your driving journey!</p>
+        </div>
+        <p>If you need to reschedule or cancel, please contact us as soon as possible (at least 24 hours in advance to avoid cancellation fees).</p>
+        <p>We look forward to seeing you tomorrow!</p>
+        <p>Thank you for choosing our driving school!</p>
+      </div>
+    `,
+  }),
 };
 
 // Send email function
@@ -358,4 +397,16 @@ export async function sendInvoiceEmail(
     },
     attachments
   );
+}
+
+// Function to send 24-hour reminder email
+export async function sendBookingReminderEmail(booking: any, instructorName: string) {
+  return sendEmail(booking.user.email, 'bookingReminder', {
+    studentName: `${booking.user.firstName} ${booking.user.lastName}`,
+    instructorName,
+    date: formatDate(booking.date),
+    startTime: booking.startTime,
+    location: booking.location,
+    classType: booking.classType,
+  });
 }
