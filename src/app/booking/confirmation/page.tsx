@@ -156,7 +156,7 @@ function BookingConfirmationContent() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Submitted!</h1>
+          <h1 className="text-3xl font-bold text-yellow-600 mb-2">Booking Requested!</h1>
           <CountdownTimer createdAt={bookingDetails.createdAt} />
           <p className="text-xl font-semibold text-yellow-600 mt-4 mb-2">
             You have 24 hours to complete the payment.
