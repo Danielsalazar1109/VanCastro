@@ -918,8 +918,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 				error.message.includes("No available time slots")
 			) {
 				setError(error.message);
-			} else {
-				setError("Failed to load schedule. Please try again.");
 			}
 
 			setLoading(false);
