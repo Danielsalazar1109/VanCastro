@@ -688,7 +688,7 @@ export async function PATCH(request: NextRequest) {
     
     // Parse the request body
     const body = await request.json();
-    const { bookingId, document } = body;
+    const { bookingId, document, signature } = body;
     
     // Validate required fields
     if (!bookingId) {
@@ -707,12 +707,27 @@ export async function PATCH(request: NextRequest) {
       );
     }
     
-    // Update document field
-    booking.document = document;
+    // Update document field if provided
+    if (document) {
+      booking.document = document;
+    }
+    
+    // Update signature field if provided
+    if (signature) {
+      booking.signature = {
+        data: signature.data,
+        date: new Date()
+      };
+    }
+    
     await booking.save();
     
     return NextResponse.json({ 
-      message: 'Document updated successfully',
+      message: document && signature 
+        ? 'Document and signature updated successfully' 
+        : document 
+          ? 'Document updated successfully' 
+          : 'Signature updated successfully',
       booking
     });
   } catch (error) {

@@ -7,9 +7,11 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone} from "lucide-react";
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, FileText, FileSignature } from "lucide-react";
 import LoadingComponent from "@/components/layout/Loading";
 import { IBooking } from "@/models/Booking";
+import DocumentUpload from "@/components/forms/DocumentUpload";
+import ContractSignModal from "@/components/forms/ContractSignModal";
 
 // Modal component for viewing booking details
 interface BookingModalProps {
@@ -22,15 +24,14 @@ interface BookingModalProps {
       duration: number;
       student: string;
       contact: string;
+      userId?: string;
     };
   } | null;
   isOpen: boolean;
   onClose: () => void;
-  onCancel: (bookingId: string) => void;
-  onReschedule: (bookingId: string) => void;
 }
 
-const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: BookingModalProps) => {
+const BookingModal = ({ booking, isOpen, onClose }: BookingModalProps) => {
   if (!isOpen || !booking) return null;
 
   return (
@@ -88,6 +89,8 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
           </div>
         </div>
         
+        {/* Document upload section removed as requested */}
+        
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
@@ -104,6 +107,7 @@ const BookingModal = ({ booking, isOpen, onClose, onCancel, onReschedule }: Book
 interface Booking {
   _id: string;
   user: {
+    _id: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -116,6 +120,8 @@ interface Booking {
   startTime: string;
   endTime: string;
   status: string;
+  updatedAt?: string; // Add updatedAt property
+  createdAt?: string; // Add createdAt for consistency
 }
 
 interface TimeSlot {
@@ -232,19 +238,26 @@ export default function InstructorDashboard() {
     }
   }, [status, session, router]);
   
+  // Optimized data fetching based on active tab
   useEffect(() => {
     if (instructorId) {
-      fetchBookings();
-      fetchInstructorAvailability();
+      if (activeTab === 'bookings') {
+        // Only fetch bookings when on bookings tab
+        fetchBookings(true);
+      } else if (activeTab === 'calendar') {
+        // Only fetch availability when on calendar tab
+        fetchInstructorAvailability();
+        fetchBookings(false);
+      }
     }
-  }, [instructorId]);
+  }, [instructorId, activeTab]);
 
-  // Filter bookings by today's date when component mounts
+  // Filter bookings by today's date when component mounts or when tab changes
   useEffect(() => {
-    if (instructorId && selectedDate) {
+    if (instructorId && selectedDate && activeTab === 'bookings') {
       filterBookingsByDate(selectedDate);
     }
-  }, [instructorId]);
+  }, [instructorId, activeTab]);
 
   useEffect(() => {
     if (bookings.length > 0) {
@@ -263,7 +276,8 @@ export default function InstructorDashboard() {
             classType: booking.classType,
             duration: booking.duration,
             student: `${booking.user.firstName} ${booking.user.lastName}`,
-            contact: booking.user.phone
+            contact: booking.user.phone,
+            userId: booking.user._id
           },
           backgroundColor: getColorForLocation(booking.location),
           borderColor: getColorForLocation(booking.location)
@@ -325,18 +339,40 @@ export default function InstructorDashboard() {
     }
   };
   
-  const fetchBookings = async () => {
+  const fetchBookings = async (showLoading = true) => {
     try {
-      setLoading(true);
-      const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+      if (showLoading) setLoading(true);
+      
+      // Add a timeout to ensure loading state is visible
+      const fetchPromise = fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+      
+      // Use Promise.race to handle potential timeout
+      const response = await Promise.race([
+        fetchPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 10000)
+        )
+      ]) as Response;
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
       const data = await response.json();
       
-      setBookings(data.bookings || []);
-      setLoading(false);
+      // Ensure we have a valid bookings array
+      const newBookings = Array.isArray(data.bookings) ? data.bookings : [];
+      
+      // Simpler update logic - always update if we have data
+      setBookings(newBookings);
+      
+      // Ensure loading is set to false
+      if (showLoading) setLoading(false);
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      setError("Failed to load bookings");
+      // Always reset loading state on error
       setLoading(false);
+      setError("Failed to load bookings. Please try again.");
     }
   };
   
@@ -412,70 +448,24 @@ export default function InstructorDashboard() {
     setAvailability(updatedAvailability);
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
-    try {
-      // Find the booking details
-      const booking = bookings.find(b => b._id === bookingId);
-      if (!booking) {
-        throw new Error('Booking not found');
-      }
+  // Cancel and reschedule functionality removed as requested
 
-      // Get instructor name
-      const instructorName = session?.user?.name || 'Your Instructor';
-
-      // Send cancellation request
-      const response = await fetch(`/api/booking?bookingId=${bookingId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId,
-          sendEmail: true,
-          instructorName,
-        }),
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to cancel booking');
-      }
-      
-      // Close modal and refresh bookings
-      setIsModalOpen(false);
-      fetchBookings();
-      
-      // Show success message
-      alert('Booking cancelled successfully. The student has been notified.');
-    } catch (error: any) {
-      console.error('Error cancelling booking:', error);
-      setError(error.message || "Failed to cancel booking");
-    }
-  }
-
-  // Function to filter bookings by selected date
+  // Optimized function to filter bookings by selected date
   const filterBookingsByDate = async (date: string) => {
     try {
       setLoading(true);
       setSelectedDate(date);
       
-      // Fetch all bookings for the instructor
-      const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
-      const data = await response.json();
-      
       if (date === 'all') {
-        // Show all bookings
-        setBookings(data.bookings || []);
+        // Just fetch all bookings without filtering
+        fetchBookings(false);
       } else {
-        // Filter bookings to only include those for the selected date
-        const filteredBookings = data.bookings.filter((booking: IBooking) => {
-          // Handle dates like "2025-03-24T00:00:00.000+00:00"
-          const bookingDate = new Date(booking.date).toISOString().split('T')[0]; // Extract just the YYYY-MM-DD part
-          return bookingDate === date;
-        });
+        // Use a more efficient API call with date filter
+        const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${date}`);
+        const data = await response.json();
         
         // Update state with filtered bookings
-        setBookings(filteredBookings || []);
+        setBookings(data.bookings || []);
       }
       
       setLoading(false);
@@ -486,84 +476,13 @@ export default function InstructorDashboard() {
     }
   };
 
-  // State for reschedule modal
-  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
-  const [rescheduleBookingId, setRescheduleBookingId] = useState<string | null>(null);
-  const [newBookingDate, setNewBookingDate] = useState<string>('');
-  const [newStartTime, setNewStartTime] = useState<string>('');
+  // Reschedule state variables removed as requested
+  const [selectedBookingForDocument, setSelectedBookingForDocument] = useState<Booking | null>(null);
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [selectedBookingForContract, setSelectedBookingForContract] = useState<Booking | null>(null);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   
-  const handleRescheduleBooking = async (bookingId: string) => {
-    try {
-      // Find the booking details
-      const booking = bookings.find(b => b._id === bookingId);
-      if (!booking) {
-        throw new Error('Booking not found');
-      }
-
-      // Set up the reschedule modal
-      setRescheduleBookingId(bookingId);
-      
-      // Initialize with current booking date and time
-      const dateObj = new Date(booking.date);
-      const formattedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      setNewBookingDate(formattedDate);
-      setNewStartTime(booking.startTime);
-      
-      // Close booking details modal and open reschedule modal
-      setIsModalOpen(false);
-      setIsRescheduleModalOpen(true);
-    } catch (error: any) {
-      console.error('Error preparing to reschedule booking:', error);
-      setError(error.message || "Failed to prepare reschedule");
-    }
-  }
-  
-  const submitReschedule = async () => {
-    if (!rescheduleBookingId || !newBookingDate || !newStartTime) {
-      alert('Please select a date and time');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Get instructor name
-      const instructorName = session?.user?.name || 'Your Instructor';
-      
-      // Send reschedule request
-      const response = await fetch('/api/booking/reschedule', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId: rescheduleBookingId,
-          newDate: newBookingDate,
-          newStartTime,
-          instructorName,
-          sendEmail: true
-        }),
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to reschedule booking');
-      }
-      
-      // Close modal and refresh bookings
-      setIsRescheduleModalOpen(false);
-      fetchBookings();
-      setLoading(false);
-      
-      // Show success message
-      alert('Booking rescheduled successfully. The student has been notified.');
-    } catch (error: any) {
-      setLoading(false);
-      console.error('Error rescheduling booking:', error);
-      alert(error.message || "Failed to reschedule booking");
-    }
-  }
+  // Reschedule and cancel handler functions removed as requested
   
   const saveAvailability = async () => {
     try {
@@ -894,6 +813,32 @@ export default function InstructorDashboard() {
                             </a>
                           </div>
                         </div>
+                        
+                        {/* Document Upload Button */}
+                        <div className="mt-4 pt-3 border-t border-current/20">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering the card's onClick
+                              setSelectedBookingForDocument(booking);
+                              setIsDocumentModalOpen(true);
+                            }}
+                            className="w-full py-2 px-3 bg-white/50 hover:bg-white/70 rounded-lg text-current font-medium text-sm flex items-center justify-center transition-colors mb-2"
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            Manage Document
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering the card's onClick
+                              setSelectedBookingForContract(booking);
+                              setIsContractModalOpen(true);
+                            }}
+                            className="w-full py-2 px-3 bg-white/50 hover:bg-white/70 rounded-lg text-current font-medium text-sm flex items-center justify-center transition-colors"
+                          >
+                            <FileSignature className="w-4 h-4 mr-2" />
+                            Sign Contract
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -903,6 +848,12 @@ export default function InstructorDashboard() {
           )}
 
           {activeTab === 'calendar' && (
+            <>
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />
+              </div>
+            ) : (
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
               <div className="bg-gradient-to-r from-white to-yellow-300 p-4 flex justify-between items-center">
                 <div className="flex space-x-2">
@@ -1017,6 +968,8 @@ export default function InstructorDashboard() {
                 </div>
               </div>
             </div>
+            )}
+            </>
           )}
 
         </div>
@@ -1028,68 +981,64 @@ export default function InstructorDashboard() {
       booking={selectedBooking}
       isOpen={isModalOpen}
       onClose={() => setIsModalOpen(false)}
-      onCancel={handleCancelBooking}
-      onReschedule={handleRescheduleBooking}
     />
     
-    {/* Reschedule Modal */}
-    {isRescheduleModalOpen && (
+    {/* Reschedule Modal removed as requested */}
+    {/* Document Upload Modal */}
+    {isDocumentModalOpen && selectedBookingForDocument && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 max-w-md w-full">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold">Reschedule Booking</h3>
+            <h3 className="text-xl font-bold">Student Document</h3>
             <button 
-              onClick={() => setIsRescheduleModalOpen(false)}
+              onClick={() => setIsDocumentModalOpen(false)}
               className="text-gray-500 hover:text-gray-700"
             >
               <X className="h-6 w-6" />
             </button>
           </div>
           
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                New Date
-              </label>
-              <input
-                type="date"
-                value={newBookingDate}
-                onChange={(e) => setNewBookingDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                New Start Time
-              </label>
-              <input
-                type="time"
-                value={newStartTime}
-                onChange={(e) => setNewStartTime(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-              />
-            </div>
+          <div className="mb-4">
+            <p className="font-medium text-gray-700">
+              {selectedBookingForDocument.user.firstName} {selectedBookingForDocument.user.lastName}
+            </p>
+            <p className="text-sm text-gray-500">
+              {selectedBookingForDocument.classType} - {selectedBookingForDocument.duration} mins
+            </p>
           </div>
           
-          <div className="mt-6 flex justify-end space-x-2">
+          <div className="mb-6">
+            <DocumentUpload 
+              bookingId={selectedBookingForDocument._id}
+              userId={selectedBookingForDocument.user._id}
+              label="Upload student's driver's license or learner's permit"
+              className="mb-2"
+            />
+            <p className="text-xs text-gray-500">
+              As an instructor, you can upload the student's document here for record keeping.
+            </p>
+          </div>
+          
+          <div className="flex justify-end">
             <button
-              onClick={() => setIsRescheduleModalOpen(false)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              onClick={() => setIsDocumentModalOpen(false)}
+              className="px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-600"
             >
-              Cancel
-            </button>
-            
-            <button
-              onClick={submitReschedule}
-              disabled={loading}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-orange-300"
-            >
-              {loading ? "Processing..." : "Reschedule Booking"}
+              Close
             </button>
           </div>
         </div>
       </div>
+    )}
+    
+    {/* Contract Sign Modal */}
+    {selectedBookingForContract && (
+      <ContractSignModal
+        isOpen={isContractModalOpen}
+        onClose={() => setIsContractModalOpen(false)}
+        bookingId={selectedBookingForContract._id}
+        classType={selectedBookingForContract.classType}
+      />
     )}
     </>
   );

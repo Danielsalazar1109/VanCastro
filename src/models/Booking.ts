@@ -30,6 +30,10 @@ export interface IBooking extends Document {
     filename: string;
     contentType: string;
   };
+  signature?: {
+    data: string;
+    date: Date;
+  };
   privacyPolicyAccepted: boolean;
   privacyPolicyAcceptedAt: Date;
   createdAt: Date;
@@ -84,6 +88,13 @@ const BookingSchema: Schema = new Schema(
         data: String,
         filename: String,
         contentType: String
+      },
+      default: null
+    },
+    signature: {
+      type: {
+        data: String,
+        date: Date
       },
       default: null
     },

@@ -7,8 +7,9 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield, Image, Edit } from "lucide-react";
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, Heart, Star, Shield, Image, Edit, FileSignature } from "lucide-react";
 import DocumentModal from "@/components/forms/DocumentModal";
+import SignatureModal from "@/components/forms/SignatureModal";
 import LoadingComponent from "@/components/layout/Loading";
 import Booking from "@/models/Booking";
 import GlobalAvailabilityManager from "@/components/admin/GlobalAvailabilityManager";
@@ -73,6 +74,10 @@ interface Booking {
     data: string;
     filename: string;
     contentType: string;
+  };
+  signature?: {
+    data: string;
+    date: Date;
   };
 }
 
@@ -394,13 +399,20 @@ export default function AdminDashboard() {
   const [slotMinTime, setSlotMinTime] = useState<string>("00:00");
   const [slotMaxTime, setSlotMaxTime] = useState<string>("23:59");
   
-  // State for document modal
+  // State for document and signature modals
   const [viewingDocument, setViewingDocument] = useState<{
     data: string;
     filename: string;
     contentType: string;
   } | null>(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState<boolean>(false);
+  
+  // State for signature modal
+  const [viewingSignature, setViewingSignature] = useState<{
+    data: string;
+    date: Date;
+  } | null>(null);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState<boolean>(false);
   
   // Check screen size
   useEffect(() => {
@@ -1765,9 +1777,10 @@ export default function AdminDashboard() {
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Privacy Policy</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Signature</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                         </tr>
                       </thead>
                   <tbody>
@@ -1863,6 +1876,26 @@ export default function AdminDashboard() {
                             </div>
                           ) : (
                             <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not uploaded</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.signature ? (
+                            <div className="flex items-center">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Signed</span>
+                              <button 
+                                onClick={() => {
+                                  if (booking.signature) {
+                                    setViewingSignature(booking.signature);
+                                    setIsSignatureModalOpen(true);
+                                  }
+                                }}
+                                className="text-blue-500 hover:underline text-sm"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not signed</span>
                           )}
                         </td>
                         <td className="py-2 px-4 border-b">
@@ -2066,6 +2099,7 @@ export default function AdminDashboard() {
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Signature</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                     </tr>
                   </thead>
@@ -2162,6 +2196,26 @@ export default function AdminDashboard() {
                             </div>
                           ) : (
                             <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not uploaded</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.signature ? (
+                            <div className="flex items-center">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Signed</span>
+                              <button 
+                                onClick={() => {
+                                  if (booking.signature) {
+                                    setViewingSignature(booking.signature);
+                                    setIsSignatureModalOpen(true);
+                                  }
+                                }}
+                                className="text-blue-500 hover:underline text-sm"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not signed</span>
                           )}
                         </td>
                         <td className="py-3 px-4 border-b">
@@ -3010,6 +3064,13 @@ export default function AdminDashboard() {
       document={viewingDocument}
       isOpen={isDocumentModalOpen}
       onClose={() => setIsDocumentModalOpen(false)}
+    />
+    
+    {/* Signature Modal */}
+    <SignatureModal
+      signature={viewingSignature}
+      isOpen={isSignatureModalOpen}
+      onClose={() => setIsSignatureModalOpen(false)}
     />
     
     {/* Invoice Modal */}
