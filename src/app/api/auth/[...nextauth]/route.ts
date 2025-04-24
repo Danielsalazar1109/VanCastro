@@ -191,35 +191,23 @@ const handler = NextAuth({
       console.log('Effective Base URL:', effectiveBaseUrl);
       console.log('NODE_ENV:', process.env.NODE_ENV);
       
+      // Simply return the original URL or the base URL if it's a callback
+      // Let the middleware handle the redirection based on authentication status
       try {
-        // Check if this is a Google authentication callback
-        if (url.includes('callback') && url.includes('google')) {
-          console.log('Google auth callback detected, redirecting to login');
-          return `${effectiveBaseUrl}/login`;
-        }
-        
-        // If the URL is the default callback URL, redirect based on path
-        if (url.startsWith(baseUrl) || (process.env.NODE_ENV === "production" && url.startsWith(effectiveBaseUrl))) {
-          // Extract path by removing the base URL
-          const path = url.startsWith(baseUrl) 
-            ? url.substring(baseUrl.length)
-            : url.substring(effectiveBaseUrl.length);
-          
-          console.log('Extracted path:', path);
-          
-          // If coming from Google auth or redirected to root
-          if (path === '/' || path.startsWith('/api/auth/callback/google')) {
-            console.log('Root or Google callback path detected, redirecting to login');
-            return `${effectiveBaseUrl}/login`;
-          }
+        // If it's a callback URL, redirect to the base URL
+        // This avoids redirecting directly to /login which could cause loops
+        if (url.includes('callback')) {
+          console.log('Callback URL detected, redirecting to base URL');
+          return effectiveBaseUrl;
         }
         
         // For all other cases, return the original URL
+        // The middleware will handle redirecting authenticated users appropriately
         return url;
       } catch (error) {
         console.error('Error in redirect callback:', error);
-        // In case of error, redirect to the login page
-        return `${effectiveBaseUrl}/login`;
+        // In case of error, redirect to the base URL
+        return effectiveBaseUrl;
       }
     },
   },

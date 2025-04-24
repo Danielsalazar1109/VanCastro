@@ -25,41 +25,9 @@ function LoginPageContent() {
 		setShowPassword(!showPassword);
 	};
 
-	// Check if user is already authenticated and redirect accordingly
-	useEffect(() => {
-		console.log("Authentication check useEffect running");
-		console.log("Status:", status);
-		console.log("Session:", session);
-		console.log("Redirected:", redirected);
-
-		// Only redirect if not already redirected to prevent loops
-		if (status === "authenticated" && session?.user && !redirected) {
-			console.log("User already authenticated, redirecting based on role");
-			setRedirected(true); // Mark as redirected to prevent loops
-
-			// Check if user has a phone number
-			if (!session.user.phone || session.user.phone === "") {
-				console.log("User doesn't have a phone number, redirecting to complete profile page");
-				window.location.href = "/complete-profile";
-				return;
-			}
-
-			// Redirect based on user role
-			if (session.user.role === "user") {
-				console.log("User is a student, redirecting to student page");
-				window.location.href = "/student";
-			} else if (session.user.role === "instructor") {
-				console.log("User is an instructor, redirecting to instructor page");
-				window.location.href = "/instructor";
-			} else if (session.user.role === "admin") {
-				console.log("User is an admin, redirecting to admin page");
-				window.location.href = "/admin";
-			} else {
-				console.log("User role not recognized, redirecting to home page");
-				window.location.href = "/";
-			}
-		}
-	}, [session, status, redirected]);
+	// We're removing the automatic redirection for authenticated users
+	// The middleware will handle redirecting authenticated users from the login page
+	// This helps prevent redirection loops
 
 	// Handle error parameter from URL
 	useEffect(() => {
@@ -82,31 +50,9 @@ function LoginPageContent() {
 						.then((session) => {
 							console.log("Session check after Google error:", session);
 							if (session?.user) {
-								// If we have a session despite the error, redirect to the appropriate page
-								console.log("Session found despite error, redirecting based on role");
-								setRedirected(true); // Mark as redirected to prevent loops
-								
-								// Check if user has a phone number
-								if (!session.user.phone || session.user.phone === "") {
-									console.log("User doesn't have a phone number, redirecting to complete profile page");
-									window.location.href = "/complete-profile";
-									return;
-								}
-
-								// Redirect based on user role
-								if (session.user.role === "user") {
-									console.log("User is a student, redirecting to student page");
-									window.location.href = "/student";
-								} else if (session.user.role === "instructor") {
-									console.log("User is an instructor, redirecting to instructor page");
-									window.location.href = "/instructor";
-								} else if (session.user.role === "admin") {
-									console.log("User is an admin, redirecting to admin page");
-									window.location.href = "/admin";
-								} else {
-									console.log("User role not recognized, redirecting to home page");
-									window.location.href = "/";
-								}
+								// If we have a session despite the error, let the middleware handle redirection
+								console.log("Session found despite error, refreshing page to trigger middleware");
+								window.location.reload();
 							} else {
 								// Show error but don't auto-retry to avoid potential loops
 								setError("Google sign-in failed. Please try again using the button below.");
@@ -122,62 +68,10 @@ function LoginPageContent() {
 					setError("An error occurred. Please try again.");
 			}
 		}
-	}, [errorParam, router]);
+	}, [errorParam]);
 
-	// Check if we're coming from a Google auth redirect
-	useEffect(() => {
-		// Check for Google auth indicators in URL or referrer
-		const isGoogleAuth =
-			searchParams.get("callbackUrl")?.includes("google") ||
-			searchParams.get("error")?.includes("OAuthCallback") ||
-			document.referrer.includes("accounts.google.com") ||
-			window.location.href.includes("google");
-
-		if (isGoogleAuth && !autoSubmitted && !redirected) {
-			console.log("Detected Google auth redirect, checking session...");
-			console.log("Environment:", process.env.NODE_ENV);
-			console.log("URL:", window.location.href);
-			console.log("Referrer:", document.referrer);
-			setAutoSubmitted(true);
-
-			// Try to get the session directly
-			fetch("/api/auth/session")
-				.then((res) => res.json())
-				.then((session) => {
-					console.log("Session from API:", session);
-
-					if (session?.user) {
-						console.log("Session found, redirecting based on role");
-						setRedirected(true); // Mark as redirected to prevent loops
-
-						// Check if user has a phone number
-						if (!session.user.phone || session.user.phone === "") {
-							console.log("User doesn't have a phone number, redirecting to complete profile page");
-							window.location.href = "/complete-profile";
-							return;
-						}
-
-						// Redirect directly based on user role
-						if (session.user.role === "user") {
-							console.log("User is a student, redirecting to student page");
-							window.location.href = "/student";
-						} else if (session.user.role === "instructor") {
-							console.log("User is an instructor, redirecting to instructor page");
-							window.location.href = "/instructor";
-						} else if (session.user.role === "admin") {
-							console.log("User is an admin, redirecting to admin page");
-							window.location.href = "/admin";
-						} else {
-							console.log("User role not recognized, redirecting to home page");
-							window.location.href = "/";
-						}
-					}
-				})
-				.catch((err) => {
-					console.error("Error checking session:", err);
-				});
-		}
-	}, [autoSubmitted, searchParams, redirected]);
+	// We're simplifying the Google auth redirect handling
+	// The middleware will handle redirecting authenticated users appropriately
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -208,31 +102,10 @@ function LoginPageContent() {
 				return;
 			}
 
-			// Get the session to check the user role
-			const response = await fetch("/api/auth/session");
-			const session = await response.json();
-
-			// Set redirected to true to prevent loops
-			setRedirected(true);
-
-			// Check if user has a phone number
-			if (!session?.user?.phone || session.user.phone === "") {
-				console.log("User doesn't have a phone number, redirecting to complete profile page");
-				window.location.href = "/complete-profile";
-				return;
-			}
-
-			// Redirect based on user role
-			if (session?.user?.role === "user") {
-				window.location.href = "/student";
-			} else if (session?.user?.role === "instructor") {
-				window.location.href = "/instructor";
-			} else if (session?.user?.role === "admin") {
-				window.location.href = "/admin";
-			} else {
-				// Fallback to the callback URL or home page
-				window.location.href = callbackUrl !== "/login" ? callbackUrl : "/";
-			}
+			// After successful login, simply reload the page
+			// The middleware will detect the authenticated user and redirect appropriately
+			console.log("Login successful, reloading page to trigger middleware");
+			window.location.reload();
 		} catch (error) {
 			console.error("Login error:", error);
 			setError("An unexpected error occurred. Please try again.");
@@ -362,7 +235,7 @@ function LoginPageContent() {
 								setLoading(true);
 								// Let NextAuth handle the redirect flow for Google authentication
 								// Use root as callback to let the session check handle the redirection
-								signIn("google", { callbackUrl: "/login" });
+								signIn("google", { callbackUrl: "/" });
 							}}
 							className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-yellow"
 						>
