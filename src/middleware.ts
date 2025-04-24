@@ -21,13 +21,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = await getToken({
+  // Get the token from the request
+  const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   });
 
+  // Log token for debugging
+  console.log('Middleware token:', token ? 'Token exists' : 'No token');
+  
+  // Create a session object similar to what useSession() returns
+  const session = token ? { user: token } : null;
+
+  // Log the full session for debugging
+  console.log('Middleware session:', session);
+  
   // No hay sesión (usuario no autenticado)
-  if (!session) {
+  if (!session || !session.user) {
+    console.log('No authenticated user detected in middleware');
     // Si intenta acceder a una ruta protegida, redirigir a login
     if (
       pathname.startsWith('/student') || 
@@ -42,7 +53,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Usuario autenticado
-  const userRole = session.role as string || 'student';
+  console.log('Authenticated user detected in middleware');
+  const userRole = session.user.role as string || 'user';
+  console.log('User role:', userRole);
 
   // Si el usuario autenticado intenta acceder a páginas públicas como login o registro,
   // redirigir al dashboard correspondiente según su rol
@@ -51,11 +64,22 @@ export async function middleware(request: NextRequest) {
     pathname === '/register' ||
     pathname === '/'
   ) {
+    console.log('Authenticated user accessing public page, redirecting based on role');
+    
+    // Check if user has a phone number
+    if (!session.user.phone || session.user.phone === "") {
+      console.log("User doesn't have a phone number, redirecting to complete profile page");
+      return NextResponse.redirect(new URL('/complete-profile', request.url));
+    }
+    
     if (userRole === 'admin') {
+      console.log('Redirecting admin to admin dashboard');
       return NextResponse.redirect(new URL('/admin', request.url));
     } else if (userRole === 'instructor') {
+      console.log('Redirecting instructor to instructor dashboard');
       return NextResponse.redirect(new URL('/instructor', request.url));
     } else {
+      console.log('Redirecting user to student dashboard');
       return NextResponse.redirect(new URL('/student', request.url));
     }
   }
