@@ -58,10 +58,6 @@ export async function middleware(request: NextRequest) {
       pathname === '/'
     ) {
       console.log('Authenticated user accessing public page, redirecting to student dashboard');
-      
-      // Since we can't access the token content, we'll redirect to the student dashboard by default
-      // The actual role-based redirection will happen on the client side if needed
-      return NextResponse.redirect(new URL('/student', request.url));
     }
 
     // For protected routes, we'll let the page components handle the role-based access control
