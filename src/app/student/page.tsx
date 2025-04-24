@@ -91,18 +91,6 @@ function StudentDashboardContent() {
 										<p className="text-gray-600">Account Type</p>
 										<p className="font-medium">Student</p>
 									</div>
-									
-									{/* Document Upload Section */}
-									<div className="mt-6 pt-6 border-t border-gray-200">
-										<h3 className="text-lg font-semibold mb-4">Your Documents</h3>
-										<DocumentUpload 
-											userId={userAny?._id || user?.id}
-											label="Upload your driver's license or learner's permit (yellow paper)"
-										/>
-										<p className="text-xs text-gray-500 mt-1">
-											Upload your document here for easy access during your lessons. This is optional but recommended.
-										</p>
-									</div>
 								</div>
 							</div>
 							

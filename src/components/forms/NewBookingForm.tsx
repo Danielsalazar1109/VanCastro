@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DocumentUpload from "./DocumentUpload";
 import { useRouter } from "next/navigation";
 import CircularSelector from "./CircularSelector";
 import CustomDatePicker from "./CustomDatePicker";
@@ -1331,19 +1330,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 								</p>
 							)}
 						</div>
-
-						{/* Document Upload Component (Optional) */}
-						{hasLicense && (
-							<div className="mb-6">
-								<DocumentUpload 
-									userId={userId}
-									label={`Upload your ${classType === "class 7" ? "learner's permit (yellow paper)" : "driver's license"} (optional)`}
-								/>
-								<p className="text-xs text-gray-500 mt-1">
-									This is optional. You can upload your document now or later from your student dashboard or tracking page.
-								</p>
-							</div>
-						)}
 
 						<div className="flex justify-between mt-6">
 							<button
