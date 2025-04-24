@@ -88,7 +88,7 @@ export function initScheduler() {
   
   // Schedule the job to run at 8 AM every day with explicit timezone configuration
   // Cron format: minute hour day-of-month month day-of-week
-  cron.schedule('*/10 * * * * *', async () => {
+  cron.schedule('0 8 * * *', async () => {
     try {
       console.log('Cron job: Sending reminder emails...', new Date().toISOString());
       await sendReminderEmails();
