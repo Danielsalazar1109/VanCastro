@@ -13,14 +13,14 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ message: "Email and code are required" }, { status: 400 });
 		}
 
-		// Verificar el código OTP
+		// Verify the OTP code
 		const isValid = verifyOTP(email, code, "registration");
 
 		if (!isValid) {
 			return NextResponse.json({ message: "Invalid or expired verification code" }, { status: 400 });
 		}
 
-		// Actualizar el estado de verificación del usuario
+		// Update the user's verification status
 		const updateResult = await User.updateOne({ email }, { $set: { emailVerified: true } });
 
 		if (updateResult.modifiedCount === 0) {

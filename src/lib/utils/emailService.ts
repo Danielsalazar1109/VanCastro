@@ -19,31 +19,28 @@ const LOGO_ALT = "VanCastro Driving School";
 // Email templates
 const emailTemplates = {
 	otpVerification: (data: { userName: string; code: string; purpose: "registration" | "password-reset" }) => ({
-		subject:
-			data.purpose === "registration"
-				? "Verifica tu correo electrónico"
-				: "Código para restablecer tu contraseña",
+		subject: data.purpose === "registration" ? "Verify your email address" : "Password reset code",
 		html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto;" />
         </div>
         <h2 style="color: #4f46e5; text-align: center;">
-          ${data.purpose === "registration" ? "Verifica tu correo electrónico" : "Restablece tu contraseña"}
+          ${data.purpose === "registration" ? "Verify your email address" : "Reset your password"}
         </h2>
-        <p>Hola ${data.userName},</p>
+        <p>Hello ${data.userName},</p>
         <p>
           ${
 				data.purpose === "registration"
-					? "Gracias por registrarte. Para completar tu registro, por favor verifica tu correo electrónico con el siguiente código:"
-					: "Has solicitado restablecer tu contraseña. Utiliza el siguiente código para verificar tu identidad:"
+					? "Thank you for registering. To complete your registration, please verify your email address with the following code:"
+					: "You have requested to reset your password. Use the following code to verify your identity:"
 			}
         </p>
         <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center;">
           <p style="font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #4f46e5;">${data.code}</p>
         </div>
-        <p>Este código expirará en 5 minutos.</p>
-        <p>Si no has solicitado este código, puedes ignorar este correo.</p>
+        <p>This code will expire in 5 minutes.</p>
+        <p>If you did not request this code, you can ignore this email.</p>
       </div>
     `,
 	}),

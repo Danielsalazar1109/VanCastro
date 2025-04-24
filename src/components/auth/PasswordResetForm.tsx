@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -18,10 +18,11 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 	const [error, setError] = useState("");
 	const [success, setSuccess] = useState("");
 	const [loading, setLoading] = useState(false);
-	const [countdown, setCountdown] = useState(300); // 5 minutos en segundos
+	const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
 	const [resendDisabled, setResendDisabled] = useState(true);
+	const retryAttempted = useRef(false);
 
-	// Iniciar el contador cuando estamos en el paso 2
+	// Start the countdown when we are in step 2
 	useEffect(() => {
 		if (step === 2) {
 			const timer = setInterval(() => {
@@ -45,7 +46,7 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 		return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 	};
 
-	// Paso 1: Solicitar código de recuperación
+	// Step 1: Request recovery code
 	const handleRequestCode = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setLoading(true);
@@ -61,23 +62,23 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 			const data = await response.json();
 
 			if (!response.ok) {
-				throw new Error(data.message || "Error al solicitar el código");
+				throw new Error(data.message || "Error requesting the code");
 			}
 
-			// Avanzar al siguiente paso
+			// Move to the next step
 			setStep(2);
 			setCountdown(300);
 			setResendDisabled(true);
-			setSuccess("Código enviado correctamente. Por favor revisa tu correo electrónico.");
+			setSuccess("Code sent successfully. Please check your email.");
 		} catch (error) {
 			console.error("Error requesting code:", error);
-			setError(error instanceof Error ? error.message : "Error al solicitar el código");
+			setError(error instanceof Error ? error.message : "Error requesting the code");
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Reenviar código
+	// Resend code
 	const handleResendCode = async () => {
 		setLoading(true);
 		setError("");
@@ -93,14 +94,14 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 
 			if (!response.ok) {
 				const data = await response.json();
-				throw new Error(data.message || "Error al reenviar el código");
+				throw new Error(data.message || "Error resending the code");
 			}
 
-			// Reiniciar el contador
+			// Reset the counter
 			setCountdown(300);
-			setSuccess("Código reenviado correctamente. Por favor revisa tu correo electrónico.");
+			setSuccess("Code resent successfully. Please check your email.");
 
-			// Iniciar el temporizador nuevamente
+			// Start the timer again
 			const timer = setInterval(() => {
 				setCountdown((prev) => {
 					if (prev <= 1) {
@@ -113,13 +114,13 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 			}, 1000);
 		} catch (error) {
 			console.error("Error resending code:", error);
-			setError(error instanceof Error ? error.message : "Error al reenviar el código");
+			setError(error instanceof Error ? error.message : "Error resending the code");
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Paso 2: Verificar código
+	// Step 2: Verify code
 	const handleVerifyCode = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setLoading(true);
@@ -127,6 +128,7 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 		setSuccess("");
 
 		try {
+			console.log(`Verifying code: ${code} for email: ${email}`);
 			const response = await fetch("/api/auth/verify-reset-code", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -134,39 +136,54 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 			});
 
 			const data = await response.json();
+			console.log("Verification response:", data);
 
 			if (!response.ok) {
-				throw new Error(data.message || "Código inválido o expirado");
+				// If the first attempt fails, try requesting a new code automatically
+				if (response.status === 400 && !retryAttempted.current) {
+					console.log("First verification failed, requesting new code automatically");
+					retryAttempted.current = true;
+
+					// Request a new code
+					await handleResendCode();
+
+					// Show message to user
+					setError("The previous code may have expired. A new code has been sent to your email.");
+					setLoading(false);
+					return;
+				}
+
+				throw new Error(data.message || "Invalid or expired code");
 			}
 
-			// Avanzar al siguiente paso
+			// Move to the next step
 			setStep(3);
-			setSuccess("Código verificado correctamente. Ahora puedes establecer una nueva contraseña.");
+			setSuccess("Code verified successfully. Now you can set a new password.");
 		} catch (error) {
 			console.error("Error verifying code:", error);
-			setError(error instanceof Error ? error.message : "Error al verificar el código");
+			setError(error instanceof Error ? error.message : "Error verifying the code");
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Paso 3: Establecer nueva contraseña
+	// Step 3: Set new password
 	const handleResetPassword = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setLoading(true);
 		setError("");
 		setSuccess("");
 
-		// Validar que las contraseñas coincidan
+		// Validate that passwords match
 		if (newPassword !== confirmPassword) {
-			setError("Las contraseñas no coinciden");
+			setError("Passwords do not match");
 			setLoading(false);
 			return;
 		}
 
 		try {
-			// Directamente procedemos a cambiar la contraseña
-			// Ya no verificamos el código OTP en el backend
+			// Directly proceed to change the password
+			// We no longer verify the OTP code in the backend
 			const response = await fetch("/api/auth/reset-password", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -181,12 +198,12 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 			const data = await response.json();
 
 			if (!response.ok) {
-				throw new Error(data.message || "Error al restablecer la contraseña");
+				throw new Error(data.message || "Error resetting the password");
 			}
 
-			setSuccess("Contraseña restablecida correctamente. Redirigiendo al inicio de sesión...");
+			setSuccess("Password reset successfully. Redirecting to login...");
 
-			// Esperar un momento antes de redirigir
+			// Wait a moment before redirecting
 			setTimeout(() => {
 				if (onComplete) {
 					onComplete();
@@ -196,13 +213,13 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 			}, 2000);
 		} catch (error) {
 			console.error("Error resetting password:", error);
-			setError(error instanceof Error ? error.message : "Error al restablecer la contraseña");
+			setError(error instanceof Error ? error.message : "Error resetting the password");
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Renderizar el paso correspondiente
+	// Render the corresponding step
 	const renderStep = () => {
 		switch (step) {
 			case 1:
@@ -210,12 +227,12 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 					<form className="mt-8 space-y-6" onSubmit={handleRequestCode}>
 						<div>
 							<label htmlFor="email" className="block text-sm font-medium text-gray-700">
-								Correo electrónico
+								Email
 							</label>
 							<input
 								id="email"
 								type="email"
-								placeholder="Ingresa tu correo electrónico"
+								placeholder="Enter your email"
 								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
@@ -228,12 +245,12 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 							disabled={loading}
 							className="w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-brand-dark bg-brand-yellow hover:bg-brand-yellow-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-yellow"
 						>
-							{loading ? "Enviando..." : "Enviar código"}
+							{loading ? "Sending..." : "Send code"}
 						</button>
 
 						<div className="text-center">
 							<Link href="/login" className="text-sm text-brand-yellow hover:text-brand-yellow-hover">
-								Volver al inicio de sesión
+								Back to login
 							</Link>
 						</div>
 					</form>
@@ -244,12 +261,12 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 					<form className="mt-8 space-y-6" onSubmit={handleVerifyCode}>
 						<div>
 							<label htmlFor="code" className="block text-sm font-medium text-gray-700">
-								Código de verificación
+								Verification code
 							</label>
 							<input
 								id="code"
 								type="text"
-								placeholder="Ingresa el código de 6 dígitos"
+								placeholder="Enter the 6-digit code"
 								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
 								value={code}
 								onChange={(e) => setCode(e.target.value)}
@@ -259,14 +276,14 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 						</div>
 
 						<div className="flex items-center justify-between">
-							<p className="text-sm text-gray-600">Tiempo restante: {formatTime(countdown)}</p>
+							<p className="text-sm text-gray-600">Time remaining: {formatTime(countdown)}</p>
 							<button
 								type="button"
 								disabled={resendDisabled || loading}
 								onClick={handleResendCode}
 								className="text-sm text-brand-yellow hover:text-brand-yellow-hover disabled:text-gray-400"
 							>
-								Reenviar código
+								Resend code
 							</button>
 						</div>
 
@@ -276,7 +293,7 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 								onClick={() => setStep(1)}
 								className="text-sm text-brand-yellow hover:text-brand-yellow-hover"
 							>
-								Volver
+								Back
 							</button>
 
 							<button
@@ -284,7 +301,7 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 								disabled={loading || code.length !== 6}
 								className="py-2 px-4 border border-transparent text-sm font-medium rounded-md text-brand-dark bg-brand-yellow hover:bg-brand-yellow-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-yellow"
 							>
-								{loading ? "Verificando..." : "Verificar código"}
+								{loading ? "Verifying..." : "Verify code"}
 							</button>
 						</div>
 					</form>
@@ -295,12 +312,12 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 					<form className="mt-8 space-y-6" onSubmit={handleResetPassword}>
 						<div>
 							<label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-								Nueva contraseña
+								New password
 							</label>
 							<input
 								id="newPassword"
 								type="password"
-								placeholder="Ingresa tu nueva contraseña"
+								placeholder="Enter your new password"
 								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
 								value={newPassword}
 								onChange={(e) => setNewPassword(e.target.value)}
@@ -310,12 +327,12 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 
 						<div>
 							<label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-								Confirmar contraseña
+								Confirm password
 							</label>
 							<input
 								id="confirmPassword"
 								type="password"
-								placeholder="Confirma tu nueva contraseña"
+								placeholder="Confirm your new password"
 								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
@@ -324,7 +341,7 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 						</div>
 
 						{newPassword && confirmPassword && newPassword !== confirmPassword && (
-							<div className="text-red-500 text-sm">Las contraseñas no coinciden</div>
+							<div className="text-red-500 text-sm">Passwords do not match</div>
 						)}
 
 						<div className="flex justify-between">
@@ -333,7 +350,7 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 								onClick={() => setStep(2)}
 								className="text-sm text-brand-yellow hover:text-brand-yellow-hover"
 							>
-								Volver
+								Back
 							</button>
 
 							<button
@@ -343,7 +360,7 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 								}
 								className="py-2 px-4 border border-transparent text-sm font-medium rounded-md text-brand-dark bg-brand-yellow hover:bg-brand-yellow-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-yellow"
 							>
-								{loading ? "Guardando..." : "Guardar nueva contraseña"}
+								{loading ? "Saving..." : "Save new password"}
 							</button>
 						</div>
 					</form>
@@ -358,14 +375,14 @@ export default function PasswordResetForm({ onComplete }: PasswordResetFormProps
 		<div className="max-w-md w-full space-y-8">
 			<div>
 				<h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-					{step === 1 && "Recuperar contraseña"}
-					{step === 2 && "Verificar código"}
-					{step === 3 && "Nueva contraseña"}
+					{step === 1 && "Recover password"}
+					{step === 2 && "Verify code"}
+					{step === 3 && "New password"}
 				</h2>
 				<p className="mt-2 text-center text-sm text-gray-600">
-					{step === 1 && "Ingresa tu correo electrónico para recibir un código de verificación"}
-					{step === 2 && `Hemos enviado un código a ${email}`}
-					{step === 3 && "Crea una nueva contraseña para tu cuenta"}
+					{step === 1 && "Enter your email to receive a verification code"}
+					{step === 2 && `We have sent a code to ${email}`}
+					{step === 3 && "Create a new password for your account"}
 				</p>
 			</div>
 

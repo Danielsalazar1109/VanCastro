@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectToDatabase from "@/lib/db/mongodb";
 import User from "@/models/User";
-import { generateOTP } from "@/lib/utils/otpStore";
+import { generateOTP, confirmOTPStorage } from "@/lib/utils/otpStore";
 import { sendEmail } from "@/lib/utils/emailService";
 
 export async function POST(request: NextRequest) {
@@ -14,27 +14,39 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ message: "Email is required" }, { status: 400 });
 		}
 
-		// Verificar si el usuario existe
+		// Check if the user exists
 		const user = await User.findOne({ email });
 
 		if (!user) {
-			// No revelar si el usuario existe o no por seguridad
+			// Don't reveal if the user exists or not for security reasons
 			return NextResponse.json({ message: "If the email exists, a reset code has been sent" }, { status: 200 });
 		}
 
-		// Generar código OTP
+		// Generate OTP code
 		const code = generateOTP(email, "password-reset");
 
-		// Enviar email con el código
-		await sendEmail(email, "otpVerification", {
-			userName: user.firstName,
-			code,
-			purpose: "password-reset",
-		});
+		// Confirm the code was stored successfully
+		const isStored = confirmOTPStorage(email, "password-reset");
 
-		return NextResponse.json({
-			message: "Reset code sent successfully",
-		});
+		if (isStored) {
+			// Only send email if code is successfully stored
+			await sendEmail(email, "otpVerification", {
+				userName: user.firstName,
+				code,
+				purpose: "password-reset",
+			});
+
+			return NextResponse.json({
+				message: "Reset code sent successfully",
+			});
+		} else {
+			return NextResponse.json(
+				{
+					message: "Failed to generate reset code",
+				},
+				{ status: 500 }
+			);
+		}
 	} catch (error) {
 		console.error("Error requesting password reset:", error);
 		return NextResponse.json({ message: "An error occurred while sending reset code" }, { status: 500 });

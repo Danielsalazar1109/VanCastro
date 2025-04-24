@@ -13,25 +13,25 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ message: "All fields are required" }, { status: 400 });
 		}
 
-		// Verificar que las contraseñas coincidan
+		// Verify that passwords match
 		if (newPassword !== confirmPassword) {
 			return NextResponse.json({ message: "Passwords do not match" }, { status: 400 });
 		}
 
-		// Ya no verificamos el código OTP aquí
-		// Confiamos en que el frontend ya verificó el código en el paso anterior
+		// We no longer verify the OTP code here
+		// We trust that the frontend already verified the code in the previous step
 
-		// Buscar al usuario
+		// Find the user
 		const user = await User.findOne({ email });
 
 		if (!user) {
 			return NextResponse.json({ message: "User not found" }, { status: 404 });
 		}
 
-		// Hashear la nueva contraseña
+		// Hash the new password
 		const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-		// Actualizar la contraseña
+		// Update the password
 		await User.updateOne({ email }, { $set: { password: hashedPassword } });
 
 		return NextResponse.json({
