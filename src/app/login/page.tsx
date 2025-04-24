@@ -19,6 +19,7 @@ function LoginPageContent() {
 	const [loading, setLoading] = useState(false);
 	const [autoSubmitted, setAutoSubmitted] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
+	const [redirected, setRedirected] = useState(false);
 
 	const togglePasswordVisibility = () => {
 		setShowPassword(!showPassword);
@@ -26,33 +27,39 @@ function LoginPageContent() {
 
 	// Check if user is already authenticated and redirect accordingly
 	useEffect(() => {
-		if (status === "authenticated" && session?.user) {
+		console.log("Authentication check useEffect running");
+		console.log("Status:", status);
+		console.log("Session:", session);
+		console.log("Redirected:", redirected);
+
+		// Only redirect if not already redirected to prevent loops
+		if (status === "authenticated" && session?.user && !redirected) {
 			console.log("User already authenticated, redirecting based on role");
-			console.log("Session:", session);
+			setRedirected(true); // Mark as redirected to prevent loops
 
 			// Check if user has a phone number
 			if (!session.user.phone || session.user.phone === "") {
 				console.log("User doesn't have a phone number, redirecting to complete profile page");
-				router.push("/complete-profile");
+				window.location.href = "/complete-profile";
 				return;
 			}
 
 			// Redirect based on user role
 			if (session.user.role === "user") {
 				console.log("User is a student, redirecting to student page");
-				router.push("/student");
+				window.location.href = "/student";
 			} else if (session.user.role === "instructor") {
 				console.log("User is an instructor, redirecting to instructor page");
-				router.push("/instructor");
+				window.location.href = "/instructor";
 			} else if (session.user.role === "admin") {
 				console.log("User is an admin, redirecting to admin page");
-				router.push("/admin");
+				window.location.href = "/admin";
 			} else {
 				console.log("User role not recognized, redirecting to home page");
-				router.push("/login");
+				window.location.href = "/";
 			}
 		}
-	}, [session, status, router]);
+	}, [session, status, redirected]);
 
 	// Handle error parameter from URL
 	useEffect(() => {
@@ -104,7 +111,7 @@ function LoginPageContent() {
 			document.referrer.includes("accounts.google.com") ||
 			window.location.href.includes("google");
 
-		if (isGoogleAuth && !autoSubmitted) {
+		if (isGoogleAuth && !autoSubmitted && !redirected) {
 			console.log("Detected Google auth redirect, checking session...");
 			console.log("Environment:", process.env.NODE_ENV);
 			console.log("URL:", window.location.href);
@@ -119,27 +126,28 @@ function LoginPageContent() {
 
 					if (session?.user) {
 						console.log("Session found, redirecting based on role");
+						setRedirected(true); // Mark as redirected to prevent loops
 
 						// Check if user has a phone number
 						if (!session.user.phone || session.user.phone === "") {
 							console.log("User doesn't have a phone number, redirecting to complete profile page");
-							router.push("/complete-profile");
+							window.location.href = "/complete-profile";
 							return;
 						}
 
 						// Redirect directly based on user role
 						if (session.user.role === "user") {
 							console.log("User is a student, redirecting to student page");
-							router.push("/student");
+							window.location.href = "/student";
 						} else if (session.user.role === "instructor") {
 							console.log("User is an instructor, redirecting to instructor page");
-							router.push("/instructor");
+							window.location.href = "/instructor";
 						} else if (session.user.role === "admin") {
 							console.log("User is an admin, redirecting to admin page");
-							router.push("/admin");
+							window.location.href = "/admin";
 						} else {
 							console.log("User role not recognized, redirecting to home page");
-							router.push("/login");
+							window.location.href = "/";
 						}
 					}
 				})
@@ -147,7 +155,7 @@ function LoginPageContent() {
 					console.error("Error checking session:", err);
 				});
 		}
-	}, [autoSubmitted, router, searchParams]);
+	}, [autoSubmitted, searchParams, redirected]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -182,23 +190,26 @@ function LoginPageContent() {
 			const response = await fetch("/api/auth/session");
 			const session = await response.json();
 
+			// Set redirected to true to prevent loops
+			setRedirected(true);
+
 			// Check if user has a phone number
 			if (!session?.user?.phone || session.user.phone === "") {
 				console.log("User doesn't have a phone number, redirecting to complete profile page");
-				router.push("/complete-profile");
+				window.location.href = "/complete-profile";
 				return;
 			}
 
 			// Redirect based on user role
 			if (session?.user?.role === "user") {
-				router.push("/student");
+				window.location.href = "/student";
 			} else if (session?.user?.role === "instructor") {
-				router.push("/instructor");
+				window.location.href = "/instructor";
 			} else if (session?.user?.role === "admin") {
-				router.push("/admin");
+				window.location.href = "/admin";
 			} else {
 				// Fallback to the callback URL or home page
-				router.push(callbackUrl);
+				window.location.href = callbackUrl !== "/login" ? callbackUrl : "/";
 			}
 		} catch (error) {
 			console.error("Login error:", error);
