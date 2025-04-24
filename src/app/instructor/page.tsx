@@ -521,18 +521,15 @@ export default function InstructorDashboard() {
           // Log the dates for debugging
           console.log(`Booking ${booking._id}: Original date ${bookingDateStr}, as Date object: ${bookingDateObj.toISOString()}`);
           
-          // Compare year, month, and day directly - but ADD ONE DAY to booking date
-          // This compensates for the timezone offset issue
-          const bookingDateAdjusted = new Date(bookingDateObj);
-          bookingDateAdjusted.setDate(bookingDateAdjusted.getDate() + 1);
-          
+          // Compare year, month, and day directly without adding a day
+          // This ensures we show bookings for the exact selected date
           const matches = 
-            bookingDateAdjusted.getFullYear() === selectedDateObj.getFullYear() &&
-            bookingDateAdjusted.getMonth() === selectedDateObj.getMonth() &&
-            bookingDateAdjusted.getDate() === selectedDateObj.getDate();
+            bookingDateObj.getFullYear() === selectedDateObj.getFullYear() &&
+            bookingDateObj.getMonth() === selectedDateObj.getMonth() &&
+            bookingDateObj.getDate() === selectedDateObj.getDate();
           
           if (matches) {
-            console.log(`MATCH: Booking ${booking._id} - Adjusted date: ${bookingDateAdjusted.toISOString()}`);
+            console.log(`MATCH: Booking ${booking._id} - Date: ${bookingDateObj.toISOString()}`);
           }
           
           return matches;
