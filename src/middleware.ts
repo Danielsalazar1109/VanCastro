@@ -4,7 +4,7 @@ import { getToken } from 'next-auth/jwt';
 
 // Rutas públicas que siempre son accesibles
 const publicRoutes = ['/', '/login', '/register', '/plans', '/faq', '/contact', '/booking', '/contracts', '/privacy-policy', '/complete-profile'];
-const studentRoutes = ['/student', '/tracking','/booking'];
+const studentRoutes = ['/student', '/tracking', '/booking'];
 const instructorRoutes = ['/instructor'];
 const adminRoutes = ['/admin'];
 
@@ -61,6 +61,11 @@ export async function middleware(request: NextRequest) {
     
     // Redirigir usuarios autenticados en páginas públicas a su dashboard correspondiente
     if (publicRoutes.some(route => pathname === route)) {
+      // Excepción para estudiantes accediendo a la página de booking
+      if (pathname === '/booking' && token.role === 'student') {
+        return NextResponse.next();
+      }
+      
       // Redirigir basado en el rol del usuario
       if (token.role === 'admin') {
         return NextResponse.redirect(new URL('/admin', request.url));
