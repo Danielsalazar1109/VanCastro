@@ -194,8 +194,8 @@ const handler = NextAuth({
       try {
         // Check if this is a Google authentication callback
         if (url.includes('callback') && url.includes('google')) {
-          console.log('Google auth callback detected, redirecting to session-redirect');
-          return `${effectiveBaseUrl}/api/auth/session-redirect`;
+          console.log('Google auth callback detected, redirecting to login');
+          return `${effectiveBaseUrl}/login`;
         }
         
         // If the URL is the default callback URL, redirect based on path
@@ -209,8 +209,8 @@ const handler = NextAuth({
           
           // If coming from Google auth or redirected to root
           if (path === '/' || path.startsWith('/api/auth/callback/google')) {
-            console.log('Root or Google callback path detected, redirecting to session-redirect');
-            return `${effectiveBaseUrl}/api/auth/session-redirect`;
+            console.log('Root or Google callback path detected, redirecting to login');
+            return `${effectiveBaseUrl}/login`;
           }
         }
         
@@ -218,8 +218,8 @@ const handler = NextAuth({
         return url;
       } catch (error) {
         console.error('Error in redirect callback:', error);
-        // In case of error, redirect to the session-redirect endpoint
-        return `${effectiveBaseUrl}/api/auth/session-redirect`;
+        // In case of error, redirect to the login page
+        return `${effectiveBaseUrl}/login`;
       }
     },
   },

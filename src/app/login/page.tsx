@@ -83,8 +83,30 @@ function LoginPageContent() {
 							console.log("Session check after Google error:", session);
 							if (session?.user) {
 								// If we have a session despite the error, redirect to the appropriate page
-								console.log("Session found despite error, redirecting");
-								window.location.href = "/api/auth/session-redirect";
+								console.log("Session found despite error, redirecting based on role");
+								setRedirected(true); // Mark as redirected to prevent loops
+								
+								// Check if user has a phone number
+								if (!session.user.phone || session.user.phone === "") {
+									console.log("User doesn't have a phone number, redirecting to complete profile page");
+									window.location.href = "/complete-profile";
+									return;
+								}
+
+								// Redirect based on user role
+								if (session.user.role === "user") {
+									console.log("User is a student, redirecting to student page");
+									window.location.href = "/student";
+								} else if (session.user.role === "instructor") {
+									console.log("User is an instructor, redirecting to instructor page");
+									window.location.href = "/instructor";
+								} else if (session.user.role === "admin") {
+									console.log("User is an admin, redirecting to admin page");
+									window.location.href = "/admin";
+								} else {
+									console.log("User role not recognized, redirecting to home page");
+									window.location.href = "/";
+								}
 							} else {
 								// Show error but don't auto-retry to avoid potential loops
 								setError("Google sign-in failed. Please try again using the button below.");
