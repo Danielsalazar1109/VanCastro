@@ -22,34 +22,34 @@ import LocationSelector from "@/components/admin/LocationSelector";
 import CustomDatePicker from "@/components/forms/CustomDatePicker";
 
 interface User {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  role: string;
+	_id: string;
+	firstName: string;
+	lastName: string;
+	email: string;
+	phone: string;
+	role: string;
 }
 
 interface Availability {
-  day: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
+	day: string;
+	startTime: string;
+	endTime: string;
+	isAvailable: boolean;
 }
 
 interface Instructor {
-  _id: string;
-  user: User;
-  locations?: string[] | Promise<string[]>;
-  teachingLocations?: string[];
-  classTypes: string[];
-  availability?: Availability[];
-  absences?: {
-    startDate: Date | string;
-    endDate: Date | string;
-    reason?: string;
-  }[];
-  image?: string;
+	_id: string;
+	user: User;
+	locations?: string[] | Promise<string[]>;
+	teachingLocations?: string[];
+	classTypes: string[];
+	availability?: Availability[];
+	absences?: {
+		startDate: Date | string;
+		endDate: Date | string;
+		reason?: string;
+	}[];
+	image?: string;
 }
 
 interface Booking {
@@ -83,57 +83,57 @@ interface Booking {
 
 // Modal components for viewing/deleting bookings and updating prices
 interface BookingModalProps {
-  booking: {
-    id: string;
-    title: string;
-    extendedProps: {
-      location: string;
-      classType: string;
-      duration: number;
-      student: string;
-      instructor: string;
-    };
-  } | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onDelete: (bookingId: string) => void;
-  onReschedule: (bookingId: string) => void;
+	booking: {
+		id: string;
+		title: string;
+		extendedProps: {
+			location: string;
+			classType: string;
+			duration: number;
+			student: string;
+			instructor: string;
+		};
+	} | null;
+	isOpen: boolean;
+	onClose: () => void;
+	onDelete: (bookingId: string) => void;
+	onReschedule: (bookingId: string) => void;
 }
 
 interface PriceUpdateModalProps {
-  price: any;
-  isOpen: boolean;
-  onClose: () => void;
-  onUpdate: (e: React.FormEvent) => void;
-  onPriceChange: (field: string, value: any) => void;
+	price: any;
+	isOpen: boolean;
+	onClose: () => void;
+	onUpdate: (e: React.FormEvent) => void;
+	onPriceChange: (field: string, value: any) => void;
 }
 
 interface Location {
-  _id: string;
-  name: string;
-  isActive: boolean;
+	_id: string;
+	name: string;
+	isActive: boolean;
 }
 
 interface InstructorModalProps {
-  instructor: Instructor | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onUpdate: (e: React.FormEvent) => void;
-  onInstructorChange: (field: string, value: any) => void;
-  onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onLocationChange?: (location: string) => void;
-  onClassTypeChange?: (classType: string) => void;
-  locations?: string[];
-  classTypes?: string[];
-  locationMapping?: { [key: string]: string[] };
+	instructor: Instructor | null;
+	isOpen: boolean;
+	onClose: () => void;
+	onUpdate: (e: React.FormEvent) => void;
+	onInstructorChange: (field: string, value: any) => void;
+	onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+	onLocationChange?: (location: string) => void;
+	onClassTypeChange?: (classType: string) => void;
+	locations?: string[];
+	classTypes?: string[];
+	locationMapping?: { [key: string]: string[] };
 }
 
 // Interface for absence modal
 interface AbsenceModalProps {
-  instructor: Instructor | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: () => void;
+	instructor: Instructor | null;
+	isOpen: boolean;
+	onClose: () => void;
+	onSave: () => void;
 }
 
 export default function AdminDashboard() {
@@ -224,36 +224,36 @@ export default function AdminDashboard() {
   
   // Filter bookings by selected date
   const filterBookingsByDate = (date: string) => {
-    // Set loading state to true
-    setIsDateFilterLoading(true);
+     // Set loading state to true
+     setIsDateFilterLoading(true);
     
-    // Set the selected date immediately for UI feedback
-    setSelectedDate(date);
-    
-    // Use setTimeout to create a small delay for better UX
-    setTimeout(() => {
-      if (date === 'all') {
-        // Show all bookings
-        setFilteredBookings([]);
-        setIsDateFiltered(false);
-      } else {
-        // Filter bookings to only include those for the selected date
-        const filteredBookings = allBookings.filter((booking: Booking) => {
-          // Handle dates like "2025-03-24T00:00:00.000+00:00"
-          // Extract just the YYYY-MM-DD part from the booking date
-          const bookingDateStr = booking.date.split('T')[0];
-          
-          // Compare the date strings directly
-          return bookingDateStr === date;
-        });
+     // Set the selected date immediately for UI feedback
+     setSelectedDate(date);
+     
+     // Use setTimeout to create a small delay for better UX
+     setTimeout(() => {
+    if (date === 'all') {
+      // Show all bookings
+      setFilteredBookings([]);
+      setIsDateFiltered(false);
+    } else {
+      // Filter bookings to only include those for the selected date
+      const filteredBookings = allBookings.filter((booking: Booking) => {
+        // Handle dates like "2025-03-24T00:00:00.000+00:00"
+        // Extract just the YYYY-MM-DD part from the booking date
+        const bookingDateStr = booking.date.split('T')[0];
         
-        // Update state with filtered bookings
-        setFilteredBookings(filteredBookings || []);
-        setIsDateFiltered(true);
-      }
+        // Compare the date strings directly
+        return bookingDateStr === date;
+      });
       
-      // Set loading state back to false
-      setIsDateFilterLoading(false);
+      // Update state with filtered bookings
+      setFilteredBookings(filteredBookings || []);
+      setIsDateFiltered(true);
+    }
+
+     // Set loading state back to false
+     setIsDateFilterLoading(false);
     }, 500); // 500ms delay for a smooth transition
   };
   const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -382,6 +382,11 @@ export default function AdminDashboard() {
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  // Document and signature modal states
+  const [viewingDocument, setViewingDocument] = useState<any>(null);
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [viewingSignature, setViewingSignature] = useState<any>(null);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   // Invoice modal state
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedInvoiceBookingId, setSelectedInvoiceBookingId] = useState<string | null>(null);
@@ -410,21 +415,6 @@ export default function AdminDashboard() {
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [slotMinTime, setSlotMinTime] = useState<string>("00:00");
   const [slotMaxTime, setSlotMaxTime] = useState<string>("23:59");
-  
-  // State for document and signature modals
-  const [viewingDocument, setViewingDocument] = useState<{
-    data: string;
-    filename: string;
-    contentType: string;
-  } | null>(null);
-  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState<boolean>(false);
-  
-  // State for signature modal
-  const [viewingSignature, setViewingSignature] = useState<{
-    data: string;
-    date: Date;
-  } | null>(null);
-  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState<boolean>(false);
   
   // Check screen size
   useEffect(() => {
@@ -1139,374 +1129,382 @@ export default function AdminDashboard() {
     return fullLocation;
   };
 
-  const fetchAvailableInstructors = async (classType: string, location: string) => {
-    try {
-      setLoadingInstructors(true);
-      
-      // Get the general location from the full location name
-      const generalLocation = getGeneralLocationFromFull(location);
-      console.log(`Fetching instructors for class type: ${classType}, location: ${location}, general location: ${generalLocation}`);
-      
-      // First try to fetch all instructors
-      const allInstructorsResponse = await fetch('/api/instructors');
-      
-      if (!allInstructorsResponse.ok) {
-        throw new Error("Failed to fetch instructors");
-      }
-      
-      const allInstructorsData = await allInstructorsResponse.json();
-      const allInstructors = allInstructorsData.instructors || [];
-      console.log(`Found ${allInstructors.length} total instructors`);
-      
-      // Filter instructors client-side
-      const filteredInstructors = allInstructors.filter((instructor: Instructor) => {
-        // Check if instructor can teach this class type
-        const canTeachClassType = instructor.classTypes.includes(classType);
-        
-        // Check if instructor teaches at this location or general location
-        let teachesAtLocation = false;
-        if (instructor.teachingLocations) {
-          // Check for exact location match
-          if (instructor.teachingLocations.includes(location)) {
-            teachesAtLocation = true;
-          }
-          // Check for general location match
-          else if (instructor.teachingLocations.includes(generalLocation)) {
-            teachesAtLocation = true;
-          }
-          // Check if any of the instructor's locations are in the same general area
-          else {
-            for (const instructorLocation of instructor.teachingLocations) {
-              const instructorGeneralLocation = getGeneralLocationFromFull(instructorLocation);
-              if (instructorGeneralLocation === generalLocation) {
-                teachesAtLocation = true;
-                break;
-              }
-            }
-          }
-        }
-        
-        return canTeachClassType && teachesAtLocation;
-      });
-      
-      console.log(`Filtered to ${filteredInstructors.length} instructors for class type ${classType} and location ${location}`);
-      console.log('Filtered instructors:', filteredInstructors.map((i: Instructor) => 
-        `${i.user.firstName} ${i.user.lastName} - Class Types: ${i.classTypes.join(', ')} - Locations: ${i.teachingLocations?.join(', ')}`
-      ));
-      
-      setAvailableInstructors(filteredInstructors);
-    } catch (error: any) {
-      console.error("Error fetching available instructors:", error);
-      setError("Failed to load available instructors. Please try again.");
-    } finally {
-      setLoadingInstructors(false);
-    }
-  };
+	const fetchAvailableInstructors = async (classType: string, location: string) => {
+		try {
+			setLoadingInstructors(true);
 
-  const fetchAvailableTimeSlots = async (instructorId: string, newDate: string, duration: number, location: string) => {
-    try {
-      setLoadingTimeSlots(true);
-      
-      // Generate/update the schedule with current parameters
-      const createResponse = await fetch('/api/schedules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instructorId,
-          date: newDate,
-          duration,
-          location
-        }),
-      });
-      
-      if (!createResponse.ok) {
-        const errorData = await createResponse.json();
-        throw new Error(errorData.error || "Failed to generate schedule");
-      }
-      
-      // Fetch the generated schedule
-      const fetchResponse = await fetch(
-        `/api/schedules?instructorId=${instructorId}&startDate=${newDate}&endDate=${newDate}`
-      );
-      
-      if (!fetchResponse.ok) {
-        throw new Error("Failed to fetch generated schedule");
-      }
-      
-      const data = await fetchResponse.json();
-      
-      // Extract available time slots
-      if (data.schedules && data.schedules.length > 0) {
-        const schedule = data.schedules[0];
-        const availableSlots = schedule.slots.filter(
-          (slot: {startTime: string; endTime: string; isBooked: boolean}) => !slot.isBooked
-        );
-        setAvailableTimeSlots(availableSlots);
-      } else {
-        setAvailableTimeSlots([]);
-      }
-    } catch (error: any) {
-      console.error("Error fetching available time slots:", error);
-      setError("Failed to load available time slots. Please try again.");
-    } finally {
-      setLoadingTimeSlots(false);
-    }
-  };
+			// Get the general location from the full location name
+			const generalLocation = getGeneralLocationFromFull(location);
+			console.log(
+				`Fetching instructors for class type: ${classType}, location: ${location}, general location: ${generalLocation}`
+			);
 
-  const handleRescheduleBooking = async (bookingId: string) => {
-    try {
-      // Find the booking details
-      const booking = allBookings.find(b => b._id === bookingId) || 
-                     pendingBookings.find(b => b._id === bookingId);
-      
-      if (!booking) {
-        throw new Error('Booking not found');
-      }
+			// First try to fetch all instructors
+			const allInstructorsResponse = await fetch("/api/instructors");
 
-      // Store the original booking for reference
-      setOriginalBooking(booking);
+			if (!allInstructorsResponse.ok) {
+				throw new Error("Failed to fetch instructors");
+			}
 
-      // Set up the reschedule modal
-      setRescheduleBookingId(bookingId);
-      
-      // Initialize with current booking date and time
-      const dateObj = new Date(booking.date);
-      const formattedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      setNewBookingDate(formattedDate);
-      setNewStartTime(booking.startTime);
-      
-      // Set the initial instructor
-      setSelectedInstructorId(booking.instructor._id);
-      
-      // Fetch available instructors for this class type and location
-      await fetchAvailableInstructors(booking.classType, booking.location);
-      
-      // Fetch available time slots for the selected date and instructor
-      await fetchAvailableTimeSlots(
-        booking.instructor._id, 
-        formattedDate, 
-        booking.duration, 
-        booking.location
-      );
-      
-      // Close booking details modal and open reschedule modal
-      setIsModalOpen(false);
-      setIsRescheduleModalOpen(true);
-    } catch (error: any) {
-      console.error('Error preparing to reschedule booking:', error);
-      setError(error.message || "Failed to prepare reschedule");
-    }
-  }
-  
-  const submitReschedule = async () => {
-    if (!rescheduleBookingId || !newBookingDate || !newStartTime || !selectedInstructorId || !originalBooking) {
-      alert('Please select a date, time, and instructor');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Get admin name
-      const adminName = session?.user?.name || 'Admin';
-      
-      // Send reschedule request
-      const response = await fetch('/api/booking/reschedule', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId: rescheduleBookingId,
-          newDate: newBookingDate,
-          newStartTime,
-          newInstructorId: selectedInstructorId,
-          instructorName: adminName,
-          sendEmail: true
-        }),
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to reschedule booking');
-      }
-      
-      // Close modal and refresh bookings
-      setIsRescheduleModalOpen(false);
-      fetchAllBookings();
-      fetchPendingBookings();
-      setLoading(false);
-      
-      // Show success message
-      alert('Booking rescheduled successfully. The student has been notified.');
-    } catch (error: any) {
-      setLoading(false);
-      console.error('Error rescheduling booking:', error);
-      alert(error.message || "Failed to reschedule booking");
-    }
-  }
-  
-  // Handler for sending invoice
-  const handleSendInvoice = async (bookingId: string) => {
-    try {
-      // Find the booking in both pending and approved bookings
-      const booking = pendingBookings.find(b => b._id === bookingId) || 
-                     allBookings.find(b => b._id === bookingId);
-      
-      if (!booking) {
-        throw new Error('Booking not found');
-      }
-      
-      // Set the selected booking for invoice
-      setSelectedBookingForInvoice(booking);
-      setSelectedInvoiceBookingId(bookingId);
-      
-      // Reset form fields
-      setSelectedInvoiceFile(null);
-      setInvoiceNumber('');
-      setInvoiceNotes('');
-      
-      // Open the invoice modal
-      setIsInvoiceModalOpen(true);
-    } catch (error: any) {
-      console.error('Error preparing to send invoice:', error);
-      setError(error.message || "Failed to prepare invoice");
-    }
-  };
-  
-  // Handler for submitting invoice
-  const handleSubmitInvoice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedInvoiceBookingId || !selectedInvoiceFile) {
-      alert('Please select an invoice file');
-      return;
-    }
-    
-    try {
-      setIsUploadingInvoice(true);
-      
-      // Create form data
-      const formData = new FormData();
-      formData.append('bookingId', selectedInvoiceBookingId);
-      formData.append('invoiceFile', selectedInvoiceFile);
-      
-      // Add admin email for fallback authentication in production
-      if (session?.user?.email) {
-        formData.append('adminEmail', session.user.email);
-      }
-      
-      if (invoiceNumber) {
-        formData.append('invoiceNumber', invoiceNumber);
-      }
-      
-      if (invoiceNotes) {
-        formData.append('notes', invoiceNotes);
-      }
-      
-      // Send the invoice with credentials included
-      const response = await fetch('/api/booking/invoice', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include', // Include cookies in the request
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to send invoice');
-      }
-      
-      // Close modal and refresh bookings
-      setIsInvoiceModalOpen(false);
-      fetchPendingBookings();
-      
-      // Show success message
-      alert('Invoice sent successfully');
-    } catch (error: any) {
-      console.error('Error sending invoice:', error);
-      alert(error.message || "Failed to send invoice");
-    } finally {
-      setIsUploadingInvoice(false);
-    }
-  };
-  
-  // Handler for approving payment
-  const handleApprovePayment = async (bookingId: string) => {
-    try {
-      const response = await fetch('/api/booking/invoice', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId,
-          status: 'approved',
-          adminEmail: session?.user?.email, // Add admin email for fallback authentication
-        }),
-        credentials: 'include', // Include cookies in the request
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to approve payment');
-      }
-      
-      // Refresh bookings
-      fetchPendingBookings();
-      
-      // Show success message
-      alert('Payment approved successfully');
-    } catch (error: any) {
-      console.error('Error approving payment:', error);
-      alert(error.message || "Failed to approve payment");
-    }
-  };
-  
-  // Handler for rejecting payment
-  const handleRejectPayment = async (bookingId: string) => {
-    try {
-      const response = await fetch('/api/booking/invoice', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId,
-          status: 'rejected',
-          adminEmail: session?.user?.email, // Add admin email for fallback authentication
-        }),
-        credentials: 'include', // Include cookies in the request
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to reject payment');
-      }
-      
-      // Refresh bookings
-      fetchPendingBookings();
-      
-      // Show success message
-      alert('Payment rejected successfully');
-    } catch (error: any) {
-      console.error('Error rejecting payment:', error);
-      alert(error.message || "Failed to reject payment");
-    }
-  };
+			const allInstructorsData = await allInstructorsResponse.json();
+			const allInstructors = allInstructorsData.instructors || [];
+			console.log(`Found ${allInstructors.length} total instructors`);
 
-  const handleCancelBooking = async (bookingId: string) => {
-    try {
-      // Find the booking details
-      const booking = allBookings.find(b => b._id === bookingId) || 
-                     pendingBookings.find(b => b._id === bookingId);
-      
-      if (!booking) {
-        throw new Error('Booking not found');
-      }
+			// Filter instructors client-side
+			const filteredInstructors = allInstructors.filter((instructor: Instructor) => {
+				// Check if instructor can teach this class type
+				const canTeachClassType = instructor.classTypes.includes(classType);
 
-      // Get admin name
-      const adminName = session?.user?.name || 'Admin';
+				// Check if instructor teaches at this location or general location
+				let teachesAtLocation = false;
+				if (instructor.teachingLocations) {
+					// Check for exact location match
+					if (instructor.teachingLocations.includes(location)) {
+						teachesAtLocation = true;
+					}
+					// Check for general location match
+					else if (instructor.teachingLocations.includes(generalLocation)) {
+						teachesAtLocation = true;
+					}
+					// Check if any of the instructor's locations are in the same general area
+					else {
+						for (const instructorLocation of instructor.teachingLocations) {
+							const instructorGeneralLocation = getGeneralLocationFromFull(instructorLocation);
+							if (instructorGeneralLocation === generalLocation) {
+								teachesAtLocation = true;
+								break;
+							}
+						}
+					}
+				}
+
+				return canTeachClassType && teachesAtLocation;
+			});
+
+			console.log(
+				`Filtered to ${filteredInstructors.length} instructors for class type ${classType} and location ${location}`
+			);
+			console.log(
+				"Filtered instructors:",
+				filteredInstructors.map(
+					(i: Instructor) =>
+						`${i.user.firstName} ${i.user.lastName} - Class Types: ${i.classTypes.join(", ")} - Locations: ${i.teachingLocations?.join(", ")}`
+				)
+			);
+
+			setAvailableInstructors(filteredInstructors);
+		} catch (error: any) {
+			console.error("Error fetching available instructors:", error);
+			setError("Failed to load available instructors. Please try again.");
+		} finally {
+			setLoadingInstructors(false);
+		}
+	};
+
+	const fetchAvailableTimeSlots = async (
+		instructorId: string,
+		newDate: string,
+		duration: number,
+		location: string
+	) => {
+		try {
+			setLoadingTimeSlots(true);
+
+			// Generate/update the schedule with current parameters
+			const createResponse = await fetch("/api/schedules", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					instructorId,
+					date: newDate,
+					duration,
+					location,
+				}),
+			});
+
+			if (!createResponse.ok) {
+				const errorData = await createResponse.json();
+				throw new Error(errorData.error || "Failed to generate schedule");
+			}
+
+			// Fetch the generated schedule
+			const fetchResponse = await fetch(
+				`/api/schedules?instructorId=${instructorId}&startDate=${newDate}&endDate=${newDate}`
+			);
+
+			if (!fetchResponse.ok) {
+				throw new Error("Failed to fetch generated schedule");
+			}
+
+			const data = await fetchResponse.json();
+
+			// Extract available time slots
+			if (data.schedules && data.schedules.length > 0) {
+				const schedule = data.schedules[0];
+				const availableSlots = schedule.slots.filter(
+					(slot: { startTime: string; endTime: string; isBooked: boolean }) => !slot.isBooked
+				);
+				setAvailableTimeSlots(availableSlots);
+			} else {
+				setAvailableTimeSlots([]);
+			}
+		} catch (error: any) {
+			console.error("Error fetching available time slots:", error);
+			setError("Failed to load available time slots. Please try again.");
+		} finally {
+			setLoadingTimeSlots(false);
+		}
+	};
+
+	const handleRescheduleBooking = async (bookingId: string) => {
+		try {
+			// Find the booking details
+			const booking =
+				allBookings.find((b) => b._id === bookingId) || pendingBookings.find((b) => b._id === bookingId);
+
+			if (!booking) {
+				throw new Error("Booking not found");
+			}
+
+			// Store the original booking for reference
+			setOriginalBooking(booking);
+
+			// Set up the reschedule modal
+			setRescheduleBookingId(bookingId);
+
+			// Initialize with current booking date and time
+			const dateObj = new Date(booking.date);
+			const formattedDate = dateObj.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+			setNewBookingDate(formattedDate);
+			setNewStartTime(booking.startTime);
+
+			// Set the initial instructor
+			setSelectedInstructorId(booking.instructor._id);
+
+			// Fetch available instructors for this class type and location
+			await fetchAvailableInstructors(booking.classType, booking.location);
+
+			// Fetch available time slots for the selected date and instructor
+			await fetchAvailableTimeSlots(booking.instructor._id, formattedDate, booking.duration, booking.location);
+
+			// Close booking details modal and open reschedule modal
+			setIsModalOpen(false);
+			setIsRescheduleModalOpen(true);
+		} catch (error: any) {
+			console.error("Error preparing to reschedule booking:", error);
+			setError(error.message || "Failed to prepare reschedule");
+		}
+	};
+
+	const submitReschedule = async () => {
+		if (!rescheduleBookingId || !newBookingDate || !newStartTime || !selectedInstructorId || !originalBooking) {
+			alert("Please select a date, time, and instructor");
+			return;
+		}
+
+		try {
+			setLoading(true);
+
+			// Get admin name
+			const adminName = session?.user?.name || "Admin";
+
+			// Send reschedule request
+			const response = await fetch("/api/booking/reschedule", {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					bookingId: rescheduleBookingId,
+					newDate: newBookingDate,
+					newStartTime,
+					newInstructorId: selectedInstructorId,
+					instructorName: adminName,
+					sendEmail: true,
+				}),
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.error || "Failed to reschedule booking");
+			}
+
+			// Close modal and refresh bookings
+			setIsRescheduleModalOpen(false);
+			fetchAllBookings();
+			fetchPendingBookings();
+			setLoading(false);
+
+			// Show success message
+			alert("Booking rescheduled successfully. The student has been notified.");
+		} catch (error: any) {
+			setLoading(false);
+			console.error("Error rescheduling booking:", error);
+			alert(error.message || "Failed to reschedule booking");
+		}
+	};
+
+	// Handler for sending invoice
+	const handleSendInvoice = async (bookingId: string) => {
+		try {
+			// Find the booking in both pending and approved bookings
+			const booking =
+				pendingBookings.find((b) => b._id === bookingId) || allBookings.find((b) => b._id === bookingId);
+
+			if (!booking) {
+				throw new Error("Booking not found");
+			}
+
+			// Set the selected booking for invoice
+			setSelectedBookingForInvoice(booking);
+			setSelectedInvoiceBookingId(bookingId);
+
+			// Reset form fields
+			setSelectedInvoiceFile(null);
+			setInvoiceNumber("");
+			setInvoiceNotes("");
+
+			// Open the invoice modal
+			setIsInvoiceModalOpen(true);
+		} catch (error: any) {
+			console.error("Error preparing to send invoice:", error);
+			setError(error.message || "Failed to prepare invoice");
+		}
+	};
+
+	// Handler for submitting invoice
+	const handleSubmitInvoice = async (e: React.FormEvent) => {
+		e.preventDefault();
+
+		if (!selectedInvoiceBookingId || !selectedInvoiceFile) {
+			alert("Please select an invoice file");
+			return;
+		}
+
+		try {
+			setIsUploadingInvoice(true);
+
+			// Create form data
+			const formData = new FormData();
+			formData.append("bookingId", selectedInvoiceBookingId);
+			formData.append("invoiceFile", selectedInvoiceFile);
+
+			// Add admin email for fallback authentication in production
+			if (session?.user?.email) {
+				formData.append("adminEmail", session.user.email);
+			}
+
+			if (invoiceNumber) {
+				formData.append("invoiceNumber", invoiceNumber);
+			}
+
+			if (invoiceNotes) {
+				formData.append("notes", invoiceNotes);
+			}
+
+			// Send the invoice with credentials included
+			const response = await fetch("/api/booking/invoice", {
+				method: "POST",
+				body: formData,
+				credentials: "include", // Include cookies in the request
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.error || "Failed to send invoice");
+			}
+
+			// Close modal and refresh bookings
+			setIsInvoiceModalOpen(false);
+			fetchPendingBookings();
+
+			// Show success message
+			alert("Invoice sent successfully");
+		} catch (error: any) {
+			console.error("Error sending invoice:", error);
+			alert(error.message || "Failed to send invoice");
+		} finally {
+			setIsUploadingInvoice(false);
+		}
+	};
+
+	// Handler for approving payment
+	const handleApprovePayment = async (bookingId: string) => {
+		try {
+			const response = await fetch("/api/booking/invoice", {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					bookingId,
+					status: "approved",
+					adminEmail: session?.user?.email, // Add admin email for fallback authentication
+				}),
+				credentials: "include", // Include cookies in the request
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.error || "Failed to approve payment");
+			}
+
+			// Refresh bookings
+			fetchPendingBookings();
+
+			// Show success message
+			alert("Payment approved successfully");
+		} catch (error: any) {
+			console.error("Error approving payment:", error);
+			alert(error.message || "Failed to approve payment");
+		}
+	};
+
+	// Handler for rejecting payment
+	const handleRejectPayment = async (bookingId: string) => {
+		try {
+			const response = await fetch("/api/booking/invoice", {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					bookingId,
+					status: "rejected",
+					adminEmail: session?.user?.email, // Add admin email for fallback authentication
+				}),
+				credentials: "include", // Include cookies in the request
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.error || "Failed to reject payment");
+			}
+
+			// Refresh bookings
+			fetchPendingBookings();
+
+			// Show success message
+			alert("Payment rejected successfully");
+		} catch (error: any) {
+			console.error("Error rejecting payment:", error);
+			alert(error.message || "Failed to reject payment");
+		}
+	};
+
+	const handleCancelBooking = async (bookingId: string) => {
+		try {
+			// Find the booking details
+			const booking =
+				allBookings.find((b) => b._id === bookingId) || pendingBookings.find((b) => b._id === bookingId);
+
+			if (!booking) {
+				throw new Error("Booking not found");
+			}
+
+			// Get admin name
+			const adminName = session?.user?.name || "Admin";
 
       // Send cancellation request
       const response = await fetch(`/api/booking?bookingId=${bookingId}`, {
@@ -2040,11 +2038,13 @@ export default function AdminDashboard() {
                           className={`
                             flex flex-col items-center justify-center
                             w-16 h-16 rounded-full transition-all duration-200
-                            ${isSelected 
-                              ? 'bg-yellow-500 text-black shadow-lg transform scale-110' 
-                              : isToday
-                                ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
-                                : 'bg-white text-slate-700 border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50'}
+                            ${
+								isSelected
+									? "bg-yellow-500 text-black shadow-lg transform scale-110"
+									: isToday
+										? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+										: "bg-white text-slate-700 border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50"
+							}
                           `}
                         >
                           <span className="text-xs font-medium">{day}</span>

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IUser extends Document {
   firstName: string;
@@ -25,6 +25,7 @@ const UserSchema: Schema = new Schema(
   phone: { type: String, required: false }, // Made optional to support OAuth providers
   password: { type: String, required: false }, // Optional for OAuth providers
   googleId: { type: String, required: false }, // For Google authentication
+  emailVerified: { type: Boolean, default: false }, // Para verificación de email
   document: {
     type: {
       data: String,
@@ -33,7 +34,7 @@ const UserSchema: Schema = new Schema(
     },
     default: null
   },
-    role: {
+    role: { 
       type: String, 
       enum: ['user', 'instructor', 'admin'], 
       default: 'user' 
@@ -44,4 +45,4 @@ const UserSchema: Schema = new Schema(
 );
 
 // Check if the model is already defined to prevent overwriting during hot reloads
-export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
