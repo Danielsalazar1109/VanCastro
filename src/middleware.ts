@@ -22,14 +22,22 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Obtener el token JWT y decodificarlo
+    // Log request cookies for debugging
+    console.log('Middleware cookies:', request.cookies);
+    
+    // Obtener el token JWT y decodificarlo con configuración explícita
     const token = await getToken({ 
       req: request,
-      secret: process.env.NEXTAUTH_SECRET
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === "production",
+      cookieName: "next-auth.session-token" // Ensure this matches the cookie name in NextAuth config
     });
     
-    // Log token for debugging
+    // Enhanced logging for debugging
     console.log('Middleware token:', token ? 'exists' : 'not found');
+    if (!token) {
+      console.log('Middleware cookies available:', Array.from(request.cookies.keys()));
+    }
     
     // No hay token (usuario no autenticado)
     if (!token) {
