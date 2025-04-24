@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
     // Enhanced logging for debugging
     console.log('Middleware token:', token ? 'exists' : 'not found');
     if (!token) {
-      console.log('Middleware cookies available:', Array.from(request.cookies.keys()));
+      console.log('Middleware cookies available:', Object.keys(request.cookies));
     }
     
     // No hay token (usuario no autenticado)
