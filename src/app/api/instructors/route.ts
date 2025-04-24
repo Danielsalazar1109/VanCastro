@@ -102,6 +102,11 @@ export async function GET(request: NextRequest) {
     const location = searchParams.get('location');
     const checkDate = searchParams.get('checkDate');
     
+    // Pagination parameters
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50'); // Default to 50 items per page
+    const skip = (page - 1) * limit;
+    
     // Build query based on parameters
     const query: any = {};
     
@@ -109,10 +114,15 @@ export async function GET(request: NextRequest) {
       query._id = instructorId;
     }
     
-    // Get instructors based on query
+    // Get total count for pagination info (before location filtering)
+    const totalCount = await Instructor.countDocuments(query);
+    
+    // Get instructors based on query with pagination
     let instructors = await Instructor.find(query)
       .populate('user', 'firstName lastName email phone')
-      .sort({ 'user.firstName': 1, 'user.lastName': 1 });
+      .sort({ 'user.firstName': 1, 'user.lastName': 1 })
+      .skip(skip)
+      .limit(limit);
     
   // Filter instructors by location if specified
   if (location) {
@@ -148,7 +158,23 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    return NextResponse.json({ instructors });
+    // Calculate filtered count after in-memory filtering
+    const filteredCount = instructors.length;
+    
+    // Calculate total pages based on the filtered count
+    // This is an estimate since we're doing in-memory filtering
+    const totalPages = Math.ceil(totalCount / limit);
+    
+    return NextResponse.json({ 
+      instructors,
+      pagination: {
+        totalCount,
+        filteredCount,
+        totalPages,
+        currentPage: page,
+        limit
+      }
+    });
   } catch (error) {
     console.error('Error fetching instructors:', error);
     return NextResponse.json(

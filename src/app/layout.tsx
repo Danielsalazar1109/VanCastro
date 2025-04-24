@@ -1,9 +1,10 @@
-import "./globals.css";
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import Header from "@/components/layout/Header";
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import Header from '@/components/layout/Header';
 import FooterWrapper from "@/components/layout/FooterWrapper";
-import AuthSessionProvider from "@/components/auth/SessionProvider";
+import AuthSessionProvider from '@/components/auth/SessionProvider';
+import InitScheduler from '@/components/server/InitScheduler';
 
 const inter = Inter({
 	subsets: ["latin"],
@@ -16,16 +17,22 @@ export const metadata: Metadata = {
 	description: "Book your driving lessons online",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-	return (
-		<html lang="en">
-			<body className={`${inter.variable} font-sans`}>
-				<AuthSessionProvider>
-					<Header />
-					<main className="min-h-screen bg-gray-50">{children}</main>
-					<FooterWrapper />
-				</AuthSessionProvider>
-			</body>
-		</html>
-	);
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body className={`${inter.variable} font-sans`}>
+		 {/* Initialize the scheduler */}
+		 <InitScheduler />
+        <AuthSessionProvider>
+          <Header />
+          <main className="min-h-screen bg-gray-50">{children}</main>
+          <FooterWrapper />
+        </AuthSessionProvider>
+      </body>
+    </html>
+  );
 }

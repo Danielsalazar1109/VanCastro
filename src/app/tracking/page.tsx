@@ -1,6 +1,7 @@
 'use client'
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import DocumentUpload from "@/components/forms/DocumentUpload";
 import { useState, useEffect } from "react";
 import { Clock, LogOut, MapPin, UserCheck, Calendar, Trash } from "lucide-react";
 
@@ -237,6 +238,21 @@ export default function Tracking() {
             {/* Logout button moved to navbar */}
           </div>
           
+          {/* Document Upload Section */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg mb-6">
+            <h3 className="text-xl font-semibold mb-4 text-gray-800">Your Documents</h3>
+            <p className="text-gray-600 mb-4">
+              Upload your driver's license or learner's permit (yellow paper) for easy access during your lessons.
+            </p>
+            <DocumentUpload 
+              userId={session.user.id}
+              label="Upload your driver's license or learner's permit (yellow paper)"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              This is optional but recommended. Your instructor may need to verify your documentation.
+            </p>
+          </div>
+
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-pulse text-xl text-gray-500">Loading lessons...</div>
