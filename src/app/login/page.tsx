@@ -102,10 +102,36 @@ function LoginPageContent() {
 				return;
 			}
 
-			// After successful login, simply reload the page
-			// The middleware will detect the authenticated user and redirect appropriately
-			console.log("Login successful, reloading page to trigger middleware");
-			window.location.reload();
+			// After successful login, directly redirect to the appropriate dashboard
+			console.log("Login successful, redirecting based on role");
+			
+			// Get the updated session to check the user role
+			const updatedResponse = await fetch("/api/auth/session");
+			const updatedSession = await updatedResponse.json();
+			console.log("Updated session after login:", updatedSession);
+			
+			// Check if user has a phone number
+			if (!session?.user?.phone || session.user.phone === "") {
+				console.log("User doesn't have a phone number, redirecting to complete profile page");
+				window.location.href = "/complete-profile";
+				return;
+			}
+
+			// Redirect based on user role
+			if (session?.user?.role === "user") {
+				console.log("User is a student, redirecting to student page");
+				window.location.href = "/student";
+			} else if (session?.user?.role === "instructor") {
+				console.log("User is an instructor, redirecting to instructor page");
+				window.location.href = "/instructor";
+			} else if (session?.user?.role === "admin") {
+				console.log("User is an admin, redirecting to admin page");
+				window.location.href = "/admin";
+			} else {
+				// Fallback to the callback URL or home page
+				console.log("User role not recognized, redirecting to home page");
+				window.location.href = callbackUrl !== "/login" ? callbackUrl : "/";
+			}
 		} catch (error) {
 			console.error("Login error:", error);
 			setError("An unexpected error occurred. Please try again.");
