@@ -59,12 +59,15 @@ export async function middleware(request: NextRequest) {
     // Usuario autenticado
     console.log('Authenticated user detected in middleware, role:', token.role);
     
+    // Excepción específica para la ruta de booking para estudiantes
+    if (pathname === '/booking' && token.role && token.role.toLowerCase() === 'student') {
+      console.log('Student accessing booking page - allowing access');
+      return NextResponse.next();
+    }
+    
     // Redirigir usuarios autenticados en páginas públicas a su dashboard correspondiente
     if (publicRoutes.some(route => pathname === route)) {
-      // Excepción para estudiantes accediendo a la página de booking
-      if (pathname === '/booking' && token.role === 'student') {
-        return NextResponse.next();
-      }
+      console.log(`Authenticated user on public route: ${pathname}, role: ${token.role}`);
       
       // Redirigir basado en el rol del usuario
       if (token.role === 'admin') {
