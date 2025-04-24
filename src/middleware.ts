@@ -21,84 +21,89 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get the token from the request
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
+  try {
+    // Get the token from the request
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
 
-  // Log token for debugging
-  console.log('Middleware token:', token ? 'Token exists' : 'No token');
-  
-  // Create a session object similar to what useSession() returns
-  const session = token ? { user: token } : null;
-
-  // Log the full session for debugging
-  console.log('Middleware session:', session);
-  
-  // No hay sesión (usuario no autenticado)
-  if (!session || !session.user) {
-    console.log('No authenticated user detected in middleware');
-    // Si intenta acceder a una ruta protegida, redirigir a login
-    if (
-      pathname.startsWith('/student') || 
-      pathname.startsWith('/instructor') ||
-      pathname.startsWith('/admin')
-    ) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+    // Log token for debugging
+    console.log('Middleware token:', token);
     
-    // Permitir acceso a rutas públicas
+    // No hay sesión (usuario no autenticado)
+    if (!token) {
+      console.log('No authenticated user detected in middleware');
+      // Si intenta acceder a una ruta protegida, redirigir a login
+      if (
+        pathname.startsWith('/student') || 
+        pathname.startsWith('/instructor') ||
+        pathname.startsWith('/admin')
+      ) {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+      
+      // Permitir acceso a rutas públicas
+      return NextResponse.next();
+    }
+
+    // Usuario autenticado
+    console.log('Authenticated user detected in middleware');
+    
+    // Access role directly from token
+    const userRole = token.role as string || 'user';
+    console.log('User role:', userRole);
+
+    // Si el usuario autenticado intenta acceder a páginas públicas como login o registro,
+    // redirigir al dashboard correspondiente según su rol
+    if (
+      pathname === '/login' || 
+      pathname === '/register' ||
+      pathname === '/'
+    ) {
+      console.log('Authenticated user accessing public page, redirecting based on role');
+      
+      // Check if user has a phone number
+      if (!token.phone || token.phone === "") {
+        console.log("User doesn't have a phone number, redirecting to complete profile page");
+        return NextResponse.redirect(new URL('/complete-profile', request.url));
+      }
+      
+      // Force redirection based on role
+      let redirectUrl = '/student'; // Default for regular users
+      
+      if (userRole === 'admin') {
+        console.log('Redirecting admin to admin dashboard');
+        redirectUrl = '/admin';
+      } else if (userRole === 'instructor') {
+        console.log('Redirecting instructor to instructor dashboard');
+        redirectUrl = '/instructor';
+      }
+      
+      console.log(`Redirecting to: ${redirectUrl}`);
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
+    }
+
+    // Verificar permisos según el rol del usuario
+    if (pathname.startsWith('/admin') && userRole !== 'admin') {
+      if (userRole === 'instructor') {
+        return NextResponse.redirect(new URL('/instructor', request.url));
+      } else {
+        return NextResponse.redirect(new URL('/student', request.url));
+      }
+    }
+
+    if (pathname.startsWith('/instructor') && !['admin', 'instructor'].includes(userRole)) {
+      return NextResponse.redirect(new URL('/student', request.url));
+    }
+
+    // Permitir el acceso al usuario autenticado a las rutas permitidas
+    return NextResponse.next();
+  } catch (error) {
+    console.error('Error in middleware:', error);
+    // In case of error, allow the request to proceed
     return NextResponse.next();
   }
-
-  // Usuario autenticado
-  console.log('Authenticated user detected in middleware');
-  const userRole = session.user.role as string || 'user';
-  console.log('User role:', userRole);
-
-  // Si el usuario autenticado intenta acceder a páginas públicas como login o registro,
-  // redirigir al dashboard correspondiente según su rol
-  if (
-    pathname === '/login' || 
-    pathname === '/register' ||
-    pathname === '/'
-  ) {
-    console.log('Authenticated user accessing public page, redirecting based on role');
-    
-    // Check if user has a phone number
-    if (!session.user.phone || session.user.phone === "") {
-      console.log("User doesn't have a phone number, redirecting to complete profile page");
-      return NextResponse.redirect(new URL('/complete-profile', request.url));
-    }
-    
-    if (userRole === 'admin') {
-      console.log('Redirecting admin to admin dashboard');
-      return NextResponse.redirect(new URL('/admin', request.url));
-    } else if (userRole === 'instructor') {
-      console.log('Redirecting instructor to instructor dashboard');
-      return NextResponse.redirect(new URL('/instructor', request.url));
-    } else {
-      console.log('Redirecting user to student dashboard');
-      return NextResponse.redirect(new URL('/student', request.url));
-    }
-  }
-
-  // Verificar permisos según el rol del usuario
-  if (pathname.startsWith('/admin') && userRole !== 'admin') {
-    if (userRole === 'instructor') {
-      return NextResponse.redirect(new URL('/instructor', request.url));
-    } else {
-      return NextResponse.redirect(new URL('/student', request.url));
-    }
-  }
-
-  if (pathname.startsWith('/instructor') && !['admin', 'instructor'].includes(userRole)) {
-    return NextResponse.redirect(new URL('/student', request.url));
-  }
-
-  // Permitir el acceso al usuario autenticado a las rutas permitidas
-  return NextResponse.next();
 }
 
 // Configurar sobre qué rutas se aplica el middleware
