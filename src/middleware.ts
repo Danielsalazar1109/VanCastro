@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { getSession } from 'next-auth/react';
 
 // Rutas públicas que siempre son accesibles
 const publicRoutes = ['/', '/login', '/register', '/plans', '/faq', '/contact', '/booking', '/contracts'];
@@ -22,17 +22,14 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Get the token from the request
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
+    // Get the session from the request
+    const session = await getSession({ req: request as any });
 
-    // Log token for debugging
-    console.log('Middleware token:', token);
+    // Log session for debugging
+    console.log('Middleware session:', session);
     
     // No hay sesión (usuario no autenticado)
-    if (!token) {
+    if (!session || !session.user) {
       console.log('No authenticated user detected in middleware');
       // Si intenta acceder a una ruta protegida, redirigir a login
       if (
@@ -50,8 +47,8 @@ export async function middleware(request: NextRequest) {
     // Usuario autenticado
     console.log('Authenticated user detected in middleware');
     
-    // Access role directly from token
-    const userRole = token.role as string || 'user';
+    // Access role directly from session
+    const userRole = session.user.role as string || 'user';
     console.log('User role:', userRole);
 
     // Temporarily disable middleware redirection for authenticated users on public pages
@@ -60,6 +57,8 @@ export async function middleware(request: NextRequest) {
     
     // Uncomment this block if you want to re-enable middleware redirection later
     /*
+    // Si el usuario autenticado intenta acceder a páginas públicas como login o registro,
+    // redirigir al dashboard correspondiente según su rol
     if (
       pathname === '/login' || 
       pathname === '/register' ||
@@ -68,7 +67,7 @@ export async function middleware(request: NextRequest) {
       console.log('Authenticated user accessing public page, redirecting based on role');
       
       // Check if user has a phone number
-      if (!token.phone || token.phone === "") {
+      if (!session.user.phone || session.user.phone === "") {
         console.log("User doesn't have a phone number, redirecting to complete profile page");
         return NextResponse.redirect(new URL('/complete-profile', request.url));
       }
