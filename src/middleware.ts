@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/instructor') ||
         pathname.startsWith('/admin')
       ) {
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.redirect(new URL('/plans', request.url));
       }
       
       // Permitir acceso a rutas públicas
