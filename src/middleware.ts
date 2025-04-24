@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 // Rutas públicas que siempre son accesibles
-const publicRoutes = ['/', '/login', '/register', '/plans', '/faq', '/contact', '/booking', '/contracts'];
-const studentRoutes = ['/student'];
+const publicRoutes = ['/', '/login', '/register', '/plans', '/faq', '/contact', '/booking', '/contracts', '/privacy-policy', '/complete-profile'];
+const studentRoutes = ['/student', '/tracking'];
 const instructorRoutes = ['/instructor'];
 const adminRoutes = ['/admin'];
 
@@ -21,15 +22,19 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Check for the session cookie
-    const sessionCookie = request.cookies.get('next-auth.session-token');
+    // Obtener el token JWT y decodificarlo
+    const token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET
+    });
     
-    // Log session cookie for debugging
-    console.log('Middleware session cookie:', sessionCookie ? 'exists' : 'not found');
+    // Log token for debugging
+    console.log('Middleware token:', token ? 'exists' : 'not found');
     
-    // No hay sesión (usuario no autenticado)
-    if (!sessionCookie) {
+    // No hay token (usuario no autenticado)
+    if (!token) {
       console.log('No authenticated user detected in middleware');
+      
       // Si intenta acceder a una ruta protegida, redirigir a login
       if (
         pathname.startsWith('/student') || 
@@ -44,26 +49,37 @@ export async function middleware(request: NextRequest) {
     }
 
     // Usuario autenticado
-    console.log('Authenticated user detected in middleware');
+    console.log('Authenticated user detected in middleware, role:', token.role);
     
-    // Since we can't access the token's content directly, we'll use a simpler approach
-    // We'll redirect based on the URL pattern, assuming the user has the right role
-    // The actual role-based access control will be handled by the page components
-
-    // Re-enable middleware redirection for authenticated users on public pages
-    // since the client-side redirection logic in the login page isn't working correctly
-    if (
-      pathname === '/login' || 
-      pathname === '/register' ||
-      pathname === '/'
-    ) {
-      console.log('Authenticated user accessing public page, redirecting to dashboard');
+    // Redirigir usuarios autenticados en páginas públicas a su dashboard correspondiente
+    if (publicRoutes.some(route => pathname === route)) {
+      // Redirigir basado en el rol del usuario
+      if (token.role === 'admin') {
+        return NextResponse.redirect(new URL('/admin', request.url));
+      } else if (token.role === 'instructor') {
+        return NextResponse.redirect(new URL('/instructor', request.url));
+      } else {
+        // Por defecto, redirigir a estudiante
+        return NextResponse.redirect(new URL('/student', request.url));
+      }
     }
 
-    // For protected routes, we'll let the page components handle the role-based access control
-    // The middleware will just check if the user is authenticated
+    // Verificar acceso basado en roles para rutas protegidas
+    if (pathname.startsWith('/admin') && token.role !== 'admin') {
+      // Si no es admin, redirigir según su rol
+      if (token.role === 'instructor') {
+        return NextResponse.redirect(new URL('/instructor', request.url));
+      } else {
+        return NextResponse.redirect(new URL('/student', request.url));
+      }
+    }
 
-    // Permitir el acceso al usuario autenticado a las rutas permitidas
+    if (pathname.startsWith('/instructor') && token.role !== 'instructor' && token.role !== 'admin') {
+      // Si no es instructor ni admin, redirigir a estudiante
+      return NextResponse.redirect(new URL('/student', request.url));
+    }
+
+    // Permitir el acceso al usuario autenticado a las rutas permitidas según su rol
     return NextResponse.next();
   } catch (error) {
     console.error('Error in middleware:', error);
