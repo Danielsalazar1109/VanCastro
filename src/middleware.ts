@@ -57,7 +57,11 @@ export async function middleware(request: NextRequest) {
       pathname === '/register' ||
       pathname === '/'
     ) {
-      console.log('Authenticated user accessing public page, redirecting to student dashboard');
+      console.log('Authenticated user accessing public page, redirecting to dashboard');
+      
+      // Since we can't access the token's content directly in middleware,
+      // we'll redirect to a special endpoint that can check the session and redirect accordingly
+      return NextResponse.redirect(new URL('/api/auth/session-redirect', request.url));
     }
 
     // For protected routes, we'll let the page components handle the role-based access control
