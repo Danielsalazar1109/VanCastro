@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSession } from 'next-auth/react';
+import { getToken } from 'next-auth/jwt';
 
 // Rutas públicas que siempre son accesibles
 const publicRoutes = ['/', '/login', '/register', '/plans', '/faq', '/contact', '/booking', '/contracts'];
@@ -22,14 +22,17 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Get the session from the request
-    const session = await getSession({ req: request as any });
+    // Get the token from the request
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
 
-    // Log session for debugging
-    console.log('Middleware session:', session);
+    // Log token for debugging
+    console.log('Middleware token:', token);
     
     // No hay sesión (usuario no autenticado)
-    if (!session || !session.user) {
+    if (!token) {
       console.log('No authenticated user detected in middleware');
       // Si intenta acceder a una ruta protegida, redirigir a login
       if (
@@ -47,8 +50,8 @@ export async function middleware(request: NextRequest) {
     // Usuario autenticado
     console.log('Authenticated user detected in middleware');
     
-    // Access role directly from session
-    const userRole = session.user.role as string || 'user';
+    // Access role directly from token
+    const userRole = token.role as string || 'user';
     console.log('User role:', userRole);
 
     // Temporarily disable middleware redirection for authenticated users on public pages
@@ -67,7 +70,7 @@ export async function middleware(request: NextRequest) {
       console.log('Authenticated user accessing public page, redirecting based on role');
       
       // Check if user has a phone number
-      if (!session.user.phone || session.user.phone === "") {
+      if (!token.phone || token.phone === "") {
         console.log("User doesn't have a phone number, redirecting to complete profile page");
         return NextResponse.redirect(new URL('/complete-profile', request.url));
       }
