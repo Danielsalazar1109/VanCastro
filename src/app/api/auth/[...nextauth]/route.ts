@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { getServerSession } from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcrypt";
@@ -11,7 +12,6 @@ import {
   hasExceededMaxAttempts,
   getAttemptsInfo
 } from "@/lib/utils/loginRateLimiter";
-
 // Determine the base URL based on environment
 const baseUrl = process.env.NODE_ENV === "production" 
   ? "https://vancastro.vercel.app" 
@@ -191,23 +191,44 @@ const handler = NextAuth({
       console.log('Effective Base URL:', effectiveBaseUrl);
       console.log('NODE_ENV:', process.env.NODE_ENV);
       
-      // Simply return the original URL or the base URL if it's a callback
-      // Let the middleware handle the redirection based on authentication status
       try {
-        // If it's a callback URL, redirect to the base URL
-        // This avoids redirecting directly to /login which could cause loops
-        if (url.includes('callback')) {
-          console.log('Callback URL detected, redirecting to base URL');
-          return effectiveBaseUrl;
+        // If this is a sign-in callback, get the user's role and redirect accordingly
+        if (url.includes('callback') || url === effectiveBaseUrl || url === `${effectiveBaseUrl}/`) {
+          // We need to get the session to determine the user's role
+          // This is a bit of a hack, but it works
+          const session = await getServerSession();
+          console.log('Session in redirect callback:', session);
+          
+          if (session?.user) {
+            // Check if user has a phone number
+            if (!session.user.phone || session.user.phone === "") {
+              console.log("User doesn't have a phone number, redirecting to complete profile page");
+              return `${effectiveBaseUrl}/complete-profile`;
+            }
+            
+            // Redirect based on user role
+            const userRole = session.user.role;
+            console.log('User role in redirect callback:', userRole);
+            
+            if (userRole === 'admin') {
+              console.log('Redirecting admin to admin dashboard');
+              return `${effectiveBaseUrl}/admin`;
+            } else if (userRole === 'instructor') {
+              console.log('Redirecting instructor to instructor dashboard');
+              return `${effectiveBaseUrl}/instructor`;
+            } else {
+              console.log('Redirecting user to student dashboard');
+              return `${effectiveBaseUrl}/student`;
+            }
+          }
         }
         
         // For all other cases, return the original URL
-        // The middleware will handle redirecting authenticated users appropriately
         return url;
       } catch (error) {
         console.error('Error in redirect callback:', error);
-        // In case of error, redirect to the base URL
-        return effectiveBaseUrl;
+        // In case of error, redirect to the login page
+        return `${effectiveBaseUrl}/login`;
       }
     },
   },
