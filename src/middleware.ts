@@ -54,8 +54,12 @@ export async function middleware(request: NextRequest) {
     const userRole = token.role as string || 'user';
     console.log('User role:', userRole);
 
-    // Si el usuario autenticado intenta acceder a páginas públicas como login o registro,
-    // redirigir al dashboard correspondiente según su rol
+    // Temporarily disable middleware redirection for authenticated users on public pages
+    // to let the client-side redirection logic in the login page handle it
+    console.log('Authenticated user detected, but letting client-side handle redirection');
+    
+    // Uncomment this block if you want to re-enable middleware redirection later
+    /*
     if (
       pathname === '/login' || 
       pathname === '/register' ||
@@ -83,6 +87,7 @@ export async function middleware(request: NextRequest) {
       console.log(`Redirecting to: ${redirectUrl}`);
       return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
+    */
 
     // Verificar permisos según el rol del usuario
     if (pathname.startsWith('/admin') && userRole !== 'admin') {
