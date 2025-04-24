@@ -163,6 +163,7 @@ export default function AdminDashboard() {
   const [isDateFiltered, setIsDateFiltered] = useState<boolean>(false);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [dateRangeOffset, setDateRangeOffset] = useState<number>(0); // Track pagination offset
+  const [isDateFilterLoading, setIsDateFilterLoading] = useState<boolean>(false); // Loading state for date filtering
   
   // Format current date as YYYY-MM-DD
   const formatCurrentDate = (): string => {
@@ -223,26 +224,37 @@ export default function AdminDashboard() {
   
   // Filter bookings by selected date
   const filterBookingsByDate = (date: string) => {
-    if (date === 'all') {
-      // Show all bookings
-      setFilteredBookings([]);
-      setIsDateFiltered(false);
-    } else {
-      // Filter bookings to only include those for the selected date
-      const filteredBookings = allBookings.filter((booking: Booking) => {
-        // Handle dates like "2025-03-24T00:00:00.000+00:00"
-        // Extract just the YYYY-MM-DD part from the booking date
-        const bookingDateStr = booking.date.split('T')[0];
+    // Set loading state to true
+    setIsDateFilterLoading(true);
+    
+    // Set the selected date immediately for UI feedback
+    setSelectedDate(date);
+    
+    // Use setTimeout to create a small delay for better UX
+    setTimeout(() => {
+      if (date === 'all') {
+        // Show all bookings
+        setFilteredBookings([]);
+        setIsDateFiltered(false);
+      } else {
+        // Filter bookings to only include those for the selected date
+        const filteredBookings = allBookings.filter((booking: Booking) => {
+          // Handle dates like "2025-03-24T00:00:00.000+00:00"
+          // Extract just the YYYY-MM-DD part from the booking date
+          const bookingDateStr = booking.date.split('T')[0];
+          
+          // Compare the date strings directly
+          return bookingDateStr === date;
+        });
         
-        // Compare the date strings directly
-        return bookingDateStr === date;
-      });
+        // Update state with filtered bookings
+        setFilteredBookings(filteredBookings || []);
+        setIsDateFiltered(true);
+      }
       
-      // Update state with filtered bookings
-      setFilteredBookings(filteredBookings || []);
-      setIsDateFiltered(true);
-      setSelectedDate(date);
-    }
+      // Set loading state back to false
+      setIsDateFilterLoading(false);
+    }, 500); // 500ms delay for a smooth transition
   };
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [newPrice, setNewPrice] = useState({
@@ -524,6 +536,130 @@ export default function AdminDashboard() {
       }
     }
   }, [isAdmin, activeTab]);
+  
+  // Filter bookings by today's date when approved-bookings tab is active and bookings are loaded
+  useEffect(() => {
+    if (isAdmin && activeTab === 'approved-bookings' && allBookings.length > 0) {
+      // Explicitly set selectedDate to today and filter bookings
+      setSelectedDate(todayFormatted);
+      filterBookingsByDate(todayFormatted);
+    }
+  }, [isAdmin, activeTab, allBookings, todayFormatted]);
+  
+  // Listen for signature updates from ContractSignModal
+  useEffect(() => {
+    const handleSignatureUpdate = (event: MessageEvent) => {
+      // Check if the message is a signature update
+      if (event.data && event.data.type === 'SIGNATURE_UPDATED') {
+        console.log('Signature update detected in admin view:', event.data);
+        
+        // Get the booking ID and timestamp from the message
+        const { bookingId, timestamp } = event.data;
+        
+        // Refresh bookings data if we're on the approved-bookings tab
+        if (activeTab === 'approved-bookings') {
+          console.log('Updating signature in admin view for booking:', bookingId);
+          
+          // Immediately update the DOM to show the View button
+          // This is a direct approach to ensure the UI updates immediately
+          try {
+            // Find all booking rows in the table
+            const bookingRows = document.querySelectorAll('tr');
+            bookingRows.forEach(row => {
+              // Check if this row contains the booking ID
+              const bookingIdCell = row.querySelector(`[data-booking-id="${bookingId}"]`);
+              if (bookingIdCell) {
+                // Find the signature cell in this row
+                const signatureCell = row.querySelector('.signature-cell');
+                if (signatureCell) {
+                  // Replace "Not signed" with a View button
+                  if (signatureCell.textContent?.trim() === 'Not signed') {
+                    signatureCell.innerHTML = `
+                      <button
+                        class="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M22 12.5V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8.5"></path>
+                          <path d="M22 14h-4"></path>
+                          <path d="M18 14v4"></path>
+                          <path d="M15 10v4"></path>
+                          <path d="M10 10v4"></path>
+                          <path d="M18 10V6"></path>
+                          <path d="M15 6v4"></path>
+                          <path d="M10 6v4"></path>
+                        </svg>
+                        View
+                      </button>
+                    `;
+                    console.log('Updated signature cell in DOM');
+                  }
+                }
+              }
+            });
+          } catch (domError) {
+            console.error('Error updating DOM:', domError);
+          }
+          
+          // Also update the state for React rendering
+          // Create a copy of the current bookings arrays to avoid mutation
+          const newAllBookings = [...allBookings];
+          const newFilteredBookings = isDateFiltered ? [...filteredBookings] : [];
+          
+          // Find the booking in both arrays and update it
+          const allBookingIndex = newAllBookings.findIndex(b => b._id === bookingId);
+          const filteredBookingIndex = isDateFiltered ? newFilteredBookings.findIndex(b => b._id === bookingId) : -1;
+          
+          console.log('Found booking in allBookings:', allBookingIndex !== -1);
+          console.log('Found booking in filteredBookings:', filteredBookingIndex !== -1);
+          
+          // Create a dummy signature object to trigger UI update
+          const dummySignature = {
+            data: "updating...",
+            date: new Date(timestamp)
+          };
+          
+          // Update the booking in allBookings if found
+          if (allBookingIndex !== -1) {
+            newAllBookings[allBookingIndex] = {
+              ...newAllBookings[allBookingIndex],
+              signature: dummySignature
+            };
+            // Force immediate update
+            setAllBookings(newAllBookings);
+            console.log('Updated allBookings state');
+          }
+          
+          // Update the booking in filteredBookings if found
+          if (isDateFiltered && filteredBookingIndex !== -1) {
+            newFilteredBookings[filteredBookingIndex] = {
+              ...newFilteredBookings[filteredBookingIndex],
+              signature: dummySignature
+            };
+            // Force immediate update
+            setFilteredBookings(newFilteredBookings);
+            console.log('Updated filteredBookings state');
+          }
+          
+          // Use setTimeout with a longer delay to ensure the UI updates before fetching new data
+          setTimeout(() => {
+            // Then fetch the latest data from the API
+            console.log('Fetching latest data from API');
+            fetchAllBookings();
+          }, 500);
+        }
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('message', handleSignatureUpdate);
+    console.log('Added signature update event listener');
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('message', handleSignatureUpdate);
+      console.log('Removed signature update event listener');
+    };
+  }, [activeTab]); // Only depend on activeTab to prevent unnecessary recreation
   
   const fetchLocations = async () => {
     try {
@@ -1771,14 +1907,9 @@ export default function AdminDashboard() {
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Terms Accepted</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">License Confirmed</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Privacy Policy</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
-                        <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
-                        <th className="py-3 px-4 border-b text-left text-yellow-700">Signature</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
+                      <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
                         <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
                         <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                         </tr>
@@ -1808,39 +1939,6 @@ export default function AdminDashboard() {
                           {booking.user.phone}
                         </td>
                         <td className="py-2 px-4 border-b">
-                          {booking.termsAcceptedAt 
-                            ? new Date(booking.termsAcceptedAt).toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Not accepted'}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.hasLicenseAcceptedAt 
-                            ? new Date(booking.hasLicenseAcceptedAt).toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Not confirmed'}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.privacyPolicyAcceptedAt 
-                            ? new Date(booking.privacyPolicyAcceptedAt).toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Not accepted'}
-                        </td>
-                        <td className="py-2 px-4 border-b">
                           {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
                         </td>
                         <td className="py-2 px-4 border-b">
@@ -1857,46 +1955,6 @@ export default function AdminDashboard() {
                           >
                             {booking.paymentStatus}
                           </span>
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.document ? (
-                            <div className="flex items-center">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Uploaded</span>
-                              <button 
-                                onClick={() => {
-                                  if (booking.document) {
-                                    setViewingDocument(booking.document);
-                                    setIsDocumentModalOpen(true);
-                                  }
-                                }}
-                                className="text-blue-500 hover:underline text-sm"
-                              >
-                                View
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not uploaded</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.signature ? (
-                            <div className="flex items-center">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Signed</span>
-                              <button 
-                                onClick={() => {
-                                  if (booking.signature) {
-                                    setViewingSignature(booking.signature);
-                                    setIsSignatureModalOpen(true);
-                                  }
-                                }}
-                                className="text-blue-500 hover:underline text-sm"
-                              >
-                                View
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not signed</span>
-                          )}
                         </td>
                         <td className="py-2 px-4 border-b">
                           {/* Replace the static calculation with the dynamic component */}
@@ -2072,7 +2130,12 @@ export default function AdminDashboard() {
               </div>
             )}
             
-            {allBookings.length === 0 && !isDateFiltered ? (
+            {isDateFilterLoading ? (
+              <div className="flex justify-center items-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+                <span className="ml-3 text-lg text-yellow-600 font-medium">Loading bookings...</span>
+              </div>
+            ) : allBookings.length === 0 && !isDateFiltered ? (
               <div className="text-center py-10 bg-slate-50 rounded-lg">
                 <p className="text-slate-500">No approved bookings found.</p>
               </div>
@@ -2093,9 +2156,6 @@ export default function AdminDashboard() {
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Terms Accepted</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">License Confirmed</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Privacy Policy</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
                       <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
@@ -2128,39 +2188,6 @@ export default function AdminDashboard() {
                           {booking.user.phone}
                         </td>
                         <td className="py-2 px-4 border-b">
-                          {booking.termsAcceptedAt 
-                            ? new Date(booking.termsAcceptedAt).toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Not accepted'}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.hasLicenseAcceptedAt 
-                            ? new Date(booking.hasLicenseAcceptedAt).toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Not confirmed'}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.privacyPolicyAcceptedAt 
-                            ? new Date(booking.privacyPolicyAcceptedAt).toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Not accepted'}
-                        </td>
-                        <td className="py-2 px-4 border-b">
                           {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
                         </td>
                         <td className="py-2 px-4 border-b">
@@ -2180,42 +2207,49 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-2 px-4 border-b">
                           {booking.document ? (
-                            <div className="flex items-center">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Uploaded</span>
-                              <button 
-                                onClick={() => {
-                                  if (booking.document) {
-                                    setViewingDocument(booking.document);
-                                    setIsDocumentModalOpen(true);
-                                  }
-                                }}
-                                className="text-blue-500 hover:underline text-sm"
+                            <button
+                              onClick={() => {
+                                setViewingDocument(booking.document || null);
+                                setIsDocumentModalOpen(true);
+                              }}
+                              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className="h-4 w-4 mr-1" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
                               >
-                                View
-                              </button>
-                            </div>
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                              </svg>
+                              View
+                            </button>
                           ) : (
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not uploaded</span>
+                            <span className="text-gray-400 text-sm px-3">Not uploaded</span>
                           )}
                         </td>
                         <td className="py-2 px-4 border-b">
                           {booking.signature ? (
-                            <div className="flex items-center">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 mr-2">Signed</span>
-                              <button 
-                                onClick={() => {
-                                  if (booking.signature) {
-                                    setViewingSignature(booking.signature);
-                                    setIsSignatureModalOpen(true);
-                                  }
-                                }}
-                                className="text-blue-500 hover:underline text-sm"
-                              >
-                                View
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => {
+                                setViewingSignature(booking.signature || null);
+                                setIsSignatureModalOpen(true);
+                              }}
+                              className="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                            >
+                              <FileSignature className="h-4 w-4 mr-1" />
+                              View
+                            </button>
                           ) : (
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Not signed</span>
+                            <span className="text-gray-400 text-center text-sm">Not signed</span>
                           )}
                         </td>
                         <td className="py-3 px-4 border-b">

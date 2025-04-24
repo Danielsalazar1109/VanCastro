@@ -12,6 +12,7 @@ import LoadingComponent from "@/components/layout/Loading";
 import { IBooking } from "@/models/Booking";
 import DocumentUpload from "@/components/forms/DocumentUpload";
 import ContractSignModal from "@/components/forms/ContractSignModal";
+import SignatureModal from "@/components/forms/SignatureModal";
 
 // Modal component for viewing booking details
 interface BookingModalProps {
@@ -120,6 +121,8 @@ interface Booking {
   startTime: string;
   endTime: string;
   status: string;
+  document?: any; // Document uploaded by the user
+  signature?: any; // Signature provided by the user
   updatedAt?: string; // Add updatedAt property
   createdAt?: string; // Add createdAt for consistency
 }
@@ -254,10 +257,39 @@ export default function InstructorDashboard() {
 
   // Filter bookings by today's date when component mounts or when tab changes
   useEffect(() => {
-    if (instructorId && selectedDate && activeTab === 'bookings') {
-      filterBookingsByDate(selectedDate);
+    if (instructorId && activeTab === 'bookings') {
+      // Always filter by today's date when the component mounts or tab changes
+      const today = new Date().toISOString().split('T')[0];
+      setSelectedDate(today);
+      filterBookingsByDate(today);
     }
   }, [instructorId, activeTab]);
+  
+  // Listen for signature updates from ContractSignModal
+  useEffect(() => {
+    const handleSignatureUpdate = (event: MessageEvent) => {
+      // Check if the message is a signature update
+      if (event.data && event.data.type === 'SIGNATURE_UPDATED') {
+        console.log('Signature update detected in instructor view:', event.data);
+        
+        // Refresh bookings data if we're on the bookings tab
+        if (activeTab === 'bookings' && instructorId) {
+          fetchBookings();
+          
+          // Re-apply date filter
+          filterBookingsByDate(selectedDate);
+        }
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('message', handleSignatureUpdate);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('message', handleSignatureUpdate);
+    };
+  }, [activeTab, instructorId, selectedDate]);
 
   useEffect(() => {
     if (bookings.length > 0) {
@@ -460,12 +492,56 @@ export default function InstructorDashboard() {
         // Just fetch all bookings without filtering
         fetchBookings(false);
       } else {
-        // Use a more efficient API call with date filter
-        const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${date}`);
+        console.log(`Filtering bookings for date: ${date}`);
+        
+        // First fetch all bookings for this instructor
+        const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log(`Received ${data.bookings?.length || 0} bookings from API`);
+        
+        // Ensure we have a valid bookings array
+        const allBookings = Array.isArray(data.bookings) ? data.bookings : [];
+        
+        // Create a date object from the selected date string (in local timezone)
+        const selectedDateObj = new Date(date);
+        console.log(`Selected date: ${date}, as Date object: ${selectedDateObj.toISOString()}`);
+        
+        // Client-side filtering to show only bookings for the selected date
+        // This explicitly handles the timezone offset issue
+        const dateFilteredBookings = allBookings.filter((booking: Booking) => {
+          // Create a date object from the booking date (which is in UTC)
+          const bookingDateStr = booking.date;
+          const bookingDateObj = new Date(bookingDateStr);
+          
+          // Log the dates for debugging
+          console.log(`Booking ${booking._id}: Original date ${bookingDateStr}, as Date object: ${bookingDateObj.toISOString()}`);
+          
+          // Compare year, month, and day directly - but ADD ONE DAY to booking date
+          // This compensates for the timezone offset issue
+          const bookingDateAdjusted = new Date(bookingDateObj);
+          bookingDateAdjusted.setDate(bookingDateAdjusted.getDate() + 1);
+          
+          const matches = 
+            bookingDateAdjusted.getFullYear() === selectedDateObj.getFullYear() &&
+            bookingDateAdjusted.getMonth() === selectedDateObj.getMonth() &&
+            bookingDateAdjusted.getDate() === selectedDateObj.getDate();
+          
+          if (matches) {
+            console.log(`MATCH: Booking ${booking._id} - Adjusted date: ${bookingDateAdjusted.toISOString()}`);
+          }
+          
+          return matches;
+        });
+        
+        console.log(`Filtered to ${dateFilteredBookings.length} bookings for date ${date}`);
         
         // Update state with filtered bookings
-        setBookings(data.bookings || []);
+        setBookings(dateFilteredBookings);
       }
       
       setLoading(false);
@@ -476,11 +552,13 @@ export default function InstructorDashboard() {
     }
   };
 
-  // Reschedule state variables removed as requested
+  // State variables for modals
   const [selectedBookingForDocument, setSelectedBookingForDocument] = useState<Booking | null>(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [selectedBookingForContract, setSelectedBookingForContract] = useState<Booking | null>(null);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [viewingSignature, setViewingSignature] = useState<{data: string; date?: Date} | null>(null);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   
   // Reschedule and cancel handler functions removed as requested
   
@@ -822,21 +900,46 @@ export default function InstructorDashboard() {
                               setSelectedBookingForDocument(booking);
                               setIsDocumentModalOpen(true);
                             }}
-                            className="w-full py-2 px-3 bg-white/50 hover:bg-white/70 rounded-lg text-current font-medium text-sm flex items-center justify-center transition-colors mb-2"
+                            className={`
+                              w-full py-2 px-3 
+                              bg-white/50 hover:bg-white/70 
+                              rounded-lg text-current font-medium text-sm 
+                              flex items-center justify-center 
+                              transition-colors mb-2
+                              ${booking.document 
+                                ? 'border-2 border-green-500' 
+                                : 'border-2 border-dashed border-red-500'}
+                            `}
                           >
                             <FileText className="w-4 h-4 mr-2" />
-                            Manage Document
+                            {booking.document ? 'Update Document' : 'Upload Document'}
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); // Prevent triggering the card's onClick
-                              setSelectedBookingForContract(booking);
-                              setIsContractModalOpen(true);
+                              if (booking.signature) {
+                                // If already signed, show the signature modal
+                                setViewingSignature(booking.signature);
+                                setIsSignatureModalOpen(true);
+                              } else {
+                                // If not signed, open the contract signing modal
+                                setSelectedBookingForContract(booking);
+                                setIsContractModalOpen(true);
+                              }
                             }}
-                            className="w-full py-2 px-3 bg-white/50 hover:bg-white/70 rounded-lg text-current font-medium text-sm flex items-center justify-center transition-colors"
+                            className={`
+                              w-full py-2 px-3 
+                              bg-white/50 hover:bg-white/70 
+                              rounded-lg text-current font-medium text-sm 
+                              flex items-center justify-center 
+                              transition-colors
+                              ${booking.signature 
+                                ? 'border-2 border-green-500' 
+                                : 'border-2 border-dashed border-red-500'}
+                            `}
                           >
                             <FileSignature className="w-4 h-4 mr-2" />
-                            Sign Contract
+                            {booking.signature ? 'Review Sign' : 'Sign Contract'}
                           </button>
                         </div>
                       </div>
@@ -1040,6 +1143,13 @@ export default function InstructorDashboard() {
         classType={selectedBookingForContract.classType}
       />
     )}
+    
+    {/* Signature Modal */}
+    <SignatureModal
+      signature={viewingSignature}
+      isOpen={isSignatureModalOpen}
+      onClose={() => setIsSignatureModalOpen(false)}
+    />
     </>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { X, Save, RefreshCw } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
 
 interface ContractSignModalProps {
   isOpen: boolean;
@@ -36,9 +37,31 @@ const ContractSignModal: React.FC<ContractSignModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
   const signatureRef = useRef<SignatureCanvas>(null);
   const formattedClassType = classType.replace(/\s+/g, "");
   const contractInfo = contractsMap[formattedClassType];
+
+  // Load the PDF when the component mounts
+  useEffect(() => {
+    if (isOpen && contractInfo) {
+      const loadPdf = async () => {
+        try {
+          const response = await fetch(`/contracts/${contractInfo.fileName}`);
+          if (!response.ok) {
+            throw new Error(`Failed to load PDF: ${response.statusText}`);
+          }
+          const arrayBuffer = await response.arrayBuffer();
+          setPdfBytes(arrayBuffer);
+        } catch (err) {
+          console.error("Error loading PDF:", err);
+          setError("Failed to load contract PDF");
+        }
+      };
+      
+      loadPdf();
+    }
+  }, [isOpen, contractInfo]);
 
   // Close modal when clicking outside
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -54,9 +77,9 @@ const ContractSignModal: React.FC<ContractSignModalProps> = ({
     }
   };
 
-  // Save the signature
+  // Save the signature and combine with PDF
   const handleSave = async () => {
-    if (!signatureRef.current) return;
+    if (!signatureRef.current || !pdfBytes) return;
 
     // Check if signature pad is empty
     if (signatureRef.current.isEmpty()) {
@@ -70,7 +93,41 @@ const ContractSignModal: React.FC<ContractSignModalProps> = ({
 
     try {
       // Get signature as base64 data URL
-      const signatureData = signatureRef.current.toDataURL();
+      const signatureDataUrl = signatureRef.current.toDataURL();
+      
+      // Load the PDF document
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+      
+      // Get all pages of the document
+      const pages = pdfDoc.getPages();
+      // Get the last page of the document
+      const lastPage = pages[pages.length - 1];
+      
+      // Convert the signature to an image
+      const signatureImage = await pdfDoc.embedPng(signatureDataUrl);
+      
+      // Get page dimensions of the last page
+      const { width, height } = lastPage.getSize();
+      
+      // Determine y-coordinate based on class type
+      let signatureYPosition = 470; // Default for class5 and class7
+      if (formattedClassType === "class4") {
+        signatureYPosition = 230;
+      }
+      
+      // Add the signature to the PDF
+      lastPage.drawImage(signatureImage, {
+        x: width / 2 - 100, // Center the signature horizontally
+        y: signatureYPosition, // Position based on class type
+        width: 200, // Width of the signature
+        height: 30, // Height of the signature
+      });
+      
+      // Save the PDF
+      const signedPdfBytes = await pdfDoc.save();
+      
+      // Convert to base64 for sending to the server
+      const signedPdfBase64 = Buffer.from(signedPdfBytes).toString('base64');
 
       // Send to API
       const response = await fetch("/api/booking", {
@@ -81,7 +138,8 @@ const ContractSignModal: React.FC<ContractSignModalProps> = ({
         body: JSON.stringify({
           bookingId,
           signature: {
-            data: signatureData,
+            data: signedPdfBase64,
+            date: new Date(),
           },
         }),
       });
@@ -92,6 +150,27 @@ const ContractSignModal: React.FC<ContractSignModalProps> = ({
       }
 
       setSuccess("Contract signed successfully");
+      
+      // Trigger a refresh of the bookings in both admin and instructor views
+      // This will update the admin and instructor views without requiring a page reload
+      try {
+        // Refresh admin view
+        await fetch("/api/booking?status=approved");
+        
+        // Refresh instructor view
+        await fetch(`/api/booking?instructorId=${bookingId.split('-')[0]}&status=approved`);
+        
+        // Broadcast a message to all open windows/tabs to refresh their data
+        // This will notify both admin and instructor views about the signature update
+        window.postMessage({
+          type: "SIGNATURE_UPDATED",
+          bookingId,
+          timestamp: new Date().toISOString()
+        }, window.location.origin);
+      } catch (refreshError) {
+        console.error("Error refreshing bookings:", refreshError);
+        // Continue with normal flow even if refresh fails
+      }
       
       // Close modal after a short delay
       setTimeout(() => {
