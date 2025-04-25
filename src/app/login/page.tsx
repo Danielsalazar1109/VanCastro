@@ -104,7 +104,6 @@ function LoginPageContent() {
 
 			// After successful login, directly redirect to the appropriate dashboard
 			console.log("Login successful, redirecting based on role");
-			
 			// Add a small delay to ensure the session is fully updated
 			setTimeout(async () => {
 				try {
@@ -112,7 +111,6 @@ function LoginPageContent() {
 					const updatedResponse = await fetch("/api/auth/session");
 					const updatedSession = await updatedResponse.json();
 					console.log("Updated session after login:", updatedSession);
-					
 					// Use the updated session for redirection
 					if (!updatedSession?.user) {
 						console.error("No user in updated session");
@@ -120,18 +118,17 @@ function LoginPageContent() {
 						setLoading(false);
 						return;
 					}
-					
 					// Check if user has a phone number
 					if (!updatedSession.user.phone || updatedSession.user.phone === "") {
 						console.log("User doesn't have a phone number, redirecting to complete profile page");
 						window.location.replace("/complete-profile");
 						return;
 					}
-					
+
 					// Redirect based on user role
 					const userRole = updatedSession.user.role;
 					console.log("User role from updated session:", userRole);
-					
+
 					if (userRole === "user") {
 						console.log("User is a student, redirecting to student page");
 						window.location.replace("/student");
@@ -169,7 +166,7 @@ function LoginPageContent() {
 					</p>
 				</div>
 				<form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-					<div className="rounded-md shadow-sm -space-y-px">
+					<div className="rounded-md shadow-sm space-y-4">
 						<div>
 							<label htmlFor="email" className="block text-sm font-medium text-gray-700">
 								Email
@@ -180,13 +177,14 @@ function LoginPageContent() {
 								type="email"
 								autoComplete="email"
 								required
-								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
+								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow placeholder-gray-500"
 								placeholder="Email address"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
+								autoFocus
 							/>
 						</div>
-						<div className="mt-4">
+						<div className="mt-6">
 							<label htmlFor="password" className="block text-sm font-medium text-gray-700">
 								Password
 							</label>
@@ -197,7 +195,7 @@ function LoginPageContent() {
 									type={showPassword ? "text" : "password"}
 									autoComplete="current-password"
 									required
-									className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
+									className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow placeholder-gray-500"
 									placeholder="Password"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}

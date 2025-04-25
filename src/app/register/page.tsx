@@ -82,7 +82,7 @@ export default function RegisterPage() {
 						<h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Register as Student</h2>
 						<p className="mt-2 text-center text-sm text-gray-600">Create your student account</p>
 					</div>
-					<form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+					<form className="mt-8 space-y-6" onSubmit={handleSubmit}>
 						<div>
 							<label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
 								First Name
@@ -91,10 +91,11 @@ export default function RegisterPage() {
 								id="firstName"
 								type="text"
 								placeholder="First Name"
-								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
+								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow placeholder-gray-500"
 								value={firstName}
 								onChange={(e) => setFirstName(e.target.value)}
 								required
+								autoFocus
 							/>
 						</div>
 
@@ -106,7 +107,7 @@ export default function RegisterPage() {
 								id="lastName"
 								type="text"
 								placeholder="Last Name"
-								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
+								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow placeholder-gray-500"
 								value={lastName}
 								onChange={(e) => setLastName(e.target.value)}
 								required
@@ -121,7 +122,7 @@ export default function RegisterPage() {
 								id="email"
 								type="email"
 								placeholder="Email"
-								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
+								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow placeholder-gray-500"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								required
@@ -136,7 +137,7 @@ export default function RegisterPage() {
 								id="password"
 								type="password"
 								placeholder="Password"
-								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow"
+								className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow placeholder-gray-500"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
@@ -175,7 +176,7 @@ export default function RegisterPage() {
 											setPhone(cleaned); // Store without formatting for API submission
 										}
 									}}
-									className="flex-1 min-w-0 block w-full px-3 py-2 rounded-r-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow border border-gray-300"
+									className="flex-1 min-w-0 block w-full px-3 py-2 rounded-r-md focus:outline-none focus:ring-brand-yellow focus:border-brand-yellow border border-gray-300 placeholder-gray-500"
 								/>
 							</div>
 							<p className="mt-1 text-xs text-gray-500">

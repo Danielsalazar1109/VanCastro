@@ -163,9 +163,16 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 	const [termsAccepted, setTermsAccepted] = useState<boolean>(savedState?.termsAccepted || false);
 	const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(savedState?.termsAcceptedAt || null);
 	const [hasLicense, setHasLicense] = useState<boolean>(savedState?.hasLicense || false);
-	const [hasLicenseAcceptedAt, setHasLicenseAcceptedAt] = useState<string | null>(savedState?.hasLicenseAcceptedAt || null);
-	const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState<boolean>(savedState?.privacyPolicyAccepted || false);
-	const [privacyPolicyAcceptedAt, setPrivacyPolicyAcceptedAt] = useState<string | null>(savedState?.privacyPolicyAcceptedAt || null);
+	const [hasLicenseAcceptedAt, setHasLicenseAcceptedAt] = useState<string | null>(
+		savedState?.hasLicenseAcceptedAt || null
+	);
+	const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState<boolean>(
+		savedState?.privacyPolicyAccepted || false
+	);
+	const [privacyPolicyAcceptedAt, setPrivacyPolicyAcceptedAt] = useState<string | null>(
+		savedState?.privacyPolicyAcceptedAt || null
+	);
+	const [termsBeforeBooking, setTermsBeforeBooking] = useState<boolean>(savedState?.termsBeforeBooking || false);
 
 	// Data state
 	const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -222,6 +229,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 			privacyPolicyAcceptedAt,
 			step,
 			hasPassedKnowledgeTest,
+			termsBeforeBooking,
 		};
 
 		localStorage.setItem(`booking_form_${userId}`, JSON.stringify(stateToSave));
@@ -767,9 +775,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 	const fetchInstructors = async () => {
 		try {
 			setLoading(true);
-			const response = await fetch(
-				`/api/instructors${date ? `?checkDate=${date}` : ""}`
-			);
+			const response = await fetch(`/api/instructors${date ? `?checkDate=${date}` : ""}`);
 
 			if (!response.ok) {
 				throw new Error("Failed to fetch instructors");
@@ -788,16 +794,16 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 	const fetchInstructorLocations = async () => {
 		try {
 			setLoadingLocations(true);
-			
+
 			// Fetch all locations to get their full details
 			const response = await fetch("/api/locations?activeOnly=true");
-			
+
 			if (!response.ok) {
 				throw new Error("Failed to fetch locations");
 			}
-			
+
 			const data = await response.json();
-			
+
 			if (data.locations && data.locations.length > 0) {
 				// Format all locations
 				const formattedLocations = data.locations.map((loc: any) => ({
@@ -806,22 +812,22 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 						? `${loc.name.split(",")[0]} - ${loc.name.split(",")[1].trim()} Location`
 						: `${loc.name} Location`,
 				}));
-				
+
 				// Find the selected instructor
-				const selectedInstructor = instructors.find(instructor => instructor._id === instructorId);
-				
+				const selectedInstructor = instructors.find((instructor) => instructor._id === instructorId);
+
 				// If an instructor is selected, filter locations
 				if (selectedInstructor && selectedInstructor.teachingLocations) {
 					// Filter location options to only include locations where the instructor teaches
 					const instructorLocationNames = selectedInstructor.teachingLocations;
-					
+
 					// Filter locations to only include those where the instructor teaches
-					const filteredLocations = formattedLocations.filter(
-						(loc: any) => instructorLocationNames.includes(loc.value)
+					const filteredLocations = formattedLocations.filter((loc: any) =>
+						instructorLocationNames.includes(loc.value)
 					);
-					
+
 					setLocationOptions(filteredLocations);
-					
+
 					// If there's only one location, select it automatically
 					if (filteredLocations.length === 1) {
 						setLocation(filteredLocations[0].value);
@@ -843,11 +849,11 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 					{ value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" },
 				]);
 			}
-			
+
 			setLoadingLocations(false);
 		} catch (error) {
 			console.error("Error fetching instructor locations:", error);
-			
+
 			// Fallback to hardcoded locations if there's an error
 			setLocationOptions([
 				{ value: "Vancouver, 999 Kingsway", alt: "Vancouver - Kingsway Location" },
@@ -856,7 +862,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 				{ value: "Burnaby, 4399 Wayburne Dr", alt: "Burnaby - Wayburne Dr Location" },
 				{ value: "North Vancouver, 1331 Marine Drive", alt: "North Vancouver - Marine Drive Location" },
 			]);
-			
+
 			setLoadingLocations(false);
 		}
 	};
@@ -965,7 +971,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 					hasLicense,
 					hasLicenseAcceptedAt,
 					privacyPolicyAccepted,
-					privacyPolicyAcceptedAt
+					privacyPolicyAcceptedAt,
 				}),
 			});
 
@@ -993,7 +999,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 				// Also check if the selected date is available
 				return date !== "" && dateIsAvailable && instructorId !== "" && location !== "";
 			case 2:
-				return classType !== "" && packageType !== "" && duration !== 0;
+				return classType !== "" && packageType !== "" && duration !== 0 && hasLicense;
 			case 3:
 				return timeSlot !== "";
 			default:
@@ -1114,12 +1120,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 										</div>
 									</>
 								)}
-								<div className="flex justify-between mt-4 text-sm text-gray-600">
-									<span>Earliest Date: {new Date(getMinBookingDate()).toLocaleDateString()}</span>
-									<span>
-										Selected: {date ? new Date(date + "T00:00:00").toLocaleDateString() : "None"}
-									</span>
-								</div>
 							</div>
 						</div>
 
@@ -1198,13 +1198,15 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 
 				{step === 2 && (
 					<div className="space-y-8">
-						{/* Class Type - Keep CircularSelector */}
-						<CircularSelector
-							label="Select Class Type"
-							options={classTypeOptions}
-							selectedValue={classType}
-							onChange={handleClassTypeChange}
-						/>
+						{/* Class Type - With styled container */}
+						<div className="bg-yellow-50 border-2 border-yellow-300 p-4 rounded-lg">
+							<CircularSelector
+								label="Select Class Type"
+								options={classTypeOptions}
+								selectedValue={classType}
+								onChange={handleClassTypeChange}
+							/>
+						</div>
 
 						{/* Package Information - Discount Text */}
 						<div className="mb-6">
@@ -1238,7 +1240,8 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 							</div>
 						</div>
 
-						<div className="mb-4">
+						{/* Duration Selection - With styled container */}
+						<div className="bg-yellow-50 border-2 border-yellow-300 p-4 rounded-lg">
 							<label className="block text-gray-700 text-sm font-bold mb-4">Select Duration</label>
 							<div className="grid grid-cols-3 gap-3 sm:gap-5">
 								{durations.map((dur) => (
@@ -1250,7 +1253,6 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 											checked={duration === dur}
 											onChange={() => {
 												setDuration(dur);
-												// Always set package type to "1 lesson"
 												setPackageType("1 lesson");
 											}}
 											className="hidden"
@@ -1258,19 +1260,18 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 										<div
 											onClick={() => {
 												setDuration(dur);
-												// Always set package type to "1 lesson"
 												setPackageType("1 lesson");
 											}}
 											className={`
-                        w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full flex items-center justify-center 
-                        cursor-pointer transition-all duration-300 
-                        border-2 text-center relative
-                        ${
-							duration === dur
-								? "bg-yellow-400 border-yellow-500 scale-105 shadow-lg"
-								: "bg-white border-gray-300 hover:border-yellow-400 hover:bg-yellow-50 hover:scale-110"
-						}
-                      `}
+                w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full flex items-center justify-center 
+                cursor-pointer transition-all duration-300 
+                border-2 text-center relative
+                ${
+					duration === dur
+						? "bg-yellow-400 border-yellow-500 scale-105 shadow-lg"
+						: "bg-white border-gray-300 hover:border-yellow-400 hover:bg-yellow-50 hover:scale-110"
+				}
+              `}
 										>
 											<span className="text-sm sm:text-base font-semibold">
 												{dur === 120 ? "2 hours" : `${dur} min`}
@@ -1321,7 +1322,9 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 									/>
 								</div>
 								<label htmlFor="hasLicense" className="ml-2 text-sm font-medium text-gray-700">
-									I confirm that I have a valid {classType === "class 7" ? "learner's permit (yellow paper)" : "driver's license"} required for this class type
+									I confirm that I have a valid{" "}
+									{classType === "class 7" ? "learner's permit (yellow paper)" : "driver's license"}{" "}
+									required for this class type
 								</label>
 							</div>
 							{classType !== "" && !hasLicense && (
@@ -1331,6 +1334,7 @@ export default function NewBookingForm({ userId }: NewBookingFormProps) {
 							)}
 						</div>
 
+						{/* Navigation Buttons */}
 						<div className="flex justify-between mt-6">
 							<button
 								type="button"
