@@ -8,10 +8,7 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 
 // Initialize PDF.js worker
 // Use the worker from the npm package
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.6.172/pdf.worker.js';
 
 interface SignatureModalProps {
   signature: {
@@ -70,10 +67,11 @@ export default function SignatureModal({ signature, isOpen, onClose }: Signature
         } catch (error) {
           console.error('Error formatting PDF data:', error);
           setPdfError(error instanceof Error ? error : new Error('Error formatting PDF data'));
+          setIsLoading(false); // Also set loading to false on error
         }
       }
     }
-  }, [signature]);
+  }, [signature]); // Removed isLoading from dependencies to prevent infinite loop
 
   if (!isOpen || !signature) return null;
 

@@ -14,13 +14,13 @@
  */
 
 // This is a simplified PDF.js worker implementation
-// It's designed to work with PDF.js version 4.8.69
+// It's designed to work with PDF.js version 3.0.279
 // This worker handles basic PDF rendering operations
 
 "use strict";
 
 // Set the PDF.js worker version to match the API version
-const pdfjsVersion = "4.8.69";
+const pdfjsVersion = "3.6.172";
 
 // Create a global scope for the worker
 const globalScope = (typeof self !== "undefined") ? self : this;
