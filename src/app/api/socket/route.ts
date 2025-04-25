@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Store active connections by instructorId
-const instructorConnections: Record<string, Set<ReadableStreamDefaultController<any>>> = {};
+import { addInstructorConnection, removeInstructorConnection, broadcastBookingApproval } from '@/lib/utils/socketService';
 
 // This function handles the SSE connection
 export async function GET(request: NextRequest) {
@@ -22,13 +20,8 @@ export async function GET(request: NextRequest) {
   // Create a new ReadableStream for SSE
   const stream = new ReadableStream({
     start(controller) {
-      // Store the controller for this instructor
-      if (!instructorConnections[instructorId]) {
-        instructorConnections[instructorId] = new Set();
-      }
-      instructorConnections[instructorId].add(controller);
-      
-      console.log(`Instructor ${instructorId} connected to SSE`);
+      // Store the controller for this instructor using the utility function
+      addInstructorConnection(instructorId, controller);
       
       // Send initial connection message
       const connectMessage = `data: ${JSON.stringify({ type: 'CONNECTED', instructorId })}\n\n`;
@@ -36,11 +29,7 @@ export async function GET(request: NextRequest) {
     },
     cancel() {
       // Remove all connections for this instructor when any client disconnects
-      // This is a simplification - in a production app, you'd want to track individual connections
-      if (instructorConnections[instructorId]) {
-        delete instructorConnections[instructorId];
-        console.log(`Instructor ${instructorId} disconnected from SSE`);
-      }
+      removeInstructorConnection(instructorId);
     }
   });
 
@@ -54,32 +43,37 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// Function to broadcast booking approval to instructors
-export function broadcastBookingApproval(instructorId: string, bookingId: string) {
-  const controllers = instructorConnections[instructorId];
-  
-  if (controllers && controllers.size > 0) {
-    const messageObj = {
-      type: 'BOOKING_APPROVED',
-      instructorId,
-      bookingId,
-      timestamp: new Date().toISOString()
-    };
+// POST handler for the notify endpoint
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { instructorId, bookingId } = body;
     
-    const messageStr = `data: ${JSON.stringify(messageObj)}\n\n`;
+    if (!instructorId || !bookingId) {
+      return NextResponse.json(
+        { success: false, message: 'Missing required parameters' },
+        { status: 400 }
+      );
+    }
     
-    // Send the message to all connections for this instructor
-    controllers.forEach((controller) => {
-      try {
-        controller.enqueue(messageStr);
-      } catch (error) {
-        console.error('Error sending SSE message:', error);
-      }
-    });
+    const sent = broadcastBookingApproval(instructorId, bookingId);
     
-    console.log(`Broadcast booking approval to instructor ${instructorId}`);
-    return true;
+    if (sent) {
+      return NextResponse.json(
+        { success: true, message: 'Notification sent successfully' },
+        { status: 200 }
+      );
+    } else {
+      return NextResponse.json(
+        { success: false, message: 'No active connections for this instructor' },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error('Error in socket notify endpoint:', error);
+    return NextResponse.json(
+      { success: false, message: 'Internal server error' },
+      { status: 500 }
+    );
   }
-  
-  return false;
 }
