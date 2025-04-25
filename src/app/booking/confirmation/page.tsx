@@ -115,7 +115,7 @@ function BookingConfirmationContent() {
             firstName: booking.user.firstName,
             lastName: booking.user.lastName,
             email: booking.user.email,
-            date: new Date(booking.date).toLocaleDateString(),
+            date: new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' }),
             timeSlot: booking.startTime,
             service: booking.classType,
             confirmationNumber: 'DRV-' + booking._id.substring(0, 6).toUpperCase(),

@@ -529,12 +529,52 @@ export default function AdminDashboard() {
   
   // Filter bookings by today's date when approved-bookings tab is active and bookings are loaded
   useEffect(() => {
-    if (isAdmin && activeTab === 'approved-bookings' && allBookings.length > 0) {
-      // Explicitly set selectedDate to today and filter bookings
+    if (isAdmin && activeTab === 'approved-bookings') {
+      // Set loading state immediately to show loading indicator
+      setLoading(true);
+      setIsDateFilterLoading(true);
+      
+      // Explicitly set selectedDate to today
       setSelectedDate(todayFormatted);
-      filterBookingsByDate(todayFormatted);
+      
+      // Fetch all bookings and filter them in one operation
+      const fetchAndFilterBookings = async () => {
+        try {
+          const response = await fetch('/api/booking?status=approved');
+          const data = await response.json();
+          
+          // Process all data before updating any state
+          const newBookings = Array.isArray(data.bookings) ? data.bookings : [];
+          
+          // Filter bookings for today's date
+          const filteredBookings = newBookings.filter((booking: Booking) => {
+            // Extract just the YYYY-MM-DD part from the booking date
+            const bookingDateStr = booking.date.split('T')[0];
+            
+            // Compare date strings directly
+            return bookingDateStr === todayFormatted;
+          });
+          
+          console.log(`Filtered ${filteredBookings.length} bookings for today from ${newBookings.length} total bookings`);
+          
+          // Update all states at once to prevent intermediate renders
+          setAllBookings(newBookings);
+          setFilteredBookings(filteredBookings || []);
+          setIsDateFiltered(true);
+          
+          // Only set loading states to false after all processing is complete
+          setLoading(false);
+          setIsDateFilterLoading(false);
+        } catch (error) {
+          console.error('Error fetching approved bookings:', error);
+          setLoading(false);
+          setIsDateFilterLoading(false);
+        }
+      };
+      
+      fetchAndFilterBookings();
     }
-  }, [isAdmin, activeTab, allBookings, todayFormatted]);
+  }, [isAdmin, activeTab, todayFormatted]);
   
   // Listen for signature updates from ContractSignModal
   useEffect(() => {
@@ -640,16 +680,124 @@ export default function AdminDashboard() {
       }
     };
     
-    // Add event listener
+    // Handler for document updates
+    const handleDocumentUpdate = (event: MessageEvent) => {
+      // Check if the message is a document update
+      if (event.data && event.data.type === 'DOCUMENT_UPDATED') {
+        console.log('Document update detected in admin view:', event.data);
+        
+        // Get the booking ID and timestamp from the message
+        const { bookingId, userId, timestamp } = event.data;
+        
+        // Refresh bookings data if we're on the approved-bookings tab
+        if (activeTab === 'approved-bookings') {
+          console.log('Updating document in admin view for booking:', bookingId);
+          
+          // Immediately update the DOM to show the View button
+          try {
+            // Find all booking rows in the table
+            const bookingRows = document.querySelectorAll('tr');
+            bookingRows.forEach(row => {
+              // Check if this row contains the booking ID
+              const bookingIdCell = row.querySelector(`[data-booking-id="${bookingId}"]`);
+              if (bookingIdCell) {
+                // Find the document cell in this row
+                const documentCell = row.querySelector('td:nth-child(11)'); // Document is the 11th column
+                if (documentCell && documentCell.textContent?.trim() === 'Not uploaded') {
+                  documentCell.innerHTML = `
+                    <button
+                      class="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        class="h-4 w-4 mr-1" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        stroke-width="2" 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round"
+                      >
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                      View
+                    </button>
+                  `;
+                  console.log('Updated document cell in DOM');
+                }
+              }
+            });
+          } catch (domError) {
+            console.error('Error updating DOM:', domError);
+          }
+          
+          // Also update the state for React rendering
+          // Create a copy of the current bookings arrays to avoid mutation
+          const newAllBookings = [...allBookings];
+          const newFilteredBookings = isDateFiltered ? [...filteredBookings] : [];
+          
+          // Find the booking in both arrays and update it
+          const allBookingIndex = newAllBookings.findIndex(b => b._id === bookingId);
+          const filteredBookingIndex = isDateFiltered ? newFilteredBookings.findIndex(b => b._id === bookingId) : -1;
+          
+          console.log('Found booking in allBookings:', allBookingIndex !== -1);
+          console.log('Found booking in filteredBookings:', filteredBookingIndex !== -1);
+          
+          // Create a dummy document object to trigger UI update
+          const dummyDocument = {
+            data: "updating...",
+            filename: "document.pdf",
+            contentType: "application/pdf"
+          };
+          
+          // Update the booking in allBookings if found
+          if (allBookingIndex !== -1) {
+            newAllBookings[allBookingIndex] = {
+              ...newAllBookings[allBookingIndex],
+              document: dummyDocument
+            };
+            // Force immediate update
+            setAllBookings(newAllBookings);
+            console.log('Updated allBookings state with document');
+          }
+          
+          // Update the booking in filteredBookings if found
+          if (isDateFiltered && filteredBookingIndex !== -1) {
+            newFilteredBookings[filteredBookingIndex] = {
+              ...newFilteredBookings[filteredBookingIndex],
+              document: dummyDocument
+            };
+            // Force immediate update
+            setFilteredBookings(newFilteredBookings);
+            console.log('Updated filteredBookings state with document');
+          }
+          
+          // Use setTimeout with a longer delay to ensure the UI updates before fetching new data
+          setTimeout(() => {
+            // Then fetch the latest data from the API
+            console.log('Fetching latest data from API after document update');
+            fetchAllBookings();
+          }, 500);
+        }
+      }
+    };
+    
+    // Add event listeners
     window.addEventListener('message', handleSignatureUpdate);
-    console.log('Added signature update event listener');
+    window.addEventListener('message', handleDocumentUpdate);
+    console.log('Added signature and document update event listeners');
     
     // Clean up
     return () => {
       window.removeEventListener('message', handleSignatureUpdate);
-      console.log('Removed signature update event listener');
+      window.removeEventListener('message', handleDocumentUpdate);
+      console.log('Removed signature and document update event listeners');
     };
-  }, [activeTab]); // Only depend on activeTab to prevent unnecessary recreation
+  }, [activeTab, allBookings, filteredBookings, isDateFiltered]); // Include dependencies for the event handlers
   
   const fetchLocations = async () => {
     try {
@@ -1074,8 +1222,57 @@ export default function AdminDashboard() {
         throw new Error(data.error || 'Failed to approve booking');
       }
       
+      // Get the booking details to find the instructor ID
+      const bookingResponse = await fetch(`/api/booking?bookingId=${bookingId}`);
+      const bookingData = await bookingResponse.json();
+      
+      if (bookingResponse.ok && bookingData.booking) {
+        const instructorId = bookingData.booking.instructor._id;
+        
+        // Send notification to SSE endpoint
+        try {
+          // Notify the SSE endpoint about the booking approval
+          const sseResponse = await fetch('/api/socket/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: 'BOOKING_APPROVED',
+              bookingId,
+              instructorId,
+              timestamp: new Date().toISOString()
+            }),
+          });
+          
+          if (sseResponse.ok) {
+            console.log('SSE notification sent for booking approval:', bookingId);
+          } else {
+            console.error('Failed to send SSE notification:', await sseResponse.text());
+          }
+        } catch (sseError) {
+          console.error('Error sending SSE notification:', sseError);
+          // Non-critical error, don't throw
+        }
+      }
+      
       // Refresh bookings
       fetchPendingBookings();
+      
+      // Notify instructor panel of the approval via postMessage (for same-window updates)
+      try {
+        // Post a message that can be received by any window/tab
+        window.postMessage({
+          type: 'BOOKING_APPROVED',
+          bookingId,
+          timestamp: new Date().toISOString()
+        }, window.location.origin);
+        
+        console.log('Posted booking approval notification:', bookingId);
+      } catch (postError) {
+        console.error('Error posting booking approval message:', postError);
+        // Non-critical error, don't throw
+      }
     } catch (error: any) {
       console.error('Error approving booking:', error);
       alert(error.message || "Failed to approve booking");
@@ -1983,305 +2180,306 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {activeTab === 'approved-bookings' && (
-          <div>
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center">
-                  <h2 className="text-2xl font-bold text-slate-800 flex items-center">
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="mr-3 text-yellow-500 h-6 w-6"
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    >
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    Approved Bookings
-                  </h2>
-                </div>
-                <div className="flex space-x-3">
-                  {/* Send Reminders button removed - reminders are sent automatically */}
-                </div>
-              </div>
-              
-              {/* Day selector with pagination arrows */}
-              <div className="bg-white p-4 rounded-xl shadow-md mb-4">
-                <div className="flex items-center justify-center py-2">
-                  {/* Previous week arrow */}
-                  <button 
-                    onClick={goToPreviousWeek}
-                    className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
-                    aria-label="Previous week"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+            {activeTab === 'approved-bookings' && (
+              <div>
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center">
+                      <h2 className="text-2xl font-bold text-slate-800 flex items-center">
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="mr-3 text-yellow-500 h-6 w-6"
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        >
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        Approved Bookings
+                      </h2>
+                    </div>
+                    <div className="flex space-x-3">
+                      {/* Send Reminders button removed - reminders are sent automatically */}
+                    </div>
+                  </div>
                   
-                  {/* Day selector circles */}
-                  <div className="flex space-x-2">
-                    {generateDates().map((date, index) => {
-                      const { day, date: dateNum, fullDate } = formatDateForSelector(date);
-                      const isSelected = fullDate === selectedDate;
-                      const isToday = formatDateForSelector(new Date()).fullDate === fullDate;
+                  {/* Day selector with pagination arrows */}
+                  <div className="bg-white p-4 rounded-xl shadow-md mb-4">
+                    <div className="flex items-center justify-center py-2">
+                      {/* Previous week arrow */}
+                      <button 
+                        onClick={goToPreviousWeek}
+                        className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+                        aria-label="Previous week"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
                       
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => filterBookingsByDate(fullDate)}
-                          className={`
-                            flex flex-col items-center justify-center
-                            w-16 h-16 rounded-full transition-all duration-200
-                            ${
+                      {/* Day selector circles */}
+                      <div className="flex space-x-2">
+                        {generateDates().map((date, index) => {
+                          const { day, date: dateNum, fullDate } = formatDateForSelector(date);
+                          const isSelected = fullDate === selectedDate;
+                          const isToday = formatDateForSelector(new Date()).fullDate === fullDate;
+                          
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => filterBookingsByDate(fullDate)}
+                              className={`
+                                flex flex-col items-center justify-center
+                                w-16 h-16 rounded-full transition-all duration-200
+                                ${
 								isSelected
 									? "bg-yellow-500 text-black shadow-lg transform scale-110"
 									: isToday
 										? "bg-yellow-100 text-yellow-800 border border-yellow-300"
 										: "bg-white text-slate-700 border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50"
 							}
-                          `}
-                        >
-                          <span className="text-xs font-medium">{day}</span>
-                          <span className={`text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{dateNum}</span>
-                          <span className="text-xs">{formatDateForSelector(date).month}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Next week arrow */}
-                  <button 
-                    onClick={goToNextWeek}
-                    className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
-                    aria-label="Next week"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-                
-                {isDateFiltered && (
-                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
-                    <div className="flex items-center">
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className="h-5 w-5 mr-2 text-blue-500" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
+                              `}
+                            >
+                              <span className="text-xs font-medium">{day}</span>
+                              <span className={`text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{dateNum}</span>
+                              <span className="text-xs">{formatDateForSelector(date).month}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Next week arrow */}
+                      <button 
+                        onClick={goToNextWeek}
+                        className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
+                        aria-label="Next week"
                       >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 8v4" />
-                        <path d="M12 16h.01" />
-                      </svg>
-                      <span>
-                        Showing bookings for <strong>{new Date(selectedDate + "T12:00:00Z").toLocaleDateString()}</strong>
-                      </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    {isDateFiltered && (
+                      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
+                        <div className="flex items-center">
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className="h-5 w-5 mr-2 text-blue-500" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 8v4" />
+                            <path d="M12 16h.01" />
+                          </svg>
+                          <span>
+                            Showing bookings for <strong>{new Date(selectedDate + "T12:00:00Z").toLocaleDateString()}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="mt-3 flex justify-center">
+                      <button
+                        onClick={() => {
+                          resetToCurrentWeek();
+                          filterBookingsByDate('all');
+                        }}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-all flex items-center"
+                      >
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-5 w-5 mr-1" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3 3v18h18" />
+                          <path d="M18.36 11.64a6 6 0 0 1-8.48 8.48" />
+                          <path d="M21 3l-7.64 7.64" />
+                        </svg>
+                        Show All Bookings
+                      </button>
                     </div>
                   </div>
+                </div>
+                
+                {reminderMessage && (
+                  <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-xl text-green-800 shadow-sm">
+                    {reminderMessage}
+                    {lastReminderTime && (
+                      <div className="mt-2 text-sm">
+                        <span className="font-semibold">Auto-reminders active</span> - {lastReminderTime}
+                      </div>
+                    )}
+                  </div>
                 )}
                 
-                <div className="mt-3 flex justify-center">
-                  <button
-                    onClick={() => {
-                      resetToCurrentWeek();
-                      filterBookingsByDate('all');
-                    }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-all flex items-center"
-                  >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-5 w-5 mr-1" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 3v18h18" />
-                      <path d="M18.36 11.64a6 6 0 0 1-8.48 8.48" />
-                      <path d="M21 3l-7.64 7.64" />
-                    </svg>
-                    Show All Bookings
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            {reminderMessage && (
-              <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-xl text-green-800 shadow-sm">
-                {reminderMessage}
-                {lastReminderTime && (
-                  <div className="mt-2 text-sm">
-                    <span className="font-semibold">Auto-reminders active</span> - {lastReminderTime}
+                {/* Show loading indicator when loading initial data or filtering */}
+                {loading || isDateFilterLoading ? (
+                  <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+                    <span className="ml-3 text-lg text-yellow-600 font-medium">Loading bookings...</span>
+                  </div>
+                ) : allBookings.length === 0 && !isDateFiltered ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-lg">
+                    <p className="text-slate-500">No approved bookings found.</p>
+                  </div>
+                ) : isDateFiltered && filteredBookings.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-lg">
+                    <p className="text-slate-500">No bookings found for the selected date.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl shadow-lg">
+                    <table className="min-w-full bg-white border">
+                      <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
+                        <tr>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Date</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Signature</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(isDateFiltered ? filteredBookings : allBookings).map((booking) => (
+                          <tr 
+                            key={booking._id}
+                            className="transition-all duration-300 animate-fadeIn"
+                          >
+                            <td className="py-2 px-4 border-b">
+                              {new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
+                            </td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.startTime} - {booking.endTime}
+                            </td>
+                            <td className="py-2 px-4 border-b">{booking.location}</td>
+                            <td className="py-2 px-4 border-b">{booking.classType}</td>
+                            <td className="py-2 px-4 border-b">{booking.duration} mins</td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.user.firstName} {booking.user.lastName}
+                            </td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.user.email}
+                            </td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.user.phone}
+                            </td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
+                            </td>
+                            <td className="py-2 px-4 border-b">
+                              <span
+                                className={`px-2 py-1 rounded text-xs ${
+                                  booking.paymentStatus === 'approved'
+                                    ? 'bg-green-100 text-green-800'
+                                    : booking.paymentStatus === 'invoice sent'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : booking.paymentStatus === 'requested'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {booking.paymentStatus}
+                              </span>
+                            </td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.document ? (
+                                <button
+                                  onClick={() => {
+                                    setViewingDocument(booking.document || null);
+                                    setIsDocumentModalOpen(true);
+                                  }}
+                                  className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                                >
+                                  <svg 
+                                    xmlns="http://www.w3.org/2000/svg" 
+                                    className="h-4 w-4 mr-1" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                  </svg>
+                                  View
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-sm px-3">Not uploaded</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.signature ? (
+                                <button
+                                  onClick={() => {
+                                    setViewingSignature(booking.signature || null);
+                                    setIsSignatureModalOpen(true);
+                                  }}
+                                  className="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
+                                >
+                                  <FileSignature className="h-4 w-4 mr-1" />
+                                  View
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-center text-sm">Not signed</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 border-b">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleSendInvoice(booking._id)}
+                                  className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
+                                >
+                                  Send Invoice
+                                </button>
+                                <button
+                                  onClick={() => handleRescheduleBooking(booking._id)}
+                                  className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full hover:from-yellow-600 hover:to-orange-600 shadow-sm transition-all"
+                                >
+                                  Reschedule
+                                </button>
+                                <button
+                                  onClick={() => handleCancelBooking(booking._id)}
+                                  className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
             )}
-            
-            {isDateFilterLoading ? (
-              <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
-                <span className="ml-3 text-lg text-yellow-600 font-medium">Loading bookings...</span>
-              </div>
-            ) : allBookings.length === 0 && !isDateFiltered ? (
-              <div className="text-center py-10 bg-slate-50 rounded-lg">
-                <p className="text-slate-500">No approved bookings found.</p>
-              </div>
-            ) : isDateFiltered && filteredBookings.length === 0 ? (
-              <div className="text-center py-10 bg-slate-50 rounded-lg">
-                <p className="text-slate-500">No bookings found for the selected date.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-xl shadow-lg">
-                <table className="min-w-full bg-white border">
-                  <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
-                    <tr>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Date</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Signature</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(isDateFiltered ? filteredBookings : allBookings).map((booking) => (
-                      <tr 
-                        key={booking._id}
-                        className="transition-all duration-300 animate-fadeIn"
-                      >
-                        <td className="py-2 px-4 border-b">
-                          {new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.startTime} - {booking.endTime}
-                        </td>
-                        <td className="py-2 px-4 border-b">{booking.location}</td>
-                        <td className="py-2 px-4 border-b">{booking.classType}</td>
-                        <td className="py-2 px-4 border-b">{booking.duration} mins</td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.user.firstName} {booking.user.lastName}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.user.email}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.user.phone}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              booking.paymentStatus === 'approved'
-                                ? 'bg-green-100 text-green-800'
-                                : booking.paymentStatus === 'invoice sent'
-                                ? 'bg-blue-100 text-blue-800'
-                                : booking.paymentStatus === 'requested'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {booking.paymentStatus}
-                          </span>
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.document ? (
-                            <button
-                              onClick={() => {
-                                setViewingDocument(booking.document || null);
-                                setIsDocumentModalOpen(true);
-                              }}
-                              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
-                            >
-                              <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                className="h-4 w-4 mr-1" 
-                                viewBox="0 0 24 24" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                strokeWidth="2" 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round"
-                              >
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
-                              </svg>
-                              View
-                            </button>
-                          ) : (
-                            <span className="text-gray-400 text-sm px-3">Not uploaded</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.signature ? (
-                            <button
-                              onClick={() => {
-                                setViewingSignature(booking.signature || null);
-                                setIsSignatureModalOpen(true);
-                              }}
-                              className="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all flex items-center"
-                            >
-                              <FileSignature className="h-4 w-4 mr-1" />
-                              View
-                            </button>
-                          ) : (
-                            <span className="text-gray-400 text-center text-sm">Not signed</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 border-b">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleSendInvoice(booking._id)}
-                              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full hover:from-blue-600 hover:to-indigo-600 shadow-sm transition-all"
-                            >
-                              Send Invoice
-                            </button>
-                            <button
-                              onClick={() => handleRescheduleBooking(booking._id)}
-                              className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full hover:from-yellow-600 hover:to-orange-600 shadow-sm transition-all"
-                            >
-                              Reschedule
-                            </button>
-                            <button
-                              onClick={() => handleCancelBooking(booking._id)}
-                              className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
         
             {activeTab === 'instructors' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

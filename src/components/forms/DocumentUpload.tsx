@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Upload, X, FileText, Image as ImageIcon, Check, Eye, RefreshCw } from 'lucide-react';
+import { Upload, X, FileText, Image as ImageIcon, Check, Eye, RefreshCw, Save } from 'lucide-react';
 import DocumentModal from './DocumentModal';
 
 interface DocumentUploadProps {
@@ -26,10 +26,13 @@ export default function DocumentUpload({
   className = ""
 }: DocumentUploadProps) {
   const [document, setDocument] = useState<{ data: string; filename: string; contentType: string } | null>(initialDocument);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFilePreview, setSelectedFilePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
+  const [isReloading, setIsReloading] = useState(false); // New state for tracking reload
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -68,11 +71,11 @@ export default function DocumentUpload({
     fetchUserDocument();
   }, [userId, initialDocument, document]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    console.log(`[DocumentUpload] Starting upload process for file: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+    console.log(`[DocumentUpload] File selected: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
     // Check if file is PDF or image
     if (!file.type.includes('pdf') && !file.type.includes('image')) {
@@ -89,56 +92,46 @@ export default function DocumentUpload({
       return;
     }
 
+    setError(null);
+    setSelectedFile(file);
+    
+    // Create a preview for the selected file
+    if (file.type.includes('image')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSelectedFilePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else if (file.type.includes('pdf')) {
+      setSelectedFilePreview('pdf');
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+    
+    console.log(`[DocumentUpload] Starting upload process for file: ${selectedFile.name}`);
     setIsUploading(true);
     setError(null);
 
     try {
-      console.log(`[DocumentUpload] Converting file to base64: ${file.name}`);
+      console.log(`[DocumentUpload] Converting file to base64: ${selectedFile.name}`);
       // Convert file to base64
-      const base64 = await convertFileToBase64(file);
+      const base64 = await convertFileToBase64(selectedFile);
       console.log(`[DocumentUpload] File converted to base64 successfully. Base64 length: ${base64.length} characters`);
       
       // Create document object
       const newDocument = {
         data: base64,
-        filename: file.name,
-        contentType: file.type
+        filename: selectedFile.name,
+        contentType: selectedFile.type
       };
 
-      // Update both booking and user documents when possible
+      // Only update the specific booking document, not all user bookings
       if (bookingId) {
         console.log(`[DocumentUpload] Updating document for booking ID: ${bookingId}`);
         
-        // Get the booking to find the associated user
-        console.log(`[DocumentUpload] Fetching booking details for ID: ${bookingId}`);
-        const bookingResponse = await fetch(`/api/booking?bookingId=${bookingId}`);
-        
-        if (!bookingResponse.ok) {
-          const errorData = await bookingResponse.json();
-          console.error(`[DocumentUpload] Failed to fetch booking: ${bookingResponse.status} - ${JSON.stringify(errorData)}`);
-          throw new Error(`Failed to fetch booking: ${errorData.error || bookingResponse.statusText}`);
-        }
-        
-        const bookingData = await bookingResponse.json();
-        console.log(`[DocumentUpload] Booking data retrieved: ${JSON.stringify(bookingData, (key, value) => 
-          key === 'data' ? '[BASE64_DATA]' : value)}`);
-        
-        if (bookingData.booking && bookingData.booking.user && bookingData.booking.user._id) {
-          const userId = bookingData.booking.user._id;
-          console.log(`[DocumentUpload] Updating user document for user ID: ${userId}`);
-          // Update the user document as well
-          try {
-            await updateUserDocument(userId, newDocument);
-            console.log(`[DocumentUpload] User document updated successfully for user ID: ${userId}`);
-          } catch (userUpdateError) {
-            console.error(`[DocumentUpload] Failed to update user document: ${userUpdateError}`);
-            throw userUpdateError;
-          }
-        } else {
-          console.log(`[DocumentUpload] No user associated with booking or user ID not found`);
-        }
-        
-        // Update the booking document
+        // Update only the booking document
         try {
           await updateBookingDocument(bookingId, newDocument);
           console.log(`[DocumentUpload] Booking document updated successfully for booking ID: ${bookingId}`);
@@ -150,7 +143,7 @@ export default function DocumentUpload({
       else if (userId) {
         console.log(`[DocumentUpload] Updating document for user ID: ${userId}`);
         
-        // Update the user document
+        // Update only the user document
         try {
           await updateUserDocument(userId, newDocument);
           console.log(`[DocumentUpload] User document updated successfully for user ID: ${userId}`);
@@ -158,43 +151,51 @@ export default function DocumentUpload({
           console.error(`[DocumentUpload] Failed to update user document: ${userUpdateError}`);
           throw userUpdateError;
         }
-        
-        // Get all bookings for this user and update them too
-        console.log(`[DocumentUpload] Fetching bookings for user ID: ${userId}`);
-        const bookingsResponse = await fetch(`/api/booking?userId=${userId}`);
-        
-        if (!bookingsResponse.ok) {
-          const errorData = await bookingsResponse.json();
-          console.error(`[DocumentUpload] Failed to fetch user bookings: ${bookingsResponse.status} - ${JSON.stringify(errorData)}`);
-          throw new Error(`Failed to fetch user bookings: ${errorData.error || bookingsResponse.statusText}`);
-        }
-        
-        const bookingsData = await bookingsResponse.json();
-        console.log(`[DocumentUpload] Found ${bookingsData.bookings?.length || 0} bookings for user ID: ${userId}`);
-        
-        if (bookingsData.bookings && bookingsData.bookings.length > 0) {
-          // Update all bookings for this user
-          for (const booking of bookingsData.bookings) {
-            console.log(`[DocumentUpload] Updating document for booking ID: ${booking._id}`);
-            try {
-              await updateBookingDocument(booking._id, newDocument);
-              console.log(`[DocumentUpload] Booking document updated successfully for booking ID: ${booking._id}`);
-            } catch (bookingUpdateError) {
-              console.error(`[DocumentUpload] Failed to update booking document: ${bookingUpdateError}`);
-              throw bookingUpdateError;
-            }
-          }
-        }
       } else {
         console.log(`[DocumentUpload] No bookingId or userId provided, document will not be saved to database`);
       }
 
       console.log(`[DocumentUpload] Document upload completed successfully`);
       setDocument(newDocument);
+      setSelectedFile(null);
+      setSelectedFilePreview(null);
+      
+      // Trigger reload to prevent multiple uploads
+      setIsReloading(true);
+      
+      // Simulate a reload after a short delay
+      setTimeout(() => {
+        console.log(`[DocumentUpload] Reloading component after upload`);
+        setIsReloading(false);
+      }, 1000);
       
       if (onUploadSuccess) {
         onUploadSuccess(newDocument);
         console.log(`[DocumentUpload] onUploadSuccess callback executed`);
+      }
+      
+      // Broadcast a message to all open windows/tabs to refresh their data
+      // This will notify both admin and instructor views about the document update
+      try {
+        console.log(`[DocumentUpload] Broadcasting document update message`);
+        window.postMessage({
+          type: "DOCUMENT_UPDATED",
+          bookingId: bookingId || null,
+          userId: userId || null,
+          timestamp: new Date().toISOString()
+        }, window.location.origin);
+        
+        // Refresh admin view by fetching bookings
+        if (bookingId) {
+          await fetch(`/api/booking?bookingId=${bookingId}`);
+          console.log(`[DocumentUpload] Refreshed booking data for admin view`);
+        } else if (userId) {
+          await fetch(`/api/users?userId=${userId}`);
+          console.log(`[DocumentUpload] Refreshed user data for admin view`);
+        }
+      } catch (broadcastError) {
+        console.error(`[DocumentUpload] Error broadcasting update:`, broadcastError);
+        // Continue with normal flow even if broadcast fails
       }
     } catch (err: any) {
       console.error(`[DocumentUpload] Error uploading document:`, err);
@@ -324,43 +325,25 @@ export default function DocumentUpload({
     }
   };
 
+  // Handler for updating document from modal
+  const handleUpdateDocument = () => {
+    if (fileInputRef.current && !isUploading && !isReloading) {
+      console.log(`[DocumentUpload] Triggering file input from modal`);
+      fileInputRef.current.click();
+    }
+  };
+
   const handleRemoveDocument = async () => {
     console.log(`[DocumentUpload] Starting document removal process`);
     try {
       setIsUploading(true);
       setError(null);
 
-      // Remove document from both booking and user when possible
+      // Only remove document from the specific booking or user
       if (bookingId) {
         console.log(`[DocumentUpload] Removing document for booking ID: ${bookingId}`);
         
-        // Get the booking to find the associated user
-        console.log(`[DocumentUpload] Fetching booking details for ID: ${bookingId}`);
-        const bookingResponse = await fetch(`/api/booking?bookingId=${bookingId}`);
-        
-        if (!bookingResponse.ok) {
-          const errorData = await bookingResponse.json();
-          console.error(`[DocumentUpload] Failed to fetch booking: ${bookingResponse.status} - ${JSON.stringify(errorData)}`);
-          throw new Error(`Failed to fetch booking: ${errorData.error || bookingResponse.statusText}`);
-        }
-        
-        const bookingData = await bookingResponse.json();
-        console.log(`[DocumentUpload] Booking data retrieved for document removal`);
-        
-        if (bookingData.booking && bookingData.booking.user && bookingData.booking.user._id) {
-          const userId = bookingData.booking.user._id;
-          console.log(`[DocumentUpload] Removing document for user ID: ${userId}`);
-          // Remove the document from the user as well
-          try {
-            await updateUserDocument(userId, null);
-            console.log(`[DocumentUpload] User document removed successfully for user ID: ${userId}`);
-          } catch (userUpdateError) {
-            console.error(`[DocumentUpload] Failed to remove user document: ${userUpdateError}`);
-            throw userUpdateError;
-          }
-        }
-        
-        // Remove the document from the booking
+        // Remove the document from the booking only
         try {
           await updateBookingDocument(bookingId, null);
           console.log(`[DocumentUpload] Booking document removed successfully for booking ID: ${bookingId}`);
@@ -372,40 +355,13 @@ export default function DocumentUpload({
       else if (userId) {
         console.log(`[DocumentUpload] Removing document for user ID: ${userId}`);
         
-        // Remove the document from the user
+        // Remove the document from the user only
         try {
           await updateUserDocument(userId, null);
           console.log(`[DocumentUpload] User document removed successfully for user ID: ${userId}`);
         } catch (userUpdateError) {
           console.error(`[DocumentUpload] Failed to remove user document: ${userUpdateError}`);
           throw userUpdateError;
-        }
-        
-        // Get all bookings for this user and remove the document from them too
-        console.log(`[DocumentUpload] Fetching bookings for user ID: ${userId}`);
-        const bookingsResponse = await fetch(`/api/booking?userId=${userId}`);
-        
-        if (!bookingsResponse.ok) {
-          const errorData = await bookingsResponse.json();
-          console.error(`[DocumentUpload] Failed to fetch user bookings: ${bookingsResponse.status} - ${JSON.stringify(errorData)}`);
-          throw new Error(`Failed to fetch user bookings: ${errorData.error || bookingsResponse.statusText}`);
-        }
-        
-        const bookingsData = await bookingsResponse.json();
-        console.log(`[DocumentUpload] Found ${bookingsData.bookings?.length || 0} bookings for user ID: ${userId}`);
-        
-        if (bookingsData.bookings && bookingsData.bookings.length > 0) {
-          // Remove document from all bookings for this user
-          for (const booking of bookingsData.bookings) {
-            console.log(`[DocumentUpload] Removing document for booking ID: ${booking._id}`);
-            try {
-              await updateBookingDocument(booking._id, null);
-              console.log(`[DocumentUpload] Booking document removed successfully for booking ID: ${booking._id}`);
-            } catch (bookingUpdateError) {
-              console.error(`[DocumentUpload] Failed to remove booking document: ${bookingUpdateError}`);
-              throw bookingUpdateError;
-            }
-          }
         }
       } else {
         console.log(`[DocumentUpload] No bookingId or userId provided, nothing to remove from database`);
@@ -418,6 +374,30 @@ export default function DocumentUpload({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
         console.log(`[DocumentUpload] File input reset`);
+      }
+      
+      // Broadcast a message to all open windows/tabs to refresh their data
+      // This will notify both admin and instructor views about the document removal
+      try {
+        console.log(`[DocumentUpload] Broadcasting document removal message`);
+        window.postMessage({
+          type: "DOCUMENT_UPDATED",
+          bookingId: bookingId || null,
+          userId: userId || null,
+          timestamp: new Date().toISOString()
+        }, window.location.origin);
+        
+        // Refresh admin view by fetching bookings
+        if (bookingId) {
+          await fetch(`/api/booking?bookingId=${bookingId}`);
+          console.log(`[DocumentUpload] Refreshed booking data for admin view`);
+        } else if (userId) {
+          await fetch(`/api/users?userId=${userId}`);
+          console.log(`[DocumentUpload] Refreshed user data for admin view`);
+        }
+      } catch (broadcastError) {
+        console.error(`[DocumentUpload] Error broadcasting update:`, broadcastError);
+        // Continue with normal flow even if broadcast fails
       }
     } catch (err: any) {
       console.error(`[DocumentUpload] Error removing document:`, err);
@@ -487,6 +467,30 @@ export default function DocumentUpload({
     return null;
   };
 
+  // Render a preview of the selected file before upload
+  const renderSelectedFilePreview = () => {
+    if (!selectedFilePreview) return null;
+
+    if (selectedFilePreview === 'pdf') {
+      return (
+        <div className="flex items-center space-x-2 p-2 bg-gray-100 rounded-md">
+          <FileText className="text-red-500" size={24} />
+          <span className="text-sm truncate max-w-[200px]">{selectedFile?.name}</span>
+        </div>
+      );
+    } else {
+      return (
+        <div className="relative">
+          <img 
+            src={selectedFilePreview} 
+            alt="Selected file preview" 
+            className="max-h-32 max-w-full rounded-md object-contain"
+          />
+        </div>
+      );
+    }
+  };
+
   return (
     <div className={`w-full ${className}`}>
       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -539,6 +543,39 @@ export default function DocumentUpload({
             disabled={isUploading}
           />
         </div>
+      ) : selectedFile ? (
+        <div className="space-y-2">
+          {renderSelectedFilePreview()}
+          
+          <div className="flex space-x-2 mt-2">
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={isUploading}
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <Save size={16} className="mr-1" />
+              Upload
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedFile(null);
+                setSelectedFilePreview(null);
+                setError(null);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }}
+              disabled={isUploading}
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              <X size={16} className="mr-1" />
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-yellow-400 transition-colors">
           <div className="space-y-1 text-center">
@@ -587,6 +624,7 @@ export default function DocumentUpload({
         document={document}
         isOpen={isModalOpen}
         onClose={closeModal}
+        onUpdate={handleUpdateDocument} // Pass the update handler
       />
     </div>
   );
