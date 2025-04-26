@@ -2098,15 +2098,15 @@ export default function AdminDashboard() {
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Date</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
-                      <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
-                        <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
-                        <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
                         </tr>
                       </thead>
                   <tbody>
@@ -2122,8 +2122,9 @@ export default function AdminDashboard() {
                           {booking.startTime} - {booking.endTime}
                         </td>
                         <td className="py-2 px-4 border-b">{booking.location}</td>
-                        <td className="py-2 px-4 border-b">{booking.classType}</td>
-                        <td className="py-2 px-4 border-b">{booking.duration} mins</td>
+                        <td className="py-2 px-4 border-b">
+                          {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
+                        </td>
                         <td className="py-2 px-4 border-b">
                           {booking.user.firstName} {booking.user.lastName}
                         </td>
@@ -2133,9 +2134,8 @@ export default function AdminDashboard() {
                         <td className="py-2 px-4 border-b">
                           {booking.user.phone}
                         </td>
-                        <td className="py-2 px-4 border-b">
-                          {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
-                        </td>
+                        <td className="py-2 px-4 border-b">{booking.classType}</td>
+                        <td className="py-2 px-4 border-b">{booking.duration} mins</td>
                         <td className="py-2 px-4 border-b">
                           <span
                             className={`px-2 py-1 rounded text-xs ${
@@ -2349,12 +2349,12 @@ export default function AdminDashboard() {
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Date</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
-                          <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Document</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Signature</th>
@@ -2374,8 +2374,9 @@ export default function AdminDashboard() {
                               {booking.startTime} - {booking.endTime}
                             </td>
                             <td className="py-2 px-4 border-b">{booking.location}</td>
-                            <td className="py-2 px-4 border-b">{booking.classType}</td>
-                            <td className="py-2 px-4 border-b">{booking.duration} mins</td>
+                            <td className="py-2 px-4 border-b">
+                              {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
+                            </td>
                             <td className="py-2 px-4 border-b">
                               {booking.user.firstName} {booking.user.lastName}
                             </td>
@@ -2385,9 +2386,8 @@ export default function AdminDashboard() {
                             <td className="py-2 px-4 border-b">
                               {booking.user.phone}
                             </td>
-                            <td className="py-2 px-4 border-b">
-                              {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
-                            </td>
+                            <td className="py-2 px-4 border-b">{booking.classType}</td>
+                            <td className="py-2 px-4 border-b">{booking.duration} mins</td>
                             <td className="py-2 px-4 border-b">
                               <span
                                 className={`px-2 py-1 rounded text-xs ${
