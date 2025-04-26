@@ -221,14 +221,44 @@ export default function InstructorDashboard() {
         // User has returned to the page - mark as a "refresh" for data fetching purposes
         sessionStorage.removeItem('pageLoaded');
         
+        // If already loading, don't start another fetch
+        if (loading) return;
+        
         // If we already have an instructorId and we're on the bookings tab, refresh the data
         if (instructorId && activeTab === 'bookings') {
           // Get today's formatted date using our helper function
           const todayFormatted = getTodayFormatted();
           
-          // Refresh the data for the currently selected date
-          filterBookingsByDate(selectedDate || todayFormatted);
-        } else if (instructorId && activeTab === 'calendar') {
+          // Check if the selected date is today
+          const isSelectedDateToday = selectedDate === todayFormatted;
+          
+          if (isSelectedDateToday) {
+            // For today's date, use a direct fetch instead of filterBookingsByDate
+            // to avoid potential issues with the caching logic
+            setLoading(true);
+            
+            fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${todayFormatted}`)
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`API error: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(data => {
+                const bookingsData = Array.isArray(data.bookings) ? data.bookings : [];
+                setBookings(bookingsData);
+                setLoading(false);
+              })
+              .catch(error => {
+                console.error('Error fetching bookings for today:', error);
+                setError("Failed to load bookings");
+                setLoading(false);
+              });
+          } else {
+            // For other dates, use the normal filterBookingsByDate function
+            filterBookingsByDate(selectedDate || todayFormatted);
+          }
+        } else if (instructorId && activeTab === 'calendar' && !loading) {
           // Refresh calendar data
           fetchBookings(false);
         }
@@ -242,7 +272,7 @@ export default function InstructorDashboard() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [instructorId, activeTab, selectedDate]);
+  }, [instructorId, activeTab, selectedDate, loading]);
 
   useEffect(() => {
     if (instructorId) {
