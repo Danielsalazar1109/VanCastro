@@ -316,7 +316,8 @@ export default function Tracking() {
                       <div className="flex items-center gap-3">
                         <Calendar className="text-gray-500" size={20} />
                         <span className="text-gray-700">
-                          {new Date(booking.date).toLocaleDateString()}
+                          {/* Use UTC timezone to ensure consistent date display regardless of user's timezone */}
+                          {new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">

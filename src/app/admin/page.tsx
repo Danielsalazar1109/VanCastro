@@ -2378,106 +2378,82 @@ export default function AdminDashboard() {
 										<table className="min-w-full bg-white border">
 											<thead className="bg-gradient-to-r from-pink-50 to-purple-50">
 												<tr>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Date
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Time
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Location
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Class
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Duration
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Student
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Email
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Phone
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Instructor
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Payment
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Time Remaining
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Actions
-													</th>
+                        <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Student</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Email</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Phone</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Class</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Duration</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Payment</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Time Remaining</th>
+                          <th className="py-3 px-4 border-b text-left text-yellow-700">Actions</th>
 												</tr>
 											</thead>
 											<tbody>
 												{pendingBookings.map((booking) => (
-													<tr
-														key={booking._id}
-														className="transition-all duration-300 animate-fadeIn"
-													>
-														<td className="py-2 px-4 border-b">
-															{new Date(booking.date).toLocaleDateString("en-US", {
-																timeZone: "UTC",
-															})}
-														</td>
-														<td className="py-2 px-4 border-b">
-															{booking.startTime} - {booking.endTime}
-														</td>
-														<td className="py-2 px-4 border-b">{booking.location}</td>
-														<td className="py-2 px-4 border-b">{booking.classType}</td>
-														<td className="py-2 px-4 border-b">{booking.duration} mins</td>
-														<td className="py-2 px-4 border-b">
-															{booking.user.firstName} {booking.user.lastName}
-														</td>
-														<td className="py-2 px-4 border-b">{booking.user.email}</td>
-														<td className="py-2 px-4 border-b">{booking.user.phone}</td>
-														<td className="py-2 px-4 border-b">
-															{booking.instructor?.user?.firstName}{" "}
-															{booking.instructor?.user?.lastName}
-														</td>
-														<td className="py-2 px-4 border-b">
-															<span
-																className={`px-2 py-1 rounded text-xs ${
-																	booking.paymentStatus === "approved"
-																		? "bg-green-100 text-green-800"
-																		: booking.paymentStatus === "invoice sent"
-																			? "bg-blue-100 text-blue-800"
-																			: booking.paymentStatus === "requested"
-																				? "bg-yellow-100 text-yellow-800"
-																				: "bg-red-100 text-red-800"
-																}`}
-															>
-																{booking.paymentStatus}
-															</span>
-														</td>
-														<td className="py-2 px-4 border-b">
-															{/* Replace the static calculation with the dynamic component */}
-															<TimeRemaining createdAt={booking.createdAt} />
-														</td>
-														<td className="py-3 px-4 border-b">
-															<div className="flex space-x-2">
-																<button
-																	onClick={() => handleApproveBooking(booking._id)}
-																	className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-full hover:from-green-600 hover:to-teal-600 shadow-sm transition-all"
-																>
-																	Approve
-																</button>
-																<button
-																	onClick={() => handleRejectBooking(booking._id)}
-																	className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
-																>
-																	Reject
-																</button>
-															</div>
-														</td>
-													</tr>
+												 <tr 
+                         key={booking._id}
+                         className="transition-all duration-300 animate-fadeIn"
+                       >
+                         <td className="py-2 px-4 border-b">
+                         {new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
+                         </td>
+                         <td className="py-2 px-4 border-b">
+                           {booking.startTime} - {booking.endTime}
+                         </td>
+                         <td className="py-2 px-4 border-b">{booking.location}</td>
+                         <td className="py-2 px-4 border-b">
+                           {booking.instructor?.user?.firstName} {booking.instructor?.user?.lastName}
+                         </td>
+                         <td className="py-2 px-4 border-b">
+                           {booking.user.firstName} {booking.user.lastName}
+                         </td>
+                         <td className="py-2 px-4 border-b">
+                           {booking.user.email}
+                         </td>
+                         <td className="py-2 px-4 border-b">
+                           {booking.user.phone}
+                         </td>
+                         <td className="py-2 px-4 border-b">{booking.classType}</td>
+                         <td className="py-2 px-4 border-b">{booking.duration} mins</td>
+                         <td className="py-2 px-4 border-b">
+                           <span
+                             className={`px-2 py-1 rounded text-xs ${
+                               booking.paymentStatus === 'approved'
+                                 ? 'bg-green-100 text-green-800'
+                                 : booking.paymentStatus === 'invoice sent'
+                                 ? 'bg-blue-100 text-blue-800'
+                                 : booking.paymentStatus === 'requested'
+                                 ? 'bg-yellow-100 text-yellow-800'
+                                 : 'bg-red-100 text-red-800'
+                             }`}
+                           >
+                             {booking.paymentStatus}
+                           </span>
+                         </td>
+                         <td className="py-2 px-4 border-b">
+                           {/* Replace the static calculation with the dynamic component */}
+                           <TimeRemaining createdAt={booking.createdAt} />
+                         </td>
+                         <td className="py-3 px-4 border-b">
+                           <div className="flex space-x-2">
+                             <button
+                               onClick={() => handleApproveBooking(booking._id)}
+                               className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-full hover:from-green-600 hover:to-teal-600 shadow-sm transition-all"
+                             >
+                               Approve
+                             </button>
+                             <button
+                               onClick={() => handleRejectBooking(booking._id)}
+                               className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 shadow-sm transition-all"
+                             >
+                               Reject
+                             </button>
+                           </div>
+                         </td>
+                       </tr>
 												))}
 											</tbody>
 										</table>

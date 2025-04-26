@@ -93,29 +93,45 @@ export default function Header() {
 			<>
 				{publicNavLinks.map((link) => (
 					<li key={link.href}>
-						<Link
-							href={link.href}
-							className={
-								isMobile
-									? "text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-									: "text-white hover:text-yellow-500 transition-colors duration-200"
-							}
-							onClick={() => isMobile && setIsMenuOpen(false)}
-						>
-							{link.label}
-						</Link>
+						{link.label === "Booking" ? (
+							<Link
+								href={link.href}
+								className={isMobile ? "block" : ""}
+								onClick={() => isMobile && setIsMenuOpen(false)}
+							>
+								<button className={`bg-brand-yellow text-brand-dark px-4 py-${isMobile ? "3" : "2"} rounded-md hover:bg-yellow-400 transition-colors duration-200 ${
+									isMobile ? "w-full text-left text-lg font-medium" : ""
+								}`}>
+									{link.label}
+								</button>
+							</Link>
+						) : (
+							<Link
+								href={link.href}
+								className={
+									isMobile
+										? "text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
+										: "text-white hover:text-yellow-500 transition-colors duration-200"
+								}
+								onClick={() => isMobile && setIsMenuOpen(false)}
+							>
+								{link.label}
+							</Link>
+						)}
 					</li>
 				))}
 				<li>
-					{isMobile ? (
-						<Link href="/login" className="block" onClick={() => setIsMenuOpen(false)}>
-							<button className="btn-primary w-full text-left py-3 text-lg font-medium">Login</button>
-						</Link>
-					) : (
-						<Link href="/login" className="text-white hover:text-yellow-500 transition-colors duration-200">
-							<button className="btn-primary">Login</button>
-						</Link>
-					)}
+					<Link
+						href="/login"
+						className={
+							isMobile
+								? "text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
+								: "text-white hover:text-yellow-500 transition-colors duration-200"
+						}
+						onClick={() => isMobile && setIsMenuOpen(false)}
+					>
+						Login
+					</Link>
 				</li>
 			</>
 		);
