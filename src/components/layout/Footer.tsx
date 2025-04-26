@@ -78,12 +78,7 @@ export default function Footer() {
 							<div className="col-span-1">
 								<FooterColumn
 									title="Location"
-									items={[
-										{ label: "Surrey" },
-										{ label: "Burnaby" },
-										{ label: "Vancouver" },
-										{ label: "North Vancouver" },
-									]}
+									items={[{ label: "Burnaby" }, { label: "Vancouver" }, { label: "North Vancouver" }]}
 									className="text-center md:text-left"
 								/>
 							</div>
