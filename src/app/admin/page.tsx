@@ -2673,10 +2673,7 @@ export default function AdminDashboard() {
 														Location
 													</th>
 													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Class
-													</th>
-													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Duration
+														Instructor
 													</th>
 													<th className="py-3 px-4 border-b text-left text-yellow-700">
 														Student
@@ -2688,7 +2685,10 @@ export default function AdminDashboard() {
 														Phone
 													</th>
 													<th className="py-3 px-4 border-b text-left text-yellow-700">
-														Instructor
+														Class
+													</th>
+													<th className="py-3 px-4 border-b text-left text-yellow-700">
+														Duration
 													</th>
 													<th className="py-3 px-4 border-b text-left text-yellow-700">
 														Payment
@@ -2719,17 +2719,17 @@ export default function AdminDashboard() {
 															{booking.startTime} - {booking.endTime}
 														</td>
 														<td className="py-2 px-4 border-b">{booking.location}</td>
-														<td className="py-2 px-4 border-b">{booking.classType}</td>
-														<td className="py-2 px-4 border-b">{booking.duration} mins</td>
+														<td className="py-2 px-4 border-b">
+															{booking.instructor?.user?.firstName}{" "}
+															{booking.instructor?.user?.lastName}
+														</td>
 														<td className="py-2 px-4 border-b">
 															{booking.user.firstName} {booking.user.lastName}
 														</td>
 														<td className="py-2 px-4 border-b">{booking.user.email}</td>
 														<td className="py-2 px-4 border-b">{booking.user.phone}</td>
-														<td className="py-2 px-4 border-b">
-															{booking.instructor?.user?.firstName}{" "}
-															{booking.instructor?.user?.lastName}
-														</td>
+														<td className="py-2 px-4 border-b">{booking.classType}</td>
+														<td className="py-2 px-4 border-b">{booking.duration} mins</td>
 														<td className="py-2 px-4 border-b">
 															<span
 																className={`px-2 py-1 rounded text-xs ${

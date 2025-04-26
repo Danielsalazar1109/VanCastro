@@ -3,19 +3,11 @@
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-<<<<<<< HEAD
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, FileText, FileSignature } from "lucide-react";
-=======
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, FileText, FileSignature, LoaderIcon } from "lucide-react";
->>>>>>> Daniel/updatesapril25th
 import LoadingComponent from "@/components/layout/Loading";
 import { IBooking } from "@/models/Booking";
 import DocumentUpload from "@/components/forms/DocumentUpload";
@@ -139,21 +131,8 @@ interface TimeSlot {
 }
 
 export default function InstructorDashboard() {
-<<<<<<< HEAD
-	const { data: session, status } = useSession();
-	const router = useRouter();
-=======
   const { data: session, status } = useSession();
   const router = useRouter();
-  
-  const [instructorId, setInstructorId] = useState<string | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [availability, setAvailability] = useState<Array<{
-    day: string;
-    startTime: string;
-    endTime: string;
-    isAvailable: boolean;
-  }>>([]);
   
   // Start with loading state true to show loading indicator immediately
   const [loading, setLoading] = useState<boolean>(true);
@@ -212,39 +191,6 @@ export default function InstructorDashboard() {
     }
     return false;
   };
-  
-  // Generate dates for the day selector with pagination
-  const generateDates = () => {
-    const dates = [];
-    const today = new Date();
-    
-    // Generate 7 days with offset for pagination
-    // When offset is 0, it shows 3 days before today, today, and 3 days after today
-    // When offset is 1, it shows the next 7 days, and so on
-    for (let i = -3 + (dateRangeOffset * 7); i <= 3 + (dateRangeOffset * 7); i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-    
-    return dates;
-  };
-  
-  // Navigate to previous week
-  const goToPreviousWeek = () => {
-    setDateRangeOffset(prev => prev - 1);
-  };
-  
-  // Navigate to next week
-  const goToNextWeek = () => {
-    setDateRangeOffset(prev => prev + 1);
-  };
-  
-  // Reset to current week
-  const resetToCurrentWeek = () => {
-    setDateRangeOffset(0);
-  };
->>>>>>> Daniel/updatesapril25th
 
 	const [instructorId, setInstructorId] = useState<string | null>(null);
 	const [bookings, setBookings] = useState<Booking[]>([]);
@@ -256,36 +202,6 @@ export default function InstructorDashboard() {
 			isAvailable: boolean;
 		}>
 	>([]);
-
-<<<<<<< HEAD
-	// Start with loading state true to show loading indicator immediately
-	const [loading, setLoading] = useState<boolean>(true);
-	// Track if initial data loading is complete
-	const [initialDataLoaded, setInitialDataLoaded] = useState<boolean>(false);
-	// Add a separate state for extended loading when no bookings are found
-	const [showNoBookingsMessage, setShowNoBookingsMessage] = useState<boolean>(false);
-	const [error, setError] = useState<string>("");
-	const [activeTab, setActiveTab] = useState<string>("bookings");
-	const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
-	const [slotMinTime, setSlotMinTime] = useState<string>("08:00:00");
-	const [slotMaxTime, setSlotMaxTime] = useState<string>("17:00:00");
-	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-	const [isMobile, setIsMobile] = useState(false);
-	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedBooking, setSelectedBooking] = useState<any>(null);
-	// Format today's date in YYYY-MM-DD format for consistency
-	const getTodayFormatted = () => {
-		const today = new Date();
-		const year = today.getFullYear();
-		const month = String(today.getMonth() + 1).padStart(2, "0");
-		const day = String(today.getDate()).padStart(2, "0");
-		return `${year}-${month}-${day}`;
-	};
-
-	const [selectedDate, setSelectedDate] = useState<string>(getTodayFormatted()); // Default to today
-	const [locations, setLocations] = useState<string[]>([]);
-	const [dateRangeOffset, setDateRangeOffset] = useState<number>(0); // Track pagination offset
-=======
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
@@ -560,194 +476,12 @@ export default function InstructorDashboard() {
       setCalendarEvents(events);
     }
   }, [bookings]);
-  
-  const getColorForLocation = (location: string) => {
-    // Extract city name from location (assuming format is "City, Address")
-    const cityMatch = location.match(/^([^,]+)/);
-    const city = cityMatch ? cityMatch[1].trim() : '';
-    
-    // Assign colors based on city name
-    if (city === 'Vancouver') {
-      return '#4285F4'; // Blue for Vancouver
-    } else if (city === 'Burnaby') {
-      return '#EA4335'; // Red for Burnaby
-    } else if (city === 'North Vancouver') {
-      return '#FBBC05'; // Yellow for North Vancouver
-    } else {
-      return '#34A853'; // Green (default) for other cities
-    }
-  };
-  
-  const fetchInstructorId = async (email: string) => {
-    try {
-      const userResponse = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
-      const userData = await userResponse.json();
-      
-      if (!userData.users || userData.users.length === 0) {
-        setError("User not found");
-        setLoading(false);
-        setInitialDataLoaded(true);
-        return;
-      }
-      
-      const userId = userData.users[0]._id;
-      
-      const instructorResponse = await fetch(`/api/instructors`);
-      const instructorData = await instructorResponse.json();
-      
-      const instructor = instructorData.instructors.find(
-        (i: any) => i.user._id === userId
-      );
-      
-      if (instructor) {
-        setInstructorId(instructor._id);
-        // Don't set loading to false here, let the bookings fetch complete first
-      } else {
-        setError("You are not registered as an instructor");
-        setLoading(false);
-        setInitialDataLoaded(true);
-      }
-    } catch (error) {
-      console.error('Error fetching instructor ID:', error);
-      setError("Failed to load instructor data");
-      setLoading(false);
-    }
-  };
-  
-  const fetchBookings = async (showLoading = true) => {
-    try {
-      if (showLoading) setLoading(true);
-      
-      // Check if we're refreshing the page
-      const isRefreshing = isPageRefresh();
-      
-      // Check if we have cached all bookings
-      const cachedAllBookingsKey = `instructor_all_bookings_${instructorId}`;
-      const cachedAllBookings = localStorage.getItem(cachedAllBookingsKey);
-      
-      if (cachedAllBookings && !isRefreshing) {
-        // Use cached bookings if available and not refreshing
-        const parsedBookings = JSON.parse(cachedAllBookings);
-        setBookings(parsedBookings);
-        if (showLoading) setLoading(false);
-        return;
-      }
-      
-      // Add a timeout to ensure loading state is visible
-      const fetchPromise = fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
-      
-      // Use Promise.race to handle potential timeout
-      const response = await Promise.race([
-        fetchPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
-        )
-      ]) as Response;
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Ensure we have a valid bookings array
-      const newBookings = Array.isArray(data.bookings) ? data.bookings : [];
-      
-      // Cache all bookings in localStorage
-      localStorage.setItem(cachedAllBookingsKey, JSON.stringify(newBookings));
-      
-      // Simpler update logic - always update if we have data
-      setBookings(newBookings);
-      
-      // Ensure loading is set to false
-      if (showLoading) setLoading(false);
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      // Always reset loading state on error
-      setLoading(false);
-      setError("Failed to load bookings. Please try again.");
-    }
-  };
-  
-  const fetchInstructorAvailability = async () => {
-    try {
-      const response = await fetch(`/api/instructors?instructorId=${instructorId}`);
-      const data = await response.json();
-      
-      if (data.instructors && data.instructors.length > 0) {
-        const instructorAvailability = data.instructors[0].availability || [];
-        
-        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const fullAvailability = daysOfWeek.map(day => {
-          const existingDay = instructorAvailability.find((a: any) => a.day === day);
-          return existingDay || {
-            day,
-            startTime: '00:00',
-            endTime: '23:59',
-            isAvailable: false
-          };
-        });
-        
-        setAvailability(fullAvailability);
-        
-        if (fullAvailability.length > 0) {
-          let minStartTime = "23:59:00";
-          let maxEndTime = "00:00:00";
-          
-          fullAvailability.forEach(slot => {
-            if (slot.isAvailable) {
-              const startTimeWithSeconds = slot.startTime.includes(':') && slot.startTime.split(':').length === 2 
-                ? `${slot.startTime}:00` 
-                : slot.startTime;
-              
-              const endTimeWithSeconds = slot.endTime.includes(':') && slot.endTime.split(':').length === 2 
-                ? `${slot.endTime}:00` 
-                : slot.endTime;
-              
-              if (startTimeWithSeconds < minStartTime) {
-                minStartTime = startTimeWithSeconds;
-              }
-              
-              if (endTimeWithSeconds > maxEndTime) {
-                maxEndTime = endTimeWithSeconds;
-              }
-            }
-          });
-          
-          if (minStartTime !== "23:59:00") {
-            setSlotMinTime(minStartTime);
-          }
-          
-          if (maxEndTime !== "00:00:00") {
-            setSlotMaxTime(maxEndTime);
-          }
-        }
-      }
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching instructor availability:', error);
-      setError("Failed to load instructor data");
-      setLoading(false);
-    }
-  };
-  
-  const handleAvailabilityChange = (index: number, field: string, value: any) => {
-    const updatedAvailability = [...availability];
-    updatedAvailability[index] = {
-      ...updatedAvailability[index],
-      [field]: value
-    };
-    setAvailability(updatedAvailability);
-  };
->>>>>>> Daniel/updatesapril25th
 
 	// Generate dates for the day selector with pagination
 	const generateDates = () => {
 		const dates = [];
 		const today = new Date();
 
-<<<<<<< HEAD
 		// Determine how many days to show based on screen size
 		const daysToShow = isMobile ? 3 : 7;
 		const daysPerPage = isMobile ? 3 : 7;
@@ -760,192 +494,6 @@ export default function InstructorDashboard() {
 			date.setDate(today.getDate() + i);
 			dates.push(date);
 		}
-=======
-  // Optimized function to filter bookings by selected date - uses client-side filtering
-  const filterBookingsByDate = (date: string) => {
-    // Update selected date immediately for UI feedback
-    setSelectedDate(date);
-    
-    // Create a safety timeout reference that we can clear later
-    let safetyTimeout: NodeJS.Timeout | null = null;
-    
-    try {
-      // Fetch all bookings if we don't have them already or if requesting all bookings
-      if (date === 'all') {
-        // Show loading for server requests
-        setLoading(true);
-        fetchBookings(false);
-      } else {
-        // Check if we have cached bookings for this date in localStorage
-        const cachedBookingsKey = `instructor_bookings_${instructorId}_${date}`;
-        const cachedBookings = localStorage.getItem(cachedBookingsKey);
-        
-        if (cachedBookings && !isPageRefresh()) {
-          // Use cached bookings if available and not a page refresh
-          // Don't show loading spinner for localStorage operations
-          const parsedBookings = JSON.parse(cachedBookings);
-          
-          // Immediately update state with cached bookings
-          setBookings(parsedBookings);
-          
-          // Only show "No approved bookings" message if there are truly no bookings
-          if (parsedBookings.length === 0) {
-            setShowNoBookingsMessage(true);
-          } else {
-            setShowNoBookingsMessage(false);
-          }
-          } else {
-            // Fetch bookings for the selected date with server-side filtering
-            const fetchAndFilterBookings = async () => {
-              try {
-                // Show loading spinner only when fetching from server
-                setLoading(true);
-                
-                // Set safety timeout to prevent infinite loading
-                safetyTimeout = setTimeout(() => {
-                  if (loading) {
-                    console.warn('Safety timeout triggered - resetting loading state');
-                    setLoading(false);
-                    setShowNoBookingsMessage(true);
-                  }
-                }, 10000); // 10 second safety timeout
-                
-                const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${date}`);
-                
-                if (!response.ok) {
-                  throw new Error(`API error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                // Ensure we have a valid bookings array
-                const allInstructorBookings = Array.isArray(data.bookings) ? data.bookings : [];
-                
-                // No need for client-side filtering as we're filtering on the server
-                const dateFilteredBookings = allInstructorBookings;
-                
-                // Cache the bookings in localStorage
-                localStorage.setItem(cachedBookingsKey, JSON.stringify(dateFilteredBookings));
-                
-                // Minimum loading time for server requests to prevent flickering
-                const minLoadingTime = 500; // 0.5 second minimum loading time
-                const loadingStartTime = Date.now();
-                const elapsedTime = Date.now() - loadingStartTime;
-                const remainingLoadingTime = Math.max(0, minLoadingTime - elapsedTime);
-                
-                setTimeout(() => {
-                  // Update state with filtered bookings
-                  setBookings(dateFilteredBookings);
-                  
-                  // Only show "No approved bookings" message if there are truly no bookings
-                  if (dateFilteredBookings.length === 0) {
-                    setShowNoBookingsMessage(true);
-                  } else {
-                    setShowNoBookingsMessage(false);
-                  }
-                  
-                  // Set loading to false after operation is complete
-                  setLoading(false);
-                  
-                  // Clear safety timeout
-                  if (safetyTimeout) clearTimeout(safetyTimeout);
-                }, remainingLoadingTime);
-              } catch (error) {
-                console.error('Error fetching and filtering bookings:', error);
-                setError("Failed to load bookings");
-                setLoading(false);
-                if (safetyTimeout) clearTimeout(safetyTimeout);
-              }
-            };
-            
-            fetchAndFilterBookings();
-          }
-        }
-    } catch (error) {
-      console.error('Error filtering bookings by date:', error);
-      setError("Failed to load bookings");
-      setLoading(false);
-      if (safetyTimeout) clearTimeout(safetyTimeout);
-    }
-  };
-
-  // State variables for modals
-  const [selectedBookingForDocument, setSelectedBookingForDocument] = useState<Booking | null>(null);
-  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
-  const [selectedBookingForContract, setSelectedBookingForContract] = useState<Booking | null>(null);
-  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
-  const [viewingSignature, setViewingSignature] = useState<{data: string; date?: Date} | null>(null);
-  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-  
-  // Reschedule and cancel handler functions removed as requested
-  
-  const saveAvailability = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await fetch('/api/instructors', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          instructorId,
-          availability
-        }),
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update availability');
-      }
-      
-      setLoading(false);
-      alert('Availability updated successfully');
-    } catch (error: any) {
-      console.error('Error updating availability:', error);
-      setError(error.message || "Failed to update availability");
-      setLoading(false);
-    }
-  };
-  
-  // Only show full-page loading for initial authentication check
-  if (status === 'loading') {
-    return (
-     <LoadingComponent showText={false} />
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white shadow-2xl rounded-3xl p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4 text-red-600">Error</h2>
-          <p className="mb-6 text-slate-600">{error}</p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-full transition-colors"
-          >
-            Go Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    <>
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-10">
-      {/* Mobile Header with Hamburger Menu */}
-      <div className="md:hidden flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Welcome {session?.user?.name} 👋</h1>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="text-yellow-600"
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
->>>>>>> Daniel/updatesapril25th
 
 		return dates;
 	};
@@ -1682,7 +1230,6 @@ export default function InstructorDashboard() {
 										: "bg-white text-slate-700 border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50"
 							}
                           `}
-<<<<<<< HEAD
 														>
 															<span className="text-xs font-medium">{day}</span>
 															<span
@@ -1720,97 +1267,14 @@ export default function InstructorDashboard() {
 										</div>
 									</div>
 								</div>
-=======
-                        >
-                          <span className="text-xs font-medium">{day}</span>
-                          <span className={`text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{dateNum}</span>
-                          <span className="text-xs">{formatDateForSelector(date).month}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Next week arrow */}
-                  <button 
-                    onClick={goToNextWeek}
-                    className="p-2 mx-1 text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors"
-                    aria-label="Next week"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-              
-              {/* Show spinner when loading bookings */}
-              {loading ? (
-                <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
-                  <span className="ml-3 text-lg text-yellow-600 font-medium">Loading bookings...</span>
-                </div>
-              ) : showNoBookingsMessage || bookings.length === 0 ? (
-                <div className="text-center py-10 bg-slate-50 rounded-lg">
-                  <p className="text-slate-500">No approved bookings found for this date.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-fadeIn">
-                  {bookings.map((booking) => {
-                    const getLocationColor = (location: string) => {
-                      // Extract city name from location (assuming format is "City, Address")
-                      const cityMatch = location.match(/^([^,]+)/);
-                      const city = cityMatch ? cityMatch[1].trim() : '';
-                      
-                      // Assign colors based on city name
-                      if (city === 'Vancouver') {
-                        return 'bg-blue-100 border-blue-500 text-blue-800';
-                      } else if (city === 'Burnaby') {
-                        return 'bg-red-100 border-red-500 text-red-800';
-                      } else if (city === 'North Vancouver') {
-                        return 'bg-yellow-100 border-yellow-500 text-yellow-800';
-                      } else {
-                        return 'bg-green-100 border-green-500 text-green-800'; // Default
-                      }
-                    };
->>>>>>> Daniel/updatesapril25th
 
-								{/* Show skeleton loader when loading bookings */}
+								{/* Show yellow spinner when loading bookings */}
 								{loading ? (
-									<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-										{[...Array(6)].map((_, index) => (
-											<div
-												key={index}
-												className="border-l-4 border-gray-200 rounded-2xl shadow-md p-5 relative overflow-hidden animate-pulse"
-											>
-												<div className="absolute -right-4 -top-4 bg-gray-100 w-16 h-16 rounded-full"></div>
-												<div className="absolute -right-2 -bottom-2 bg-gray-100 w-12 h-12 rounded-full"></div>
-
-												<div className="flex justify-between items-center mb-3">
-													<div className="flex items-center space-x-2">
-														<div className="w-5 h-5 bg-gray-200 rounded-full"></div>
-														<div className="h-4 bg-gray-200 rounded w-24"></div>
-													</div>
-													<div className="h-6 bg-gray-200 rounded w-20"></div>
-												</div>
-
-												<div className="mb-3">
-													<div className="h-6 bg-gray-200 rounded w-32 mb-1"></div>
-													<div className="h-4 bg-gray-200 rounded w-40"></div>
-												</div>
-
-												<div className="flex justify-between items-center">
-													<div className="flex items-center space-x-2">
-														<div className="w-5 h-5 bg-gray-200 rounded-full"></div>
-														<div className="h-4 bg-gray-200 rounded w-24"></div>
-													</div>
-													<div className="flex items-center space-x-2">
-														<div className="w-5 h-5 bg-gray-200 rounded-full"></div>
-														<div className="h-4 bg-gray-200 rounded w-20"></div>
-													</div>
-												</div>
-											</div>
-										))}
+									<div className="flex justify-center items-center py-20">
+										<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+										<span className="ml-3 text-lg text-yellow-600 font-medium">
+											Loading bookings...
+										</span>
 									</div>
 								) : showNoBookingsMessage || bookings.length === 0 ? (
 									<div className="text-center py-10 bg-slate-50 rounded-lg">
@@ -1968,7 +1432,6 @@ export default function InstructorDashboard() {
 							</div>
 						)}
 
-<<<<<<< HEAD
 						{activeTab === "calendar" && (
 							<>
 								{loading ? (
@@ -1996,133 +1459,6 @@ export default function InstructorDashboard() {
 														else if (city === "Burnaby") color = "bg-red-500";
 														else if (city === "North Vancouver") color = "bg-yellow-500";
 														else color = "bg-green-500"; // Default
-=======
-          {activeTab === 'calendar' && (
-            <>
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
-                <span className="ml-3 text-lg text-yellow-600 font-medium">Loading calendar...</span>
-              </div>
-            ) : (
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-              <div className="bg-gradient-to-r from-white to-yellow-300 p-4 flex justify-between items-center">
-                <div className="flex space-x-2">
-                  {/* Extract unique cities from locations and generate legend dynamically */}
-                  {Array.from(new Set(locations.map(loc => {
-                    const cityMatch = loc.match(/^([^,]+)/);
-                    return cityMatch ? cityMatch[1].trim() : '';
-                  }))).filter(Boolean).map((city, index) => {
-                    // Assign colors based on city name
-                    let color = '';
-                    if (city === 'Vancouver') color = 'bg-blue-500';
-                    else if (city === 'Burnaby') color = 'bg-red-500';
-                    else if (city === 'North Vancouver') color = 'bg-yellow-500';
-                    else color = 'bg-green-500'; // Default
-                    
-                    return (
-                      <div key={index} className="flex items-center space-x-1">
-                        <div className={`w-3 h-3 rounded-full ${color}`}></div>
-                        <span className="text-xl text-black">{city}</span>
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Fallback if no locations are available */}
-                  {locations.length === 0 && (
-                    <>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                        <span className="text-xl text-black">Vancouver</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        <span className="text-xl text-black">Burnaby</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <span className="text-xl text-black">North Vancouver</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              <div className="p-4">
-                <div className="calendar-container" style={{ height: '650px' }}>
-                  <FullCalendar
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
-                    headerToolbar={{
-                      left: 'prev,next today',
-                      center: 'title',
-                      right: isMobile ? 'timeGridDay' : 'timeGridWeek,timeGridDay'
-                    }}
-                    slotMinTime={slotMinTime}
-                    slotMaxTime={slotMaxTime}
-                    allDaySlot={false}
-                    events={calendarEvents}
-                    eventTimeFormat={{
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      meridiem: false,
-                      hour12: false
-                    }}
-                    eventClassNames={(arg) => {
-                      const location = arg.event.extendedProps.location;
-                      
-                      // Extract city name from location (assuming format is "City, Address")
-                      const cityMatch = location.match(/^([^,]+)/);
-                      const city = cityMatch ? cityMatch[1].trim() : '';
-                      
-                      // Assign colors based on city name
-                      let baseClasses = [
-                        'rounded-lg',
-                        'shadow-md',
-                        'p-1',
-                        'border-l-4',
-                        'text-xs',
-                        'font-medium'
-                      ];
-                      
-                      if (city === 'Vancouver') {
-                        return [...baseClasses, 'bg-blue-500', 'border-blue-600', 'text-white'];
-                      } else if (city === 'Burnaby') {
-                        return [...baseClasses, 'bg-red-500', 'border-red-600', 'text-white'];
-                      } else if (city === 'North Vancouver') {
-                        return [...baseClasses, 'bg-yellow-500', 'border-yellow-600', 'text-black'];
-                      } else {
-                        return [...baseClasses, 'bg-green-500', 'border-green-600', 'text-white'];
-                      }
-                    }}
-                    eventContent={(eventInfo) => (
-                      <div className="p-1">
-                        <div className="font-bold">{eventInfo.timeText}</div>
-                        <div className="truncate">{eventInfo.event.title}</div>
-                      </div>
-                    )}
-                    eventClick={(info) => {
-                      setSelectedBooking(info.event);
-                      setIsModalOpen(true);
-                    }}
-                    buttonText={{
-                      today: 'Today',
-                      week: 'Week',
-                      day: 'Day'
-                    }}
-                    height="auto"
-                    contentHeight="auto"
-                    aspectRatio={1.35}
-                    dayHeaderClassNames={['text-yellow-600', 'font-semibold', 'py-2']}
-                    slotLabelClassNames={['text-xs', 'text-slate-500']}
-                  />
-                </div>
-              </div>
-            </div>
-            )}
-            </>
-          )}
->>>>>>> Daniel/updatesapril25th
 
 														return (
 															<div key={index} className="flex items-center space-x-1">
