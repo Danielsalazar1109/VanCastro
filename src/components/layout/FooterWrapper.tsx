@@ -6,9 +6,10 @@ import Footer from "@/components/layout/Footer";
 export default function FooterWrapper() {
 	const pathname = usePathname();
 	const isAdminPage = pathname?.startsWith("/admin");
+	const isInstructorPage = pathname?.startsWith("/instructor");
 
 	// Don't render footer on admin pages
-	if (isAdminPage) {
+	if (isAdminPage || isInstructorPage) {
 		return null;
 	}
 

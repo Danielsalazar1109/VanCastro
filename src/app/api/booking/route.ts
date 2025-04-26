@@ -486,6 +486,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     const instructorId = searchParams.get('instructorId');
     const status = searchParams.get('status');
+    const date = searchParams.get('date');
     
     // Build query based on parameters
     const query: any = {};
@@ -500,6 +501,26 @@ export async function GET(request: NextRequest) {
     
     if (status) {
       query.status = status;
+    }
+    
+    // Add date filter if provided
+    if (date) {
+      // Create a date object from the YYYY-MM-DD string
+      const filterDate = new Date(date);
+      
+      // Set time to midnight for the start of the day
+      const startOfDay = new Date(filterDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      // Set time to 23:59:59.999 for the end of the day
+      const endOfDay = new Date(filterDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      // Add date range filter to query
+      query.date = {
+        $gte: startOfDay,
+        $lt: endOfDay
+      };
     }
     
     // Get bookings based on query

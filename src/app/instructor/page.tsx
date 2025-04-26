@@ -7,7 +7,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, FileText, FileSignature } from "lucide-react";
+import { Calendar, LogOut, Clock, MapPin, User, Info, Menu, X, Phone, FileText, FileSignature, LoaderIcon } from "lucide-react";
 import LoadingComponent from "@/components/layout/Loading";
 import { IBooking } from "@/models/Booking";
 import DocumentUpload from "@/components/forms/DocumentUpload";
@@ -280,14 +280,14 @@ export default function InstructorDashboard() {
         setSelectedDate(todayFormatted);
         
         // Ensure loading state is true for a minimum time to prevent flickering
-        const minLoadingTime = 2000; // 2 second minimum loading time
+        const minLoadingTime = 500; // 0.5 second minimum loading time
         const loadingStartTime = Date.now();
         
-        // Fetch all bookings and filter for today
+        // Fetch bookings for today with server-side filtering
         const fetchAndFilterTodayBookings = async () => {
           try {
-            // Fetch all approved bookings for this instructor
-            const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+            // Fetch approved bookings for this instructor for today's date
+            const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${todayFormatted}`);
             
             if (!response.ok) {
               throw new Error(`API error: ${response.status}`);
@@ -298,14 +298,8 @@ export default function InstructorDashboard() {
             // Ensure we have a valid bookings array
             const allInstructorBookings = Array.isArray(data.bookings) ? data.bookings : [];
             
-            // Client-side filtering to show only bookings for today
-            const todayBookings = allInstructorBookings.filter((booking: Booking) => {
-              // Extract just the YYYY-MM-DD part from the booking date
-              const bookingDateStr = booking.date.split('T')[0];
-              
-              // Direct string comparison of dates in YYYY-MM-DD format
-              return todayFormatted === bookingDateStr;
-            });
+            // No need for client-side filtering as we're filtering on the server
+            const todayBookings = allInstructorBookings;
             
             // Calculate how much time has passed since loading started
             const elapsedTime = Date.now() - loadingStartTime;
@@ -651,10 +645,10 @@ export default function InstructorDashboard() {
         if (date === 'all') {
           fetchBookings(false);
         } else {
-          // Fetch all bookings for this instructor and filter client-side
+          // Fetch bookings for the selected date with server-side filtering
           const fetchAndFilterBookings = async () => {
             try {
-              const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+              const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${date}`);
               
               if (!response.ok) {
                 throw new Error(`API error: ${response.status}`);
@@ -665,14 +659,8 @@ export default function InstructorDashboard() {
               // Ensure we have a valid bookings array
               const allInstructorBookings = Array.isArray(data.bookings) ? data.bookings : [];
               
-              // Client-side filtering to show only bookings for the selected date
-              const dateFilteredBookings = allInstructorBookings.filter((booking: Booking) => {
-                // Extract just the YYYY-MM-DD part from the booking date
-                const bookingDateStr = booking.date.split('T')[0];
-                
-                // Direct string comparison of dates in YYYY-MM-DD format
-                return date === bookingDateStr;
-              });
+              // No need for client-side filtering as we're filtering on the server
+              const dateFilteredBookings = allInstructorBookings;
               
               // Calculate how much time has passed since loading started
               const elapsedTime = Date.now() - loadingStartTime;
@@ -751,7 +739,9 @@ export default function InstructorDashboard() {
   
   // Only show full-page loading for initial authentication check
   if (status === 'loading') {
-    return <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />;
+    return (
+     <LoadingComponent showText={false} />
+    );
   }
   
   if (error) {
@@ -932,42 +922,11 @@ export default function InstructorDashboard() {
               </div>
             </div>
               
-              {/* Show skeleton loader when loading bookings */}
+              {/* Show spinner when loading bookings */}
               {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {[...Array(6)].map((_, index) => (
-                    <div 
-                      key={index}
-                      className="border-l-4 border-gray-200 rounded-2xl shadow-md p-5 relative overflow-hidden animate-pulse"
-                    >
-                      <div className="absolute -right-4 -top-4 bg-gray-100 w-16 h-16 rounded-full"></div>
-                      <div className="absolute -right-2 -bottom-2 bg-gray-100 w-12 h-12 rounded-full"></div>
-                      
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
-                          <div className="h-4 bg-gray-200 rounded w-24"></div>
-                        </div>
-                        <div className="h-6 bg-gray-200 rounded w-20"></div>
-                      </div>
-                      
-                      <div className="mb-3">
-                        <div className="h-6 bg-gray-200 rounded w-32 mb-1"></div>
-                        <div className="h-4 bg-gray-200 rounded w-40"></div>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
-                          <div className="h-4 bg-gray-200 rounded w-24"></div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
-                          <div className="h-4 bg-gray-200 rounded w-20"></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex justify-center items-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+                  <span className="ml-3 text-lg text-yellow-600 font-medium">Loading bookings...</span>
                 </div>
               ) : showNoBookingsMessage || bookings.length === 0 ? (
                 <div className="text-center py-10 bg-slate-50 rounded-lg">
@@ -1119,7 +1078,8 @@ export default function InstructorDashboard() {
             <>
             {loading ? (
               <div className="flex justify-center items-center h-64">
-                <LoadingComponent gifUrl="https://media.tenor.com/75ffA59OV-sAAAAM/broke-down-red-car.gif" />
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+                <span className="ml-3 text-lg text-yellow-600 font-medium">Loading calendar...</span>
               </div>
             ) : (
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
