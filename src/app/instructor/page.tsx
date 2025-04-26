@@ -134,11 +134,9 @@ export default function InstructorDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // Start with loading state true to show loading indicator immediately
+  // Simplified loading state management
   const [loading, setLoading] = useState<boolean>(true);
-  // Track if initial data loading is complete
   const [initialDataLoaded, setInitialDataLoaded] = useState<boolean>(false);
-  // Add a separate state for extended loading when no bookings are found
   const [showNoBookingsMessage, setShowNoBookingsMessage] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("bookings");
@@ -149,6 +147,8 @@ export default function InstructorDashboard() {
   const [isMobile, setIsMobile] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  // Cache state
+  const [bookingsCache, setBookingsCache] = useState<{[key: string]: {data: Booking[], timestamp: number}}>({});
   // Format today's date in YYYY-MM-DD format for consistency
   const getTodayFormatted = () => {
     const today = new Date();
@@ -246,103 +246,29 @@ export default function InstructorDashboard() {
 
   useEffect(() => {
     if (instructorId) {
-      if (activeTab === 'bookings') {
-        // Check if we've already loaded the data and it's not a page refresh
-        const shouldFetchData = !initialDataLoaded || isPageRefresh();
+      if (activeTab === "bookings") {
+        // Only set selected date to today and fetch bookings for today
+        // when the component first loads or when switching to the bookings tab
+        const isFirstLoad = !initialDataLoaded;
         
-        if (shouldFetchData) {
-          // Set loading state immediately to show loading indicator
-          setLoading(true);
-          
-          // Get today's formatted date using our helper function
+        if (isFirstLoad) {
+          // Get today's formatted date
           const todayFormatted = getTodayFormatted();
           
-          // Set selected date to today
+          // Set selected date to today only on first load
           setSelectedDate(todayFormatted);
           
-          // Ensure loading state is true for a minimum time to prevent flickering
-          const minLoadingTime = 500; // 0.5 second minimum loading time
-          const loadingStartTime = Date.now();
+          // Fetch bookings for today
+          fetchBookingsForDate(todayFormatted);
           
-          // Check if we have cached bookings for today
-          const cachedBookingsKey = `instructor_bookings_${instructorId}_${todayFormatted}`;
-          const cachedBookings = localStorage.getItem(cachedBookingsKey);
-          
-          if (cachedBookings && !isPageRefresh()) {
-            // Use cached bookings if available and not a page refresh
-            const parsedBookings = JSON.parse(cachedBookings);
-            
-            // Immediately update state with cached bookings without showing loading spinner
-            setBookings(parsedBookings);
-            
-            // Update the showNoBookingsMessage state based on the bookings
-            if (parsedBookings.length === 0) {
-              setShowNoBookingsMessage(true);
-            } else {
-              setShowNoBookingsMessage(false);
-            }
-            
-            // Mark initial data as loaded
-            setInitialDataLoaded(true);
-            
-            // Set loading to false immediately since we're using cached data
-            setLoading(false);
-          } else {
-            // Fetch bookings for today with server-side filtering
-            const fetchAndFilterTodayBookings = async () => {
-              try {
-                // Fetch approved bookings for this instructor for today's date
-                const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${todayFormatted}`);
-                
-                if (!response.ok) {
-                  throw new Error(`API error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                // Ensure we have a valid bookings array
-                const allInstructorBookings = Array.isArray(data.bookings) ? data.bookings : [];
-                
-                // No need for client-side filtering as we're filtering on the server
-                const todayBookings = allInstructorBookings;
-                
-                // Cache the bookings in localStorage
-                localStorage.setItem(cachedBookingsKey, JSON.stringify(todayBookings));
-                
-                // Calculate how much time has passed since loading started
-                const elapsedTime = Date.now() - loadingStartTime;
-                const remainingLoadingTime = Math.max(0, minLoadingTime - elapsedTime);
-                
-                // Use setTimeout to ensure minimum loading time
-                setTimeout(() => {
-                  // First update the bookings state
-                  setBookings(todayBookings);
-                  
-                  // Then update the showNoBookingsMessage state based on the bookings
-                  if (todayBookings.length === 0) {
-                    setShowNoBookingsMessage(true);
-                  } else {
-                    setShowNoBookingsMessage(false);
-                  }
-                  
-                  // Mark initial data as loaded
-                  setInitialDataLoaded(true);
-                  
-                  // Finally, set loading to false
-                  setLoading(false);
-                }, remainingLoadingTime);
-              } catch (error) {
-                console.error('Error fetching and filtering today\'s bookings:', error);
-                setError("Failed to load bookings");
-                setLoading(false);
-                setInitialDataLoaded(true);
-              }
-            };
-            
-            fetchAndFilterTodayBookings();
-          }
+          // Mark initial data as loaded
+          setInitialDataLoaded(true);
+        } else {
+          // On tab switch, fetch bookings for the currently selected date
+          // instead of resetting to today
+          fetchBookingsForDate(selectedDate);
         }
-      } else if (activeTab === 'calendar') {
+      } else if (activeTab === "calendar") {
         // Only fetch availability when on calendar tab
         fetchInstructorAvailability();
         
@@ -353,9 +279,59 @@ export default function InstructorDashboard() {
         }
       }
     }
-  }, [instructorId, activeTab, initialDataLoaded]);
-  
-  // Listen for signature updates from ContractSignModal and booking approvals via SSE
+  }, [instructorId, activeTab]); // Removed calendarEvents from dependencies
+
+  // Optimized function to fetch bookings for a specific date
+  const fetchBookingsForDate = async (date: string) => {
+    // Set loading state
+    setLoading(true);
+    
+    try {
+      // Check if we have a recent cache (less than 5 minutes old)
+      const cacheKey = `${instructorId}_${date}`;
+      const currentTime = Date.now();
+      const cachedData = bookingsCache[cacheKey];
+      const isCacheValid = cachedData && (currentTime - cachedData.timestamp < 5 * 60 * 1000);
+      
+      if (isCacheValid && !isPageRefresh()) {
+        // Use cached data
+        setBookings(cachedData.data);
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch approved bookings for this instructor for the specified date
+      const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved&date=${date}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Ensure we have a valid bookings array
+      const bookingsData = Array.isArray(data.bookings) ? data.bookings : [];
+      
+      // Update cache
+      setBookingsCache(prevCache => ({
+        ...prevCache,
+        [cacheKey]: {
+          data: bookingsData,
+          timestamp: currentTime
+        }
+      }));
+      
+      // Update state
+      setBookings(bookingsData);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching bookings for date:', error);
+      setError("Failed to load bookings");
+      setLoading(false);
+    }
+  };
+
+  // Listen for signature updates and booking approvals
   useEffect(() => {
     // Handle signature updates
     const handleSignatureUpdate = (event: MessageEvent) => {
@@ -573,178 +549,7 @@ export default function InstructorDashboard() {
 		}
 	}, [status, session, router]);
 
-	// Single optimized data fetching based on active tab
-	useEffect(() => {
-		if (instructorId) {
-			if (activeTab === "bookings") {
-				// Set loading state immediately to show loading indicator
-				setLoading(true);
-
-				// Get today's formatted date using our helper function
-				const todayFormatted = getTodayFormatted();
-
-				// Set selected date to today
-				setSelectedDate(todayFormatted);
-
-				// Ensure loading state is true for a minimum time to prevent flickering
-				const minLoadingTime = 2000; // 2 second minimum loading time
-				const loadingStartTime = Date.now();
-
-				// Fetch all bookings and filter for today
-				const fetchAndFilterTodayBookings = async () => {
-					try {
-						// Fetch all approved bookings for this instructor
-						const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
-
-						if (!response.ok) {
-							throw new Error(`API error: ${response.status}`);
-						}
-
-						const data = await response.json();
-
-						// Ensure we have a valid bookings array
-						const allInstructorBookings = Array.isArray(data.bookings) ? data.bookings : [];
-
-						// Client-side filtering to show only bookings for today
-						const todayBookings = allInstructorBookings.filter((booking: Booking) => {
-							// Extract just the YYYY-MM-DD part from the booking date
-							const bookingDateStr = booking.date.split("T")[0];
-
-							// Direct string comparison of dates in YYYY-MM-DD format
-							return todayFormatted === bookingDateStr;
-						});
-
-						// Calculate how much time has passed since loading started
-						const elapsedTime = Date.now() - loadingStartTime;
-						const remainingLoadingTime = Math.max(0, minLoadingTime - elapsedTime);
-
-						// Use setTimeout to ensure minimum loading time
-						setTimeout(() => {
-							// First update the bookings state
-							setBookings(todayBookings);
-
-							// Then update the showNoBookingsMessage state based on the bookings
-							if (todayBookings.length === 0) {
-								setShowNoBookingsMessage(true);
-							} else {
-								setShowNoBookingsMessage(false);
-							}
-
-							// Mark initial data as loaded
-							setInitialDataLoaded(true);
-
-							// Finally, set loading to false
-							setLoading(false);
-						}, remainingLoadingTime);
-					} catch (error) {
-						console.error("Error fetching and filtering today's bookings:", error);
-						setError("Failed to load bookings");
-						setLoading(false);
-						setInitialDataLoaded(true);
-					}
-				};
-
-				fetchAndFilterTodayBookings();
-			} else if (activeTab === "calendar") {
-				// Only fetch availability when on calendar tab
-				fetchInstructorAvailability();
-				fetchBookings(false);
-			}
-		}
-	}, [instructorId, activeTab]);
-
-	// Listen for signature updates from ContractSignModal and booking approvals via SSE
-	useEffect(() => {
-		// Handle signature updates
-		const handleSignatureUpdate = (event: MessageEvent) => {
-			// Check if the message is a signature update
-			if (event.data && event.data.type === "SIGNATURE_UPDATED") {
-				console.log("Signature update detected in instructor view:", event.data);
-
-				// Refresh bookings data if we're on the bookings tab
-				if (activeTab === "bookings" && instructorId) {
-					fetchBookings();
-
-					// Re-apply date filter
-					filterBookingsByDate(selectedDate);
-				}
-			}
-		};
-
-		// Add event listener for signature updates
-		window.addEventListener("message", handleSignatureUpdate);
-
-		// Set up SSE connection for real-time booking updates
-		let eventSource: EventSource | null = null;
-
-		if (instructorId) {
-			try {
-				// Create SSE connection with instructorId as query parameter
-				const sseUrl = `/api/socket?instructorId=${instructorId}`;
-				eventSource = new EventSource(sseUrl);
-
-				eventSource.onopen = () => {
-					console.log("SSE connection established");
-				};
-
-				eventSource.addEventListener("message", (event) => {
-					try {
-						const data = JSON.parse(event.data);
-
-						// Handle connection confirmation
-						if (data.type === "CONNECTED") {
-							console.log("Connected to SSE server:", data);
-						}
-
-						// Handle booking approval updates
-						if (data.type === "BOOKING_APPROVED" && data.instructorId === instructorId) {
-							console.log("Booking approval detected:", data);
-
-							// Refresh bookings data if we're on the bookings tab
-							if (activeTab === "bookings") {
-								fetchBookings(false);
-
-								// Re-apply date filter
-								filterBookingsByDate(selectedDate);
-							} else if (activeTab === "calendar") {
-								// Just update the calendar events
-								fetchBookings(false);
-							}
-						}
-					} catch (error) {
-						console.error("Error parsing SSE message:", error);
-					}
-				});
-
-				eventSource.onerror = (error) => {
-					console.error("SSE error:", error);
-
-					// Attempt to reconnect after a delay
-					setTimeout(() => {
-						if (eventSource) {
-							eventSource.close();
-
-							// Create a new connection
-							const newSseUrl = `/api/socket?instructorId=${instructorId}`;
-							eventSource = new EventSource(newSseUrl);
-						}
-					}, 5000);
-				};
-			} catch (error) {
-				console.error("Error setting up SSE:", error);
-			}
-		}
-
-		// Clean up
-		return () => {
-			window.removeEventListener("message", handleSignatureUpdate);
-
-			// Close SSE connection
-			if (eventSource) {
-				eventSource.close();
-			}
-		};
-	}, [activeTab, instructorId, selectedDate]);
+	// Removed duplicate useEffect hook to fix syntax errors and optimize loading
 
 	useEffect(() => {
 		if (bookings.length > 0) {
@@ -830,14 +635,21 @@ export default function InstructorDashboard() {
 		try {
 			if (showLoading) setLoading(true);
 
-			// Add a timeout to ensure loading state is visible
-			const fetchPromise = fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
+			// Check cache first
+			const cacheKey = `all_bookings_${instructorId}`;
+			const currentTime = Date.now();
+			const cachedData = bookingsCache[cacheKey];
+			const isCacheValid = cachedData && (currentTime - cachedData.timestamp < 5 * 60 * 1000);
+			
+			if (isCacheValid && !isPageRefresh()) {
+				// Use cached data
+				setBookings(cachedData.data);
+				if (showLoading) setLoading(false);
+				return;
+			}
 
-			// Use Promise.race to handle potential timeout
-			const response = (await Promise.race([
-				fetchPromise,
-				new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 10000)),
-			])) as Response;
+			// Fetch data directly without timeout
+			const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
 
 			if (!response.ok) {
 				throw new Error(`API error: ${response.status}`);
@@ -848,14 +660,23 @@ export default function InstructorDashboard() {
 			// Ensure we have a valid bookings array
 			const newBookings = Array.isArray(data.bookings) ? data.bookings : [];
 
-			// Simpler update logic - always update if we have data
+			// Update cache
+			setBookingsCache(prevCache => ({
+				...prevCache,
+				[cacheKey]: {
+					data: newBookings,
+					timestamp: currentTime
+				}
+			}));
+
+			// Update state
 			setBookings(newBookings);
 
-			// Ensure loading is set to false
+			// Set loading to false
 			if (showLoading) setLoading(false);
 		} catch (error) {
 			console.error("Error fetching bookings:", error);
-			// Always reset loading state on error
+			// Reset loading state on error
 			setLoading(false);
 			setError("Failed to load bookings. Please try again.");
 		}
@@ -939,82 +760,20 @@ export default function InstructorDashboard() {
 
 	// Cancel and reschedule functionality removed as requested
 
-	// Optimized function to filter bookings by selected date - uses client-side filtering
+	// Optimized function to filter bookings by selected date - uses server-side filtering
 	const filterBookingsByDate = (date: string) => {
-		// Set loading state to true for better UX
+		// Set loading state to true
 		setLoading(true);
 
 		// Update selected date immediately for UI feedback
 		setSelectedDate(date);
 
-		// Ensure loading state is true for a minimum time to prevent flickering
-		const minLoadingTime = 1000; // 1 second minimum loading time
-		const loadingStartTime = Date.now();
-
-		// Use setTimeout to create a small delay for smoother transitions
-		setTimeout(() => {
-			try {
-				// Fetch all bookings if we don't have them already or if requesting all bookings
-				if (date === "all") {
-					fetchBookings(false);
-				} else {
-					// Fetch all bookings for this instructor and filter client-side
-					const fetchAndFilterBookings = async () => {
-						try {
-							const response = await fetch(`/api/booking?instructorId=${instructorId}&status=approved`);
-
-							if (!response.ok) {
-								throw new Error(`API error: ${response.status}`);
-							}
-
-							const data = await response.json();
-
-							// Ensure we have a valid bookings array
-							const allInstructorBookings = Array.isArray(data.bookings) ? data.bookings : [];
-
-							// Client-side filtering to show only bookings for the selected date
-							const dateFilteredBookings = allInstructorBookings.filter((booking: Booking) => {
-								// Extract just the YYYY-MM-DD part from the booking date
-								const bookingDateStr = booking.date.split("T")[0];
-
-								// Direct string comparison of dates in YYYY-MM-DD format
-								return date === bookingDateStr;
-							});
-
-							// Calculate how much time has passed since loading started
-							const elapsedTime = Date.now() - loadingStartTime;
-							const remainingLoadingTime = Math.max(0, minLoadingTime - elapsedTime);
-
-							// Use setTimeout to ensure minimum loading time
-							setTimeout(() => {
-								// Update state with filtered bookings
-								setBookings(dateFilteredBookings);
-
-								// Only show "No approved bookings" message if there are truly no bookings
-								if (dateFilteredBookings.length === 0) {
-									setShowNoBookingsMessage(true);
-								} else {
-									setShowNoBookingsMessage(false);
-								}
-
-								// Set loading to false after operation is complete
-								setLoading(false);
-							}, remainingLoadingTime);
-						} catch (error) {
-							console.error("Error fetching and filtering bookings:", error);
-							setError("Failed to load bookings");
-							setLoading(false);
-						}
-					};
-
-					fetchAndFilterBookings();
-				}
-			} catch (error) {
-				console.error("Error filtering bookings by date:", error);
-				setError("Failed to load bookings");
-				setLoading(false);
-			}
-		}, 300); // 300ms delay for a smooth transition
+		// Use server-side filtering for efficiency
+		if (date === "all") {
+			fetchBookings(false);
+		} else {
+			fetchBookingsForDate(date);
+		}
 	};
 
 	// State variables for modals
@@ -1276,7 +1035,7 @@ export default function InstructorDashboard() {
 											Loading bookings...
 										</span>
 									</div>
-								) : showNoBookingsMessage || bookings.length === 0 ? (
+								) : bookings.length === 0 ? (
 									<div className="text-center py-10 bg-slate-50 rounded-lg">
 										<p className="text-slate-500">No approved bookings found for this date.</p>
 									</div>

@@ -242,7 +242,39 @@ export default function AdminDashboard() {
 		};
 	};
 
-	// Filter bookings by selected date
+	// Cache state for bookings
+	const [bookingsCache, setBookingsCache] = useState<{[key: string]: {data: Booking[], timestamp: number}}>({});
+	
+	// Check if page was refreshed or if user is returning to the page
+	const isPageRefresh = () => {
+		if (typeof window !== 'undefined') {
+			// Get the current timestamp
+			const currentTime = Date.now();
+			
+			// Get the last time the page was active
+			const lastActiveTime = sessionStorage.getItem('lastActiveTime');
+			
+			// When the page loads, set the current timestamp in sessionStorage
+			sessionStorage.setItem('lastActiveTime', currentTime.toString());
+			
+			// If there's no lastActiveTime, this is the first load
+			if (!lastActiveTime) {
+				return true;
+			}
+			
+			// If the time difference is greater than 30 seconds, consider it a "return to page"
+			const timeDifference = currentTime - parseInt(lastActiveTime);
+			if (timeDifference > 30000) { // 30 seconds
+				return true;
+			}
+			
+			// Check for actual page refresh using performance API
+			return performance.navigation?.type === 1;
+		}
+		return false;
+	};
+	
+	// Optimized function to filter bookings by selected date
 	const filterBookingsByDate = (date: string) => {
 		// Set loading state to true
 		setIsDateFilterLoading(true);
@@ -250,31 +282,66 @@ export default function AdminDashboard() {
 		// Set the selected date immediately for UI feedback
 		setSelectedDate(date);
 
-		// Use setTimeout to create a small delay for better UX
-		setTimeout(() => {
-			if (date === "all") {
-				// Show all bookings
-				setFilteredBookings([]);
-				setIsDateFiltered(false);
-			} else {
-				// Filter bookings to only include those for the selected date
-				const filteredBookings = allBookings.filter((booking: Booking) => {
-					// Handle dates like "2025-03-24T00:00:00.000+00:00"
-					// Extract just the YYYY-MM-DD part from the booking date
-					const bookingDateStr = booking.date.split("T")[0];
-
-					// Compare the date strings directly
-					return bookingDateStr === date;
-				});
-
-				// Update state with filtered bookings
-				setFilteredBookings(filteredBookings || []);
-				setIsDateFiltered(true);
-			}
-
-			// Set loading state back to false
+		if (date === "all") {
+			// Show all bookings
+			setFilteredBookings([]);
+			setIsDateFiltered(false);
 			setIsDateFilterLoading(false);
-		}, 500); // 500ms delay for a smooth transition
+		} else {
+			// Check cache first
+			const cacheKey = `filtered_bookings_${date}`;
+			const currentTime = Date.now();
+			const cachedData = bookingsCache[cacheKey];
+			const isCacheValid = cachedData && (currentTime - cachedData.timestamp < 5 * 60 * 1000);
+			
+			if (isCacheValid && !isPageRefresh()) {
+				// Use cached data
+				setFilteredBookings(cachedData.data);
+				setIsDateFiltered(true);
+				setIsDateFilterLoading(false);
+				return;
+			}
+			
+			// Server-side filtering is more efficient
+			fetch(`/api/booking?status=approved&date=${date}`)
+				.then(response => {
+					if (!response.ok) {
+						throw new Error(`API error: ${response.status}`);
+					}
+					return response.json();
+				})
+				.then(data => {
+					// Ensure we have a valid bookings array
+					const filteredData = Array.isArray(data.bookings) ? data.bookings : [];
+					
+					// Update cache
+					setBookingsCache(prevCache => ({
+						...prevCache,
+						[cacheKey]: {
+							data: filteredData,
+							timestamp: currentTime
+						}
+					}));
+					
+					// Update state
+					setFilteredBookings(filteredData);
+					setIsDateFiltered(true);
+					setIsDateFilterLoading(false);
+				})
+				.catch(error => {
+					console.error("Error fetching filtered bookings:", error);
+					
+					// Fallback to client-side filtering if server-side fails
+					const filteredBookings = allBookings.filter((booking: Booking) => {
+						const bookingDateStr = booking.date.split("T")[0];
+						return bookingDateStr === date;
+					});
+					
+					setFilteredBookings(filteredBookings || []);
+					setIsDateFiltered(true);
+					setIsDateFilterLoading(false);
+				});
+		}
 	};
 	const [isSmallScreen, setIsSmallScreen] = useState(false);
 	const [isNarrowCalendar, setIsNarrowCalendar] = useState(false);
