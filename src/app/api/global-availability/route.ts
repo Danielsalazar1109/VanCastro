@@ -73,15 +73,6 @@ export async function POST(request: NextRequest) {
     // Connect to the database
     await connectToDatabase();
     
-    // Check if user is authenticated and has admin role
-    const session = await getServerSession();
-    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Only admins can manage global availability settings.' },
-        { status: 403 }
-      );
-    }
-    
     // Parse the request body
     const body = await request.json();
     const { day, startTime, endTime, isAvailable, startDate, endDate } = body;
@@ -140,15 +131,6 @@ export async function PUT(request: NextRequest) {
   try {
     // Connect to the database
     await connectToDatabase();
-    
-    // Check if user is authenticated and has admin role
-    const session = await getServerSession();
-    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Only admins can manage global availability settings.' },
-        { status: 403 }
-      );
-    }
     
     // Parse the request body
     const body = await request.json();
