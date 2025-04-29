@@ -43,7 +43,7 @@ export default function HeroSection() {
 						<div className="flex items-center justify-center -mt-4" style={{ height: "450px" }}>
 							<div className="relative" style={{ width: "480px", height: "306px" }}>
 								<img
-									src="https://s3-alpha-sig.figma.com/img/ae0d/e3f7/92ee57e923f9a1bed04bc3cab9107c88?Expires=1745193600&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=DvKnR7HzF5rxW-RmQwkN8lAY6om48CaJcfU1k8mhupu2K2ICmStHJeyYu27BZB2c71Gwf-oxLHgaT~Qu3ut3Xn~PPUV0Ol~89O86jCFxaEs3u2tA2W7S5-BcyeeKeiHyj4X3oHjSqTypdrksUJcVGakvmXBksX9G94yiY5i4A3rpIZooPFwW5HT7GTX5E-I6E06fWcZWUnFp-ve5MnnDJC8X6eLbOGEHyQl7EW5s~~9JvlCFz~lVn5RWRmfg1IO3CLEc-HLBWJhGrphh80j8N92Eq-UgNx0mudhD221sxC3PcIdxudJfIGr3v~2c0Or1unBeo~cbLmWTiMMUGCS0Cw__"
+									src="https://framerusercontent.com/images/rg3j95LuVkjaG0EvDyrkQfIg.gif"
 									alt="Car on road"
 									className="w-full h-full object-contain"
 								/>
