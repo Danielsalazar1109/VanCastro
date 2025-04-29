@@ -10,6 +10,18 @@ const sortDaysByWeekOrder = (a: { day: string }, b: { day: string }): number => 
   return DAYS_OF_WEEK.indexOf(a.day) - DAYS_OF_WEEK.indexOf(b.day);
 };
 
+// Helper function to format date without timezone shift
+const formatDateWithoutTimezoneShift = (dateString: string): string => {
+  // Parse the date parts from the YYYY-MM-DD format
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+  
+  // Create a date object with the correct date (without timezone adjustment)
+  const date = new Date(year, month - 1, day);
+  
+  // Format the date for display
+  return date.toLocaleDateString();
+};
+
 interface GlobalAvailability {
   _id?: string;
   day: string;
@@ -226,8 +238,12 @@ export default function GlobalAvailabilityManager() {
     );
     
     if (settingsToEdit.length > 0) {
-      setSpecialStartDate(startDate);
-      setSpecialEndDate(endDate);
+      // Ensure dates are in YYYY-MM-DD format for date inputs
+      const formattedStartDate = startDate.split('T')[0]; // Extract just the date part
+      const formattedEndDate = endDate.split('T')[0]; // Extract just the date part
+      
+      setSpecialStartDate(formattedStartDate);
+      setSpecialEndDate(formattedEndDate);
       setNewSpecialSettings(settingsToEdit);
       setShowSpecialForm(true);
       setIsEditMode(true);
@@ -294,7 +310,7 @@ export default function GlobalAvailabilityManager() {
       setEditingDateRange(null);
       
       const actionText = isEditMode ? 'updated' : 'saved';
-      setSuccessMessage(`Special availability settings ${actionText} successfully for ${new Date(specialStartDate).toLocaleDateString()} to ${new Date(specialEndDate).toLocaleDateString()}.`);
+      setSuccessMessage(`Special availability settings ${actionText} successfully for ${formatDateWithoutTimezoneShift(specialStartDate)} to ${formatDateWithoutTimezoneShift(specialEndDate)}.`);
       setSavingSpecial(false);
       
       // Clear success message after 5 seconds
@@ -526,7 +542,7 @@ export default function GlobalAvailabilityManager() {
                         <tr key={key}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {new Date(group.startDate).toLocaleDateString()} - {new Date(group.endDate).toLocaleDateString()}
+                              {formatDateWithoutTimezoneShift(group.startDate)} - {formatDateWithoutTimezoneShift(group.endDate)}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -690,7 +706,7 @@ export default function GlobalAvailabilityManager() {
                   )}
                   <div className="mb-4">
                     <h4 className="font-medium text-gray-700 mb-2">
-                      {isEditMode ? 'Edit' : 'Create'} Special Schedule for {new Date(specialStartDate).toLocaleDateString()} - {new Date(specialEndDate).toLocaleDateString()}
+                      {isEditMode ? 'Edit' : 'Create'} Special Schedule for {formatDateWithoutTimezoneShift(specialStartDate)} - {formatDateWithoutTimezoneShift(specialEndDate)}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
                       {[...newSpecialSettings].sort(sortDaysByWeekOrder).map((day, index) => (

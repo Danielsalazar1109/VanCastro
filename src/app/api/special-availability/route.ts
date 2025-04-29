@@ -23,6 +23,15 @@ export async function GET(request: NextRequest) {
     // Connect to the database
     await connectToDatabase();
     
+    // Check if user is authenticated and has admin role
+    const session = await getServerSession();
+    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Only admins can manage special availability settings.' },
+        { status: 403 }
+      );
+    }
+    
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
     const checkDate = searchParams.get('checkDate');
