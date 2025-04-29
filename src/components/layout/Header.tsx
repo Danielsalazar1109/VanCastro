@@ -9,9 +9,9 @@ import { useState, useEffect } from "react";
 const publicNavLinks = [
 	{ href: "/", label: "Home" },
 	{ href: "/plans", label: "Plans" },
-	{ href: "/booking", label: "Booking" },
 	{ href: "/faq", label: "FAQ" },
 	{ href: "/contact", label: "Contact" }
+	// Booking removed from here to control its position separately
 ];
 
 export default function Header() {
@@ -89,52 +89,85 @@ export default function Header() {
 		}
 
 		// Para usuarios no autenticados, mostrar todos los enlaces públicos
-		return (
-			<>
-				{publicNavLinks.map((link) => (
-					<li key={link.href}>
-						{link.label === "Booking" ? (
+		if (isMobile) {
+			// For mobile: Booking first, then other links, then login
+			return (
+				<>
+					{/* Booking button first for mobile */}
+					<li className="mb-4">
+						<Link
+							href="/booking"
+							onClick={() => setIsMenuOpen(false)}
+							className="block"
+						>
+							<button className="bg-brand-yellow text-brand-dark px-4 py-3 rounded-md hover:bg-yellow-400 transition-colors duration-200 w-full text-left text-lg font-medium">
+								Booking
+							</button>
+						</Link>
+					</li>
+					
+					{/* Other navigation links */}
+					{publicNavLinks.map((link) => (
+						<li key={link.href}>
 							<Link
 								href={link.href}
-								className={isMobile ? "block" : ""}
-								onClick={() => isMobile && setIsMenuOpen(false)}
-							>
-								<button className={`bg-brand-yellow text-brand-dark px-4 py-${isMobile ? "3" : "2"} rounded-md hover:bg-yellow-400 transition-colors duration-200 ${
-									isMobile ? "w-full text-left text-lg font-medium" : ""
-								}`}>
-									{link.label}
-								</button>
-							</Link>
-						) : (
-							<Link
-								href={link.href}
-								className={
-									isMobile
-										? "text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-										: "text-white hover:text-yellow-500 transition-colors duration-200"
-								}
-								onClick={() => isMobile && setIsMenuOpen(false)}
+								className="text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
+								onClick={() => setIsMenuOpen(false)}
 							>
 								{link.label}
 							</Link>
-						)}
+						</li>
+					))}
+					
+					{/* Login link */}
+					<li>
+						<Link
+							href="/login"
+							className="text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
+							onClick={() => setIsMenuOpen(false)}
+						>
+							Login
+						</Link>
 					</li>
-				))}
-				<li>
-					<Link
-						href="/login"
-						className={
-							isMobile
-								? "text-white hover:text-yellow-500 transition-colors duration-200 block py-3 text-lg font-medium"
-								: "text-white hover:text-yellow-500 transition-colors duration-200"
-						}
-						onClick={() => isMobile && setIsMenuOpen(false)}
-					>
-						Login
-					</Link>
-				</li>
-			</>
-		);
+				</>
+			);
+		} else {
+			// For desktop: Regular links, then login, then booking (at the very end)
+			return (
+				<>
+					{/* Regular navigation links */}
+					{publicNavLinks.map((link) => (
+						<li key={link.href}>
+							<Link
+								href={link.href}
+								className="text-white hover:text-yellow-500 transition-colors duration-200"
+							>
+								{link.label}
+							</Link>
+						</li>
+					))}
+					
+					{/* Login link before booking */}
+					<li>
+						<Link
+							href="/login"
+							className="text-white hover:text-yellow-500 transition-colors duration-200"
+						>
+							Login
+						</Link>
+					</li>
+					
+					{/* Booking button at the very end */}
+					<li>
+						<Link href="/booking">
+							<button className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-md hover:bg-yellow-400 transition-colors duration-200">
+								Booking
+							</button>
+						</Link>
+					</li>
+				</>
+			);
+		}
 	};
 
 	return (
@@ -236,7 +269,7 @@ export default function Header() {
 					</div>
 					<nav className="p-4">
 						<ul className="flex flex-col space-y-4">
-							{renderNavLinks(true)}
+							{status !== "authenticated" && renderNavLinks(true)}
 						</ul>
 					</nav>
 				</div>

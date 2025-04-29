@@ -173,8 +173,13 @@ export default function Tracking() {
     // Update the status map
     setLastBookingStatuses(newStatusMap);
     
-    // Update bookings state
-    setBookings(newBookings);
+    // Filter out rejected and cancelled bookings
+    const filteredBookings = newBookings.filter(
+      booking => booking.status !== 'rejected' && booking.status !== 'cancelled'
+    );
+    
+    // Update bookings state with filtered bookings
+    setBookings(filteredBookings);
   };
 
   // Initial fetch on component mount
