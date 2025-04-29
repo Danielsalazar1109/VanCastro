@@ -2445,6 +2445,7 @@ export default function AdminDashboard() {
 										<table className="min-w-full bg-white border">
 											<thead className="bg-gradient-to-r from-pink-50 to-purple-50">
 												<tr>
+					    <th className="py-3 px-4 border-b text-left text-yellow-700">Date</th>
                         <th className="py-3 px-4 border-b text-left text-yellow-700">Time</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Location</th>
                           <th className="py-3 px-4 border-b text-left text-yellow-700">Instructor</th>
