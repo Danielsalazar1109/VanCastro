@@ -30,7 +30,7 @@ const packages: { [key: string]: Package[] } = {
         "Class 5 or Class 7 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "https://calendly.com/vancastro-anderson/class-4-60min?hide_gdpr_banner=1&primary_color=fec101",
+      link: "/booking",
     },
     {
       title: "Best for Class 4",
@@ -43,13 +43,13 @@ const packages: { [key: string]: Package[] } = {
         "Class 5 or Class 7 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "https://calendly.com/vancastro-anderson/class-4-90min?hide_gdpr_banner=1&primary_color=fec101",
+      link: "/booking",
       popular: true,
     },
     {
       title: "Warm up",
       duration: "Road test",
-      price: "$000",
+      price: "$262",
       features: [
         "90 mins/lesson",
         "Include driving school car",
@@ -57,7 +57,7 @@ const packages: { [key: string]: Package[] } = {
         "Class 5 or Class 7 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "",
+      link: "/booking",
     },
   ],
   Class5: [
@@ -72,7 +72,7 @@ const packages: { [key: string]: Package[] } = {
         "Class 5 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "https://calendly.com/vancastro-anderson/class-5-60min?hide_gdpr_banner=1&primary_color=fec101",
+      link: "/booking",
     },
     {
       title: "Best for Intermediate",
@@ -85,13 +85,13 @@ const packages: { [key: string]: Package[] } = {
         "Class 5 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "https://calendly.com/vancastro-anderson/class-5-90min?hide_gdpr_banner=1&primary_color=fec101",
+      link: "/booking",
       popular: true,
     },
     {
       title: "Road test",
       duration: "Warm up",
-      price: "$000",
+      price: "$157",
       features: [
         "90 mins/lesson",
         "Include driving school car",
@@ -99,7 +99,7 @@ const packages: { [key: string]: Package[] } = {
         "Class 5 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "",
+      link: "/booking",
     },
   ],
   Class7: [
@@ -114,7 +114,7 @@ const packages: { [key: string]: Package[] } = {
         "Class 7 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "https://calendly.com/vancastro-anderson/class-7-60min?hide_gdpr_banner=1&primary_color=fec101",
+      link: "/booking",
     },
     {
       title: "Best for Class 7",
@@ -127,13 +127,13 @@ const packages: { [key: string]: Package[] } = {
         "Class 7 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "https://calendly.com/vancastro-anderson/class-7-90min?hide_gdpr_banner=1&primary_color=fec101",
+      link: "/booking",
       popular: true,
     },
     {
       title: "Road test",
       duration: "Warm up",
-      price: "$000",
+      price: "$262",
       features: [
         "90 mins/lesson",
         "Include driving school car",
@@ -141,7 +141,7 @@ const packages: { [key: string]: Package[] } = {
         "Class 7 license",
         "Available at Vancouver, North Vancouver, Surrey and Burnaby",
       ],
-      link: "",
+      link: "/booking",
     },
   ],
 };
