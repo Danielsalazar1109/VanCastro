@@ -269,7 +269,7 @@ export default function Header() {
 					</div>
 					<nav className="p-4">
 						<ul className="flex flex-col space-y-4">
-							{status !== "authenticated" && renderNavLinks(true)}
+							{renderNavLinks(true)}
 						</ul>
 					</nav>
 				</div>
