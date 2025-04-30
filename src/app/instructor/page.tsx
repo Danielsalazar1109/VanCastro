@@ -142,7 +142,7 @@ export default function InstructorDashboard() {
   const [activeTab, setActiveTab] = useState<string>("bookings");
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [slotMinTime, setSlotMinTime] = useState<string>("08:00:00");
-  const [slotMaxTime, setSlotMaxTime] = useState<string>("17:00:00");
+  const [slotMaxTime, setSlotMaxTime] = useState<string>("19:00:00");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -762,11 +762,13 @@ export default function InstructorDashboard() {
 					});
 
 					if (minStartTime !== "23:59:00") {
-						setSlotMinTime(minStartTime);
+						// Use the earlier time between calculated minStartTime and 8am
+						setSlotMinTime(minStartTime < "08:00:00" ? minStartTime : "08:00:00");
 					}
 
 					if (maxEndTime !== "00:00:00") {
-						setSlotMaxTime(maxEndTime);
+						// Use the later time between calculated maxEndTime and 7pm
+						setSlotMaxTime(maxEndTime > "19:00:00" ? maxEndTime : "19:00:00");
 					}
 				}
 			}

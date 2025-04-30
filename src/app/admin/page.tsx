@@ -512,8 +512,8 @@ export default function AdminDashboard() {
 	const [isAdmin, setIsAdmin] = useState<boolean>(false);
 	const [seedStatus, setSeedStatus] = useState<string>("");
 	const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
-	const [slotMinTime, setSlotMinTime] = useState<string>("00:00");
-	const [slotMaxTime, setSlotMaxTime] = useState<string>("23:59");
+	const [slotMinTime, setSlotMinTime] = useState<string>("08:00");
+	const [slotMaxTime, setSlotMaxTime] = useState<string>("19:00");
 
 	// Check screen size
 	useEffect(() => {
@@ -1315,13 +1315,15 @@ export default function AdminDashboard() {
 					}
 				});
 
-				// Only update if we found valid times
+				// Only update if we found valid times, but ensure we always show at least 8am to 7pm
 				if (minStartTime !== "23:59") {
-					setSlotMinTime(minStartTime);
+					// Use the earlier time between calculated minStartTime and 8am
+					setSlotMinTime(minStartTime < "08:00" ? minStartTime : "08:00");
 				}
 
 				if (maxEndTime !== "00:00") {
-					setSlotMaxTime(maxEndTime);
+					// Use the later time between calculated maxEndTime and 7pm
+					setSlotMaxTime(maxEndTime > "19:00" ? maxEndTime : "19:00");
 				}
 			}
 
