@@ -28,7 +28,7 @@ const FAQPage: React.FC = () => {
           },
           {
             question: 'Late',
-            answer: 'If you are late beyond 15 Minutes, the instructor will leave and you will be considered as a ‘NO SHOW’ lesson (no refund or reschedule for that lesson).'
+            answer: "If you are late beyond 15 Minutes, the instructor will leave and you will be considered as a 'NO SHOW' lesson (no refund or reschedule for that lesson)."
           }
         ]
       },
@@ -185,7 +185,8 @@ const FAQPage: React.FC = () => {
         title: 'I have a driver license from other country, can I use it?',
         items: [
           {
-            answer: 'You can drive for up to 90 days with a driver’s license from another country. To do so, you must have a valid license from your home country, and if it’s not in English, you’ll need a certified translation provided by an ICBC-approved translator.'
+            answer: "You can drive for up to 90 days with a driver's license from another country. To do so, you must have a valid license from your home country, and if it's not in English, you'll need a certified translation provided by an ICBC-approved translator.",
+            alwaysExpanded: true
           },
         ]
       },
@@ -193,7 +194,8 @@ const FAQPage: React.FC = () => {
         title: 'Where will I be picked up for my driving lessons?',
         items: [
           {
-            answer: 'Our instructors can pick you up from your bus or SkyTrain station. If you have other requests, please discuss them with your instructor—they may be able to accommodate you. Additional charges may apply for locations outside the city boundaries.'
+            answer: "Our instructors can pick you up from your bus or SkyTrain station. If you have other requests, please discuss them with your instructor—they may be able to accommodate you. Additional charges may apply for locations outside the city boundaries.",
+            alwaysExpanded: true
           },
         ]
       },
@@ -201,7 +203,8 @@ const FAQPage: React.FC = () => {
         title: 'Method of payment',
         items: [
           {
-            answer: 'Online payment, cash or E-transfer at School'
+            answer: 'Online payment, cash or E-transfer at School',
+            alwaysExpanded: true
           },
         ]
       },
@@ -209,7 +212,8 @@ const FAQPage: React.FC = () => {
         title: 'What lessons do we provide?',
         items: [
           {
-            answer: <p>We offer driving lessons for<strong>Class 5, Class 7</strong> and <strong>Road Testing</strong>.</p>
+            answer: <p>We offer driving lessons for<strong>Class 5, Class 7</strong> and <strong>Road Testing</strong>.</p>,
+            alwaysExpanded: true
           },
         ]
       }

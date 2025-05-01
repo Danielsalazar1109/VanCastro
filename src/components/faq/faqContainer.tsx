@@ -9,6 +9,7 @@ export interface FAQItem {
   question?: string;
   answer: string;
   note?: string;
+  alwaysExpanded?: boolean;
 }
 
 interface FAQContainerProps {
@@ -51,6 +52,7 @@ const FAQContainer: React.FC<FAQContainerProps> = ({ title, items }) => {
               question={item.question} 
               answer={item.answer} 
               note={item.note}
+              alwaysExpanded={item.alwaysExpanded}
             />
           ))}
         </div>
