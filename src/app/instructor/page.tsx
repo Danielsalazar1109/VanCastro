@@ -361,13 +361,13 @@ export default function InstructorDashboard() {
     }
   };
 
-  // Listen for signature updates and booking approvals
+  // Listen for signature updates, document updates, and booking approvals
   useEffect(() => {
-    // Handle signature updates
-    const handleSignatureUpdate = (event: MessageEvent) => {
-      // Check if the message is a signature update
-      if (event.data && event.data.type === 'SIGNATURE_UPDATED') {
-        console.log('Signature update detected in instructor view:', event.data);
+    // Handle signature and document updates
+    const handleDocumentOrSignatureUpdate = (event: MessageEvent) => {
+      // Check if the message is a signature or document update
+      if (event.data && (event.data.type === 'SIGNATURE_UPDATED' || event.data.type === 'DOCUMENT_UPDATED')) {
+        console.log(`${event.data.type} detected in instructor view:`, event.data);
         
         // Refresh bookings data if we're on the bookings tab
         if (activeTab === 'bookings' && instructorId) {
@@ -379,8 +379,8 @@ export default function InstructorDashboard() {
       }
     };
     
-    // Add event listener for signature updates
-    window.addEventListener('message', handleSignatureUpdate);
+    // Add event listener for signature and document updates
+    window.addEventListener('message', handleDocumentOrSignatureUpdate);
     
     // Set up SSE connection for real-time booking updates
     let eventSource: EventSource | null = null;
@@ -445,7 +445,7 @@ export default function InstructorDashboard() {
     
     // Clean up
     return () => {
-      window.removeEventListener('message', handleSignatureUpdate);
+      window.removeEventListener('message', handleDocumentOrSignatureUpdate);
       
       // Close SSE connection
       if (eventSource) {
