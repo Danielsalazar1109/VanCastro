@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 // Rutas públicas que siempre son accesibles
-const publicRoutes = ['/', '/login', '/register', '/plans', '/faq', '/contact', '/contracts', '/privacy-policy', '/complete-profile'];
-const studentRoutes = ['/student', '/tracking', '/booking'];
+const publicRoutes = ['/', '/login', '/register', '/plans', '/faq', '/contact', '/contracts', '/complete-profile'];
+const studentRoutes = ['/student', '/tracking', '/booking','/privacy-policy'];
 const instructorRoutes = ['/instructor'];
 const adminRoutes = ['/admin'];
 
